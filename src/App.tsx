@@ -3,9 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import CRMLayout from "./components/layout/CRMLayout";
 import Dashboard from "./pages/Dashboard";
 import DealsPage from "./pages/DealsPage";
+import DealDetailPage from "./pages/DealDetailPage";
 import ClientsPage from "./pages/ClientsPage";
 import ExposPage from "./pages/ExposPage";
 import FinancePage from "./pages/FinancePage";
@@ -20,10 +22,11 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <HashRouter>
+    <CurrencyProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <HashRouter>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/crm" element={<CRMLayout />}>
@@ -32,6 +35,7 @@ const App = () => (
             <Route path="clients" element={<ClientsPage />} />
             <Route path="booths" element={<BoothsPage />} />
             <Route path="deals" element={<DealsPage />} />
+            <Route path="deals/:id" element={<DealDetailPage />} />
             <Route path="finance" element={<FinancePage />} />
             <Route path="commissions" element={<CommissionsPage />} />
             <Route path="tasks" element={<TasksPage />} />
@@ -43,6 +47,7 @@ const App = () => (
         </Routes>
       </HashRouter>
     </TooltipProvider>
+    </CurrencyProvider>
   </QueryClientProvider>
 );
 
