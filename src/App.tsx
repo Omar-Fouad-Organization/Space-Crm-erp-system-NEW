@@ -11,6 +11,8 @@ import ExposPage from "./pages/ExposPage";
 import FinancePage from "./pages/FinancePage";
 import BoothsPage from "./pages/BoothsPage";
 import TasksPage from "./pages/TasksPage";
+import CommissionsPage from "./pages/CommissionsPage";
+import UsersPage from "./pages/UsersPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -31,7 +33,9 @@ const App = () => (
             <Route path="booths" element={<BoothsPage />} />
             <Route path="deals" element={<DealsPage />} />
             <Route path="finance" element={<FinancePage />} />
+            <Route path="commissions" element={<CommissionsPage />} />
             <Route path="tasks" element={<TasksPage />} />
+            <Route path="users" element={<UsersPage />} />
             <Route index element={<Dashboard />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

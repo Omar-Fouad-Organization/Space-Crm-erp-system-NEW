@@ -70,12 +70,6 @@ const sidebarItems: SidebarItem[] = [
     path: '/crm/booths'
   },
   {
-    id: 'sponsorships',
-    label: 'Sponsorship Packages',
-    icon: Gift,
-    path: '/crm/sponsorships'
-  },
-  {
     id: 'deals',
     label: 'Deals Pipeline',
     icon: TrendingUp,
@@ -95,12 +89,6 @@ const sidebarItems: SidebarItem[] = [
     path: '/crm/commissions'
   },
   {
-    id: 'proposals',
-    label: 'Proposals & Contracts',
-    icon: FileText,
-    path: '/crm/proposals'
-  },
-  {
     id: 'tasks',
     label: 'Tasks & Tickets',
     icon: CheckSquare,
@@ -108,11 +96,10 @@ const sidebarItems: SidebarItem[] = [
     badge: 5
   },
   {
-    id: 'chat',
-    label: 'Internal Chat',
-    icon: MessageSquare,
-    path: '/crm/chat',
-    badge: 3
+    id: 'users',
+    label: 'User Management',
+    icon: User,
+    path: '/crm/users'
   },
   {
     id: 'reports',
