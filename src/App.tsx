@@ -12,7 +12,8 @@ import DealsPage from "./pages/DealsPage";
 import DealDetailPage from "./pages/DealDetailPage";
 import Clients from "./pages/Clients";
 import ClientDetails from "./pages/ClientDetails";
-import ExposPage from "./pages/ExposPage";
+import Expos from "./pages/Expos";
+import ExpoDetail from "./pages/ExpoDetail";
 import FinancePage from "./pages/FinancePage";
 import Booths from "./pages/BoothsPage";
 import BoothDetail from "./pages/BoothDetail";
@@ -38,7 +39,8 @@ const App = () => (
           <Route path="/" element={<CRMLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="expos" element={<ExposPage />} />
+            <Route path="expos" element={<Expos />} />
+            <Route path="expos/:expoId" element={<ExpoDetail />} />
             <Route path="clients" element={<Clients />} />
             <Route path="clients/:id" element={<ClientDetails />} />
             <Route path="booths" element={<Booths />} />
