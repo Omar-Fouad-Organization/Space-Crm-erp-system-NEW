@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'hr': ['hr', 'management', 'super_admin'],
       'finance': ['management', 'hr', 'super_admin'],
       'tasks': ['user', 'sales', 'management', 'hr', 'super_admin'],
+      'contracts': ['user', 'sales', 'management', 'hr', 'super_admin'],
       'user-management': ['hr', 'super_admin'],
       'analytics': ['management', 'hr', 'super_admin'],
       'notifications': ['user', 'sales', 'management', 'hr', 'super_admin'],

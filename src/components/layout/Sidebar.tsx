@@ -60,7 +60,7 @@ const menuSections = [
       { name: 'Meetings', path: '/meetings', icon: Calendar, description: 'Meeting management', page: 'meetings' },
       { name: 'HR & Team', path: '/hr', icon: Users, description: 'Human resources', page: 'hr', roles: ['super_admin', 'hr', 'management'] },
       { name: 'User Management', path: '/users', icon: Users, description: 'User accounts & roles', page: 'user-management', roles: ['super_admin', 'hr'] },
-      { name: 'Contracts', path: '/contracts', icon: FileText, description: 'Legal documents', page: 'deals' },
+      { name: 'Contracts', path: '/contracts', icon: FileText, description: 'Legal documents', page: 'contracts' },
       { name: 'Tasks', path: '/tasks', icon: SquareCheckBig, description: 'Operations tasks', page: 'tasks' },
       { name: 'Chat', path: '/chat', icon: MessageSquare, description: 'Team communication', page: 'tasks' },
       { name: 'Support', path: '/tickets', icon: Ticket, description: 'Client support', page: 'tasks' },

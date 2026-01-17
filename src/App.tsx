@@ -26,6 +26,7 @@ import Payments from "./pages/Payments";
 import ProposalSystem from "./pages/ProposalSystem";
 import Meetings from "./pages/Meetings";
 import HR from "./pages/HR";
+import Documents from "./pages/Documents";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="proposals" element={<ProposalSystem />} />
             <Route path="meetings" element={<Meetings />} />
             <Route path="hr" element={<HR />} />
+            <Route path="contracts" element={<Documents />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
