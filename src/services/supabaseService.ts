@@ -254,8 +254,60 @@ export const boothService = {
 export const dealService = new BaseService<Deal>('deals_2026_01_17_19_00');
 export const taskService = new BaseService<Task>('tasks_2026_01_17_19_00');
 
+// Payment interface
+export interface Payment {
+  id: string;
+  payment_number: string;
+  invoice_number?: string;
+  client_id: string;
+  client_name: string;
+  deal_id?: string;
+  deal_name?: string;
+  deal_type?: string;
+  total_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  currency: string;
+  payment_status: 'Pending' | 'Processing' | 'Completed' | 'Partial' | 'Failed' | 'Cancelled' | 'Refunded';
+  payment_method?: string;
+  due_date?: string;
+  payment_date?: string;
+  transaction_id?: string;
+  reference_number?: string;
+  notes?: string;
+  description?: string;
+  tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Payment Schedule interface
+export interface PaymentSchedule {
+  payment_schedule_id: string;
+  deal_id: string;
+  deal_number: string;
+  deal_title: string;
+  client_name: string;
+  payment_name: string;
+  scheduled_amount: string;
+  currency: string;
+  due_date?: string;
+  paid_date?: string;
+  payment_status: 'Pending' | 'Paid' | 'Overdue' | 'Cancelled';
+  payment_method?: string;
+  urgency_status?: string;
+  days_until_due?: number;
+  payment_description?: string;
+  notes?: string;
+}
+
+// Payment Service
+export const paymentService = new BaseService<Payment>('payments_2026_01_17_19_00');
+
 // Payment Schedule Service
 export const paymentScheduleService = {
+  ...new BaseService<PaymentSchedule>('payment_schedules_2026_01_17_19_00'),
+  
   async create(dealId: string, dealData: any, installments: any[]) {
     console.log('Creating payment schedules for deal:', dealId);
     // Mock implementation - in real app, this would create payment schedule records
