@@ -23,6 +23,7 @@ import UsersPage from "./pages/UsersPage";
 import Sponsorship from "./pages/Sponsorship";
 import Exhibitors from "./pages/Exhibitors";
 import Payments from "./pages/Payments";
+import ProposalSystem from "./pages/ProposalSystem";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="sponsorship" element={<Sponsorship />} />
             <Route path="exhibitors" element={<Exhibitors />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="proposals" element={<ProposalSystem />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
