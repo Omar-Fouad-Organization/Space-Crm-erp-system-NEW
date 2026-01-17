@@ -75,17 +75,40 @@ export interface Exhibition {
 
 export interface Booth {
   id: string;
-  booth_number: string;
+  booth_number?: string;
   booth_code: string;
-  size_sqm: number;
-  base_price: number;
-  total_price: number;
-  status: string;
+  exhibition_id?: string;
+  expo_name?: string;
+  hall?: string;
+  zone?: string;
+  aisle?: string;
+  position?: string;
   booth_type: string;
-  currency?: string;
-  exhibition_id?: string | null;
+  size_sqm: number;
+  width_m?: number;
+  length_m?: number;
+  height_m?: number;
+  status: string;
+  base_price: number;
+  additional_costs?: number;
+  total_price: number;
+  currency: string;
+  assigned_to_company?: string;
+  assigned_to_contact?: string;
+  assigned_to_email?: string;
+  assigned_to_phone?: string;
+  client_id?: string;
+  features?: string[];
+  power_supply?: string;
+  internet_access?: boolean;
+  water_supply?: boolean;
+  compressed_air?: boolean;
+  description?: string;
+  notes?: string;
+  special_requirements?: string;
   created_at: string;
   updated_at?: string;
+  created_by?: string;
 }
 
 export interface Deal {
@@ -211,7 +234,23 @@ class BaseService<T> {
 // Specific service implementations
 export const clientService = new BaseService<Client>('clients_2026_01_17_19_00');
 export const expoService = new BaseService<Exhibition>('exhibitions_2026_01_17_19_00');
-export const boothService = new BaseService<Booth>('booths_2026_01_17_19_00');
+export const boothService = {
+  ...new BaseService<Booth>('booths_2026_01_17_19_00'),
+  
+  async updateStatus(id: string, status: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('booths_2026_01_17_19_00')
+        .update({ status })
+        .eq('id', id);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating booth status:', error);
+      throw error;
+    }
+  }
+};
 export const dealService = new BaseService<Deal>('deals_2026_01_17_19_00');
 export const taskService = new BaseService<Task>('tasks_2026_01_17_19_00');
 

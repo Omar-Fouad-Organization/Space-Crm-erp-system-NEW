@@ -12,7 +12,8 @@ import Clients from "./pages/Clients";
 import ClientDetails from "./pages/ClientDetails";
 import ExposPage from "./pages/ExposPage";
 import FinancePage from "./pages/FinancePage";
-import BoothsPage from "./pages/BoothsPage";
+import Booths from "./pages/BoothsPage";
+import BoothDetail from "./pages/BoothDetail";
 import TasksPage from "./pages/TasksPage";
 import CommissionsPage from "./pages/CommissionsPage";
 import UsersPage from "./pages/UsersPage";
@@ -35,7 +36,8 @@ const App = () => (
             <Route path="expos" element={<ExposPage />} />
             <Route path="clients" element={<Clients />} />
             <Route path="clients/:id" element={<ClientDetails />} />
-            <Route path="booths" element={<BoothsPage />} />
+            <Route path="booths" element={<Booths />} />
+            <Route path="booths/:boothId" element={<BoothDetail />} />
             <Route path="deals" element={<DealsPage />} />
             <Route path="deals/:id" element={<DealDetailPage />} />
             <Route path="finance" element={<FinancePage />} />
