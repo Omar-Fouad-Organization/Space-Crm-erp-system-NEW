@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SPACE CRM Design System - Enterprise Grade */
+
+:root {
+  /* Core Brand Colors */
+  --crm-sidebar: 210 45% 8%; /* #0E1628 */
+  --crm-background: 220 14% 98%; /* #F8F9FB */
+  --crm-card: 0 0% 100%; /* #FFFFFF */
+  --crm-accent: 195 85% 55%; /* #2BB0E6 */
+  --crm-primary-text: 215 25% 12%; /* #1C2434 */
+  --crm-secondary-text: 215 13% 45%; /* #667085 */
+  --crm-border: 220 13% 91%; /* #E4E7EC */
+  
+  /* Status Colors */
+  --crm-success: 142 76% 36%;
+  --crm-warning: 38 92% 50%;
+  --crm-error: 0 84% 60%;
+  --crm-info: 195 85% 55%;
+}
+
+/* CRM colors are now registered in tailwind.config.ts */
+
+@layer base {
+  :root {
+    --background: var(--crm-background);
+    --foreground: var(--crm-primary-text);
+
+    --card: var(--crm-card);
+    --card-foreground: var(--crm-primary-text);
+
+    --popover: var(--crm-card);
+    --popover-foreground: var(--crm-primary-text);
+
+    --primary: var(--crm-accent);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: var(--crm-primary-text);
+
+    --muted: 220 14% 96%;
+    --muted-foreground: var(--crm-secondary-text);
+
+    --accent: var(--crm-accent);
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: var(--crm-error);
+    --destructive-foreground: 0 0% 100%;
+
+    --border: var(--crm-border);
+    --input: var(--crm-border);
+    --ring: var(--crm-accent);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: var(--crm-sidebar);
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: var(--crm-accent);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 45% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 45% 15%;
+    --sidebar-ring: var(--crm-accent);
+  }
+
+  .dark {
+    --background: var(--crm-sidebar);
+    --foreground: 0 0% 100%;
+
+    --card: 210 45% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 210 45% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: var(--crm-accent);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 45% 15%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 45% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: var(--crm-accent);
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: var(--crm-error);
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 45% 20%;
+    --input: 210 45% 20%;
+    --ring: var(--crm-accent);
+    
+    --sidebar-background: var(--crm-sidebar);
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: var(--crm-accent);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 45% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 45% 15%;
+    --sidebar-ring: var(--crm-accent);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-crm-background text-crm-primary-text;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-feature-settings: 'tnum' 1; /* Tabular numbers */
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600; /* SemiBold */
+  }
+  
+  .font-tabular {
+    font-feature-settings: 'tnum' 1;
+  }
+}
+
+@layer components {
+  /* CRM Specific Components */
+  .crm-sidebar {
+    @apply bg-crm-sidebar text-white border-r border-crm-border/20;
+  }
+  
+  .crm-card {
+    @apply bg-crm-card border border-crm-border rounded-lg shadow-sm;
+  }
+  
+  .crm-input {
+    @apply border-crm-border focus:border-crm-accent focus:ring-crm-accent/20;
+  }
+  
+  .crm-button-primary {
+    @apply bg-crm-accent hover:bg-crm-accent/90 text-white;
+  }
+  
+  .crm-text-primary {
+    @apply text-crm-primary-text;
+  }
+  
+  .crm-text-secondary {
+    @apply text-crm-secondary-text;
+  }
+  
+  .crm-status-success {
+    @apply bg-crm-success/10 text-crm-success border-crm-success/20;
+  }
+  
+  .crm-status-warning {
+    @apply bg-crm-warning/10 text-crm-warning border-crm-warning/20;
+  }
+  
+  .crm-status-error {
+    @apply bg-crm-error/10 text-crm-error border-crm-error/20;
+  }
+  
+  .crm-status-info {
+    @apply bg-crm-info/10 text-crm-info border-crm-info/20;
+  }
+}
