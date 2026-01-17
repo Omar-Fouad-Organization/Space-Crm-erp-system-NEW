@@ -130,88 +130,113 @@ export function Layout({ children }: LayoutProps) {
     .slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden" 
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
-
+      <div className={`fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <Sidebar />
       </div>
 
       {/* Main Content */}
-      <div className="lg:pl-64">
-
+      <div className="lg:pl-72">
         {/* Top Bar */}
-        <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3">
-
-          <div className="flex items-center justify-between">
-
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
+          <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center space-x-4">
-
               {/* Mobile menu button */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-black"
+                className="lg:hidden p-2 hover:bg-slate-100 transition-colors"
               >
-                {sidebarOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+                <Search className="h-5 w-5 text-slate-600" />
               </Button>
-              {/* Search */}
-              <div className="relative">
-
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Search..." />
+              
+              {/* Search Bar */}
+              <div className="relative hidden md:block">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input 
+                  className="pl-10 pr-4 py-2.5 w-80 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-slate-400" 
+                  placeholder="Search clients, deals, booths..." 
+                />
               </div>
-
             </div>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-3">
-
+            <div className="flex items-center space-x-2">
               {/* Quick Create */}
               <DropdownMenu>
-
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm">
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm border-0 px-4 py-2 rounded-lg transition-all duration-200"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
-                    Quick Create
+                    <span className="hidden sm:inline">Quick Create</span>
                   </Button>
                 </DropdownMenuTrigger>
-
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/clients')}>
+                    New Client
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/deals')}>
+                    New Deal
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/booths')}>
+                    New Booth
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/tasks')}>
+                    New Task
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
               </DropdownMenu>
 
               {/* Action buttons */}
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+              >
                 <HelpCircle className="h-4 w-4" />
               </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="relative">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="relative p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+                  >
                     {unreadCount > 0 ? (
-                      <BellRing className="h-4 w-4" />
+                      <BellRing className="h-4 w-4 text-blue-600" />
                     ) : (
                       <Bell className="h-4 w-4" />
                     )}
                     {unreadCount > 0 && (
-                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
                         <span className="text-xs font-medium">
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       </div>
-
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel className="flex items-center justify-between">
-                    Notifications
+                <DropdownMenuContent align="end" className="w-96 shadow-xl border-0 bg-white/95 backdrop-blur-md">
+                  <DropdownMenuLabel className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                    <span className="font-semibold text-slate-800">Notifications</span>
                     <div className="flex items-center space-x-2">
-
                       {unreadCount > 0 && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
                           {unreadCount} unread
                         </Badge>
                       )}
@@ -219,7 +244,7 @@ export function Layout({ children }: LayoutProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => navigate('/notifications')}
-                        className="h-6 px-2 text-xs"
+                        className="h-6 px-2 text-xs text-slate-600 hover:text-slate-800"
                       >
                         View All
                       </Button>
@@ -329,27 +354,34 @@ export function Layout({ children }: LayoutProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
+                onClick={() => navigate('/settings')}
+              >
                 <Settings className="h-4 w-4" />
               </Button>
+              
               {/* User Menu */}
-              <div className="flex items-center">
-
+              <div className="flex items-center ml-2">
                 <UserMenu />
               </div>
-
             </div>
-
           </div>
-
-        </div>
+        </header>
 
         {/* Page Content */}
-        <div className="p-6">
-
-          <DevelopmentBanner />
-          {children}
-        </div>
+        <main className="flex-1">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <DevelopmentBanner />
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="p-6">
+                {children}
+              </div>
+            </div>
+          </div>
+        </main>
 
       </div>
 
