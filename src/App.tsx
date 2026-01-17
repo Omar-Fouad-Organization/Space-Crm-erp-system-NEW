@@ -20,6 +20,7 @@ import BoothDetail from "./pages/BoothDetail";
 import TasksPage from "./pages/TasksPage";
 import CommissionsPage from "./pages/CommissionsPage";
 import UsersPage from "./pages/UsersPage";
+import Sponsorship from "./pages/Sponsorship";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="commissions" element={<CommissionsPage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="sponsorship" element={<Sponsorship />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
