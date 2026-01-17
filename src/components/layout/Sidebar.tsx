@@ -58,7 +58,7 @@ const menuSections = [
     title: 'Management',
     items: [
       { name: 'Meetings', path: '/meetings', icon: Calendar, description: 'Meeting management', page: 'meetings' },
-      { name: 'HR & Team', path: '/hr', icon: Users, description: 'Human resources', page: 'user-management', roles: ['super_admin', 'hr', 'management'] },
+      { name: 'HR & Team', path: '/hr', icon: Users, description: 'Human resources', page: 'hr', roles: ['super_admin', 'hr', 'management'] },
       { name: 'User Management', path: '/users', icon: Users, description: 'User accounts & roles', page: 'user-management', roles: ['super_admin', 'hr'] },
       { name: 'Contracts', path: '/contracts', icon: FileText, description: 'Legal documents', page: 'deals' },
       { name: 'Tasks', path: '/tasks', icon: SquareCheckBig, description: 'Operations tasks', page: 'tasks' },
