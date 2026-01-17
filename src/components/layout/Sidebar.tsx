@@ -42,7 +42,7 @@ const menuSections = [
     items: [
       { name: 'Booths', path: '/booths', icon: Briefcase, description: 'Booth management', page: 'booths' },
       { name: 'Sponsorships', path: '/sponsorship', icon: Crown, description: 'Sponsorship packages', page: 'sponsorship' },
-      { name: 'Exhibitors', path: '/exhibitors', icon: Briefcase, description: 'Exhibitor relations', page: 'exhibitions' },
+      { name: 'Exhibitors', path: '/exhibitors', icon: Users, description: 'Exhibitor relations', page: 'exhibitors' },
     ]
   },
   {
