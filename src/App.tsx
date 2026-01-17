@@ -6,6 +6,9 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import CRMLayout from "./components/layout/CRMLayout";
 import Dashboard from "./pages/Dashboard";
 import DealsPage from "./pages/DealsPage";
+import ClientsPage from "./pages/ClientsPage";
+import ExposPage from "./pages/ExposPage";
+import FinancePage from "./pages/FinancePage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -21,7 +24,10 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/crm" element={<CRMLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="expos" element={<ExposPage />} />
+            <Route path="clients" element={<ClientsPage />} />
             <Route path="deals" element={<DealsPage />} />
+            <Route path="finance" element={<FinancePage />} />
             <Route index element={<Dashboard />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

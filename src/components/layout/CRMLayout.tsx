@@ -49,88 +49,88 @@ const sidebarItems: SidebarItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: BarChart3,
-    path: '/dashboard'
+    path: '/crm/dashboard'
   },
   {
     id: 'expos',
     label: 'Expo Management',
     icon: Calendar,
-    path: '/expos'
+    path: '/crm/expos'
   },
   {
     id: 'clients',
     label: 'Client Management',
     icon: Users,
-    path: '/clients'
+    path: '/crm/clients'
   },
   {
     id: 'booths',
     label: 'Booth Management',
     icon: Store,
-    path: '/booths'
+    path: '/crm/booths'
   },
   {
     id: 'sponsorships',
     label: 'Sponsorship Packages',
     icon: Gift,
-    path: '/sponsorships'
+    path: '/crm/sponsorships'
   },
   {
     id: 'deals',
     label: 'Deals Pipeline',
     icon: TrendingUp,
-    path: '/deals',
+    path: '/crm/deals',
     badge: 12
   },
   {
     id: 'finance',
     label: 'Finance & Payments',
     icon: CreditCard,
-    path: '/finance'
+    path: '/crm/finance'
   },
   {
     id: 'commissions',
     label: 'Commissions',
     icon: Percent,
-    path: '/commissions'
+    path: '/crm/commissions'
   },
   {
     id: 'proposals',
     label: 'Proposals & Contracts',
     icon: FileText,
-    path: '/proposals'
+    path: '/crm/proposals'
   },
   {
     id: 'tasks',
     label: 'Tasks & Tickets',
     icon: CheckSquare,
-    path: '/tasks',
+    path: '/crm/tasks',
     badge: 5
   },
   {
     id: 'chat',
     label: 'Internal Chat',
     icon: MessageSquare,
-    path: '/chat',
+    path: '/crm/chat',
     badge: 3
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: BarChart3,
-    path: '/reports'
+    path: '/crm/reports'
   },
   {
     id: 'users',
     label: 'User Management',
     icon: User,
-    path: '/users'
+    path: '/crm/users'
   },
   {
     id: 'client-portal',
     label: 'Client Portal',
     icon: Building2,
-    path: '/client-portal'
+    path: '/crm/client-portal'
   }
 ];
 
