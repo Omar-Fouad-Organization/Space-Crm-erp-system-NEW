@@ -24,6 +24,7 @@ import Sponsorship from "./pages/Sponsorship";
 import Exhibitors from "./pages/Exhibitors";
 import Payments from "./pages/Payments";
 import ProposalSystem from "./pages/ProposalSystem";
+import Meetings from "./pages/Meetings";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="exhibitors" element={<Exhibitors />} />
             <Route path="payments" element={<Payments />} />
             <Route path="proposals" element={<ProposalSystem />} />
+            <Route path="meetings" element={<Meetings />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
