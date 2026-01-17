@@ -1,144 +1,230 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSystemSettings } from '@/contexts/SystemSettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
-  Building2, 
-  Users, 
-  Calendar, 
-  Store, 
-  Gift, 
-  TrendingUp, 
-  CreditCard, 
-  Percent, 
-  FileText, 
-  CheckSquare, 
-  MessageSquare, 
-  BarChart3, 
-  Bell, 
-  Settings
+  Briefcase,
+  CreditCard,
+  DollarSign,
+  Percent,
+  FileText,
+  SquareCheckBig,
+  Ticket,
+  MessageSquare,
+  ChartColumn,
+  Brain,
+  Bell,
+  Settings,
+  TestTube,
+  Gauge,
+  Palette,
+  LogOut,
+  User,
+  Users,
+  Calendar,
+  ChevronRight,
+  Shield
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-interface SidebarItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  path: string;
-  badge?: number;
-  children?: SidebarItem[];
-}
-
-const sidebarItems: SidebarItem[] = [
+const menuSections = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: BarChart3,
-    path: '/crm/dashboard'
+    title: 'Core Operations',
+    items: [
+      { name: 'Dashboard', path: '/', icon: ChartColumn, description: 'Executive overview', page: 'dashboard' },
+      { name: 'Clients', path: '/clients', icon: User, description: 'Client management', page: 'clients' },
+      { name: 'Deals', path: '/deals', icon: Briefcase, description: 'Sales pipeline', page: 'deals' },
+      { name: 'Expos', path: '/expos', icon: Briefcase, description: 'Event management', page: 'exhibitions' },
+    ]
   },
   {
-    id: 'expos',
-    label: 'Exhibitions',
-    icon: Calendar,
-    path: '/crm/expos'
+    title: 'Exhibition',
+    items: [
+      { name: 'Booths', path: '/booths', icon: Briefcase, description: 'Booth management', page: 'booths' },
+      { name: 'Sponsorships', path: '/sponsorships', icon: Briefcase, description: 'Sponsorship packages', page: 'booths' },
+      { name: 'Exhibitors', path: '/exhibitors', icon: Briefcase, description: 'Exhibitor relations', page: 'exhibitions' },
+    ]
   },
   {
-    id: 'clients',
-    label: 'Clients',
-    icon: Users,
-    path: '/crm/clients'
+    title: 'Financial',
+    items: [
+      { name: 'Payments', path: '/payments', icon: CreditCard, description: 'Transaction tracking', page: 'payments' },
+      { name: 'Finance', path: '/finance', icon: DollarSign, description: 'Financial dashboard', page: 'finance' },
+      { name: 'Commissions', path: '/commissions', icon: Percent, description: 'Sales compensation', page: 'finance' },
+      { name: 'Proposals', path: '/proposals', icon: FileText, description: 'Client proposals & e-signatures', page: 'deals' },
+    ]
   },
   {
-    id: 'booths',
-    label: 'Booths',
-    icon: Store,
-    path: '/crm/booths'
+    title: 'Management',
+    items: [
+      { name: 'Meetings', path: '/meetings', icon: Calendar, description: 'Meeting management', page: 'tasks' },
+      { name: 'HR & Team', path: '/hr', icon: Users, description: 'Human resources', page: 'user-management', roles: ['super_admin', 'hr', 'management'] },
+      { name: 'User Management', path: '/users', icon: Users, description: 'User accounts & roles', page: 'user-management', roles: ['super_admin', 'hr'] },
+      { name: 'Contracts', path: '/contracts', icon: FileText, description: 'Legal documents', page: 'deals' },
+      { name: 'Tasks', path: '/tasks', icon: SquareCheckBig, description: 'Operations tasks', page: 'tasks' },
+      { name: 'Chat', path: '/chat', icon: MessageSquare, description: 'Team communication', page: 'tasks' },
+      { name: 'Support', path: '/tickets', icon: Ticket, description: 'Client support', page: 'tasks' },
+    ]
   },
   {
-    id: 'deals',
-    label: 'Deals & Pipeline',
-    icon: TrendingUp,
-    path: '/crm/deals'
+    title: 'Intelligence',
+    items: [
+      { name: 'Analytics', path: '/analytics', icon: ChartColumn, description: 'Business intelligence', page: 'analytics' },
+      { name: 'Advanced Features', path: '/advanced', icon: Brain, description: 'AI-powered CRM features', page: 'analytics', roles: ['super_admin', 'management'] },
+      { name: 'Notifications', path: '/notifications', icon: Bell, description: 'Smart alerts', page: 'notifications' },
+      { name: 'System', path: '/settings', icon: Settings, description: 'Configuration', page: 'settings', roles: ['super_admin'] },
+    ]
   },
   {
-    id: 'finance',
-    label: 'Finance & Payments',
-    icon: CreditCard,
-    path: '/crm/finance'
-  },
-  {
-    id: 'commissions',
-    label: 'Commissions',
-    icon: Percent,
-    path: '/crm/commissions'
-  },
-  {
-    id: 'tasks',
-    label: 'Tasks & Tickets',
-    icon: CheckSquare,
-    path: '/crm/tasks'
-  },
-  {
-    id: 'users',
-    label: 'User Management',
-    icon: Users,
-    path: '/crm/users'
+    title: 'Quality Assurance',
+    items: [
+      { name: 'User Testing', path: '/user-testing', icon: TestTube, description: 'API & System diagnostics', page: 'settings', roles: ['super_admin'] },
+      { name: 'Performance', path: '/performance', icon: Gauge, description: 'System optimization', page: 'settings', roles: ['super_admin'] },
+      { name: 'Design System', path: '/design', icon: Palette, description: 'UI/UX color palette', page: 'settings', roles: ['super_admin'] },
+      { name: 'Modern Delete', path: '/modern-delete', icon: TestTube, description: 'Modern delete button showcase', page: 'settings', roles: ['super_admin'] },
+    ]
   }
 ];
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { companyName } = useSystemSettings();
+  const { hasPageAccess, hasRole, roles } = useAuth();
+
+  const canAccessMenuItem = (item: any) => {
+    // Check if user has specific roles required for this item
+    if (item.roles && item.roles.length > 0) {
+      const hasRequiredRole = item.roles.some((role: string) => hasRole(role));
+      if (!hasRequiredRole) return false;
+    }
+    // Check if user has page access
+    if (item.page) {
+      return hasPageAccess(item.page);
+    }
+    return true;
+  };
 
   const isActive = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    if (path === '/') {
+      return location.pathname === '/' || location.pathname === '/dashboard';
+    }
+    return location.pathname.startsWith(path);
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      {/* Logo */}
-      <div className="flex items-center px-6 py-4 border-b border-gray-200">
-        <Building2 className="h-8 w-8 text-blue-600" />
-        <span className="ml-2 text-xl font-bold text-gray-900">SPACE CRM</span>
+    <div className="flex flex-col h-full bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl">
+
+      {/* Header */}
+      <div className="p-6 border-b border-slate-700">
+
+        <div className="flex items-center space-x-3">
+
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+            <Shield className="h-6 w-6 text-white" />
+          </div>
+
+          <div>
+            <h1 className="text-lg font-bold text-white">
+              {companyName}
+            </h1>
+            <p className="text-xs text-slate-300">
+              CRM & ERP
+            </p>
+          </div>
+
+        </div>
+
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {sidebarItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.path);
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                "w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                active
-                  ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              )}
-            >
-              <Icon className={cn("h-5 w-5 mr-3", active ? "text-blue-700" : "text-gray-400")} />
-              {item.label}
-              {item.badge && (
-                <span className="ml-auto bg-red-100 text-red-600 text-xs font-medium px-2 py-1 rounded-full">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+        {menuSections.map((section) => (
+          <div key={section.title}>
+
+            <div className="mb-3">
+
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2">
+                {section.title}
+              </h3>
+
+            </div>
+
+            <div className="space-y-1">
+
+              {section.items.filter(canAccessMenuItem).map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.path);
+                
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => navigate(item.path)}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-all duration-300 group relative transform hover:scale-105 hover:translate-x-1 sidebar-item-glow rounded-lg ${
+                      active 
+                        ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md' 
+                        : 'text-white hover:bg-gradient-to-r hover:from-slate-700 hover:to-slate-600 hover:text-white hover:shadow-md'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    
+                    <div className="flex-1 min-w-0">
+
+                      <div className="text-sm font-medium truncate">
+                        {item.name}
+                      </div>
+
+                      <div className="text-xs text-slate-300 truncate">
+                        {item.description}
+                      </div>
+
+                    </div>
+
+                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+
+        ))}
+      </div>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-gray-200">
-        <button
-          onClick={() => navigate('/crm/settings')}
-          className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
-        >
-          <Settings className="h-5 w-5 mr-3 text-gray-400" />
-          Settings
-        </button>
+      <div className="p-4 border-t border-slate-700 space-y-3">
+
+        <div className="flex items-center space-x-3 px-2">
+
+          {/* User Profile */}
+          <div className="flex items-center space-x-3 flex-1">
+
+            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
+              <User className="h-4 w-4 text-white" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate">
+                admin
+              </div>
+              <div className="text-xs text-slate-300 truncate">
+                User • General
+              </div>
+            </div>
+
+          </div>
+
+          {/* Sign Out */}
+          <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </div>
+
       </div>
+
     </div>
+
   );
 }

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { SystemSettingsProvider } from "@/contexts/SystemSettingsContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import CRMLayout from "./components/layout/CRMLayout";
 import Dashboard from "./pages/Dashboard";
 import DealsPage from "./pages/DealsPage";
@@ -26,14 +27,16 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <SystemSettingsProvider>
-      <CurrencyProvider>
+      <AuthProvider>
+        <CurrencyProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <HashRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/crm" element={<CRMLayout />}>
+          <Route path="/login" element={<Index />} />
+          <Route path="/" element={<CRMLayout />}>
+            <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="expos" element={<ExposPage />} />
             <Route path="clients" element={<Clients />} />
@@ -46,14 +49,14 @@ const App = () => (
             <Route path="commissions" element={<CommissionsPage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="users" element={<UsersPage />} />
-            <Route index element={<Dashboard />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </HashRouter>
     </TooltipProvider>
-    </CurrencyProvider>
+        </CurrencyProvider>
+      </AuthProvider>
     </SystemSettingsProvider>
   </QueryClientProvider>
 );
