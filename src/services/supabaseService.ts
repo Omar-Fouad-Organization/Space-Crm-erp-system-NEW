@@ -7,11 +7,58 @@ export interface Client {
   email: string;
   phone?: string;
   company?: string;
+  type: string;
+  contact_person?: string;
+  website?: string;
+  industry?: string;
+  company_size?: string;
   address?: string;
   city?: string;
   country?: string;
+  postal_code?: string;
+  status?: string;
+  notes?: string;
   created_at: string;
   updated_at?: string;
+}
+
+export interface ClientMetrics {
+  total_deals: number;
+  active_deals: number;
+  won_deals: number;
+  total_value: number;
+  won_value: number;
+  avg_deal_size: number;
+  conversion_rate: number;
+  lifetime_value: number;
+  open_tasks: number;
+  overdue_payments: number;
+  last_activity: string;
+  engagement_score: number;
+  satisfaction_score: number;
+  growth_trend: 'up' | 'down' | 'stable';
+}
+
+export interface ClientActivity {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  status: string;
+  user: string;
+  priority?: string;
+}
+
+export interface ClientDocument {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  uploaded_at: string;
+  uploaded_by: string;
+  status: string;
+  category: string;
 }
 
 export interface Exhibition {
@@ -162,11 +209,11 @@ class BaseService<T> {
 }
 
 // Specific service implementations
-export const clientService = new BaseService<Client>('clients_2026_01_10_12_00');
-export const expoService = new BaseService<Exhibition>('exhibitions_2026_01_10_12_00');
-export const boothService = new BaseService<Booth>('booths_2026_01_10_12_00');
-export const dealService = new BaseService<Deal>('deals_2026_01_10_12_00');
-export const taskService = new BaseService<Task>('tasks_2026_01_10_12_00');
+export const clientService = new BaseService<Client>('clients_2026_01_17_19_00');
+export const expoService = new BaseService<Exhibition>('exhibitions_2026_01_17_19_00');
+export const boothService = new BaseService<Booth>('booths_2026_01_17_19_00');
+export const dealService = new BaseService<Deal>('deals_2026_01_17_19_00');
+export const taskService = new BaseService<Task>('tasks_2026_01_17_19_00');
 
 // Payment Schedule Service
 export const paymentScheduleService = {

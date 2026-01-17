@@ -8,7 +8,8 @@ import CRMLayout from "./components/layout/CRMLayout";
 import Dashboard from "./pages/Dashboard";
 import DealsPage from "./pages/DealsPage";
 import DealDetailPage from "./pages/DealDetailPage";
-import ClientsPage from "./pages/ClientsPage";
+import Clients from "./pages/Clients";
+import ClientDetails from "./pages/ClientDetails";
 import ExposPage from "./pages/ExposPage";
 import FinancePage from "./pages/FinancePage";
 import BoothsPage from "./pages/BoothsPage";
@@ -32,7 +33,8 @@ const App = () => (
           <Route path="/crm" element={<CRMLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="expos" element={<ExposPage />} />
-            <Route path="clients" element={<ClientsPage />} />
+            <Route path="clients" element={<Clients />} />
+            <Route path="clients/:id" element={<ClientDetails />} />
             <Route path="booths" element={<BoothsPage />} />
             <Route path="deals" element={<DealsPage />} />
             <Route path="deals/:id" element={<DealDetailPage />} />
