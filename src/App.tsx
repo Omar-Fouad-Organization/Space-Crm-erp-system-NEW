@@ -9,6 +9,8 @@ import DealsPage from "./pages/DealsPage";
 import ClientsPage from "./pages/ClientsPage";
 import ExposPage from "./pages/ExposPage";
 import FinancePage from "./pages/FinancePage";
+import BoothsPage from "./pages/BoothsPage";
+import TasksPage from "./pages/TasksPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -26,8 +28,10 @@ const App = () => (
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="expos" element={<ExposPage />} />
             <Route path="clients" element={<ClientsPage />} />
+            <Route path="booths" element={<BoothsPage />} />
             <Route path="deals" element={<DealsPage />} />
             <Route path="finance" element={<FinancePage />} />
+            <Route path="tasks" element={<TasksPage />} />
             <Route index element={<Dashboard />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
