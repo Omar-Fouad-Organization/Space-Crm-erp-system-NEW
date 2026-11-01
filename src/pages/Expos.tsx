@@ -178,7 +178,7 @@ const Expos = () => {
   const loadExpos = async () => {
     try {
       setLoading(true);
-      
+
       // Load exhibitions from database
       const { data: exhibitions, error } = await supabase
         .from('exhibitions_2026_01_11_15_00')
@@ -199,12 +199,12 @@ const Expos = () => {
               .from('booths_2026_01_10_12_00')
               .select('*', { count: 'exact', head: true })
               .eq('exhibition_id', exhibition.id);
-            
+
             if (boothError) {
               console.warn('Error counting booths for exhibition:', exhibition.id, boothError);
               return { ...exhibition, actual_booth_count: 0 };
             }
-            
+
             return { ...exhibition, actual_booth_count: boothCount || 0 };
           } catch (error) {
             console.warn('Error processing booth count for exhibition:', exhibition.id, error);
@@ -244,7 +244,7 @@ const Expos = () => {
       }));
 
       setExpos(transformedExpos);
-      
+
     } catch (error: any) {
       console.error("Error loading expos:", error);
       toast({
@@ -332,7 +332,7 @@ const Expos = () => {
       setExpos(prev => [newExpo, ...prev]);
       setShowCreateDialog(false);
       resetForm();
-      
+
       toast({
         title: "Exhibition Created",
         description: `Exhibition "${formData.name}" has been created successfully`,
@@ -414,14 +414,14 @@ const Expos = () => {
         updated_at: updatedExhibition.updated_at
       };
 
-      setExpos(prev => prev.map(expo => 
+      setExpos(prev => prev.map(expo =>
         expo.id === editingExpo.id ? updatedExpo : expo
       ));
-      
+
       setShowEditDialog(false);
       setEditingExpo(null);
       resetForm();
-      
+
       toast({
         title: "Exhibition Updated",
         description: `Exhibition "${formData.name}" has been updated successfully`,
@@ -442,7 +442,7 @@ const Expos = () => {
 
   const confirmDeleteExpo = async () => {
     if (!expoToDelete) return;
-    
+
     try {
       // Delete from database
       const { error } = await supabase
@@ -457,7 +457,7 @@ const Expos = () => {
 
       // Update local state
       setExpos(prev => prev.filter(expo => expo.id !== expoToDelete.id));
-      
+
       toast({
         title: "Exhibition Deleted",
         description: `Exhibition "${expoToDelete.name}" has been deleted successfully`,
@@ -488,12 +488,12 @@ const Expos = () => {
       }
 
       // Update local state
-      setExpos(prevExpos => 
-        prevExpos.map(expo => 
+      setExpos(prevExpos =>
+        prevExpos.map(expo =>
           expo.id === expoId ? { ...expo, status: newStatus, updated_at: new Date().toISOString() } : expo
         )
       );
-      
+
       toast({
         title: "Status Updated",
         description: `Exhibition status changed to ${newStatus}`,
@@ -597,7 +597,7 @@ const Expos = () => {
 
   // Filter expos based on search and filters
   const filteredExpos = expos.filter(expo => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       expo.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expo.expo_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expo.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -606,11 +606,11 @@ const Expos = () => {
 
     const matchesStatus = statusFilter === "all-status" || expo.status === statusFilter;
     const matchesPriority = priorityFilter === "all-priority" || expo.priority === priorityFilter;
-    
-    const matchesYear = yearFilter === "all-years" || 
+
+    const matchesYear = yearFilter === "all-years" ||
       (expo.start_date && new Date(expo.start_date).getFullYear().toString() === yearFilter);
 
-    const matchesTab = activeTab === 'all' || 
+    const matchesTab = activeTab === 'all' ||
                       (activeTab === 'active' && expo.status === 'Active') ||
                       (activeTab === 'planning' && expo.status === 'Planning') ||
                       (activeTab === 'completed' && expo.status === 'Completed') ||
@@ -992,7 +992,7 @@ const Expos = () => {
                 </h3>
 
                 <p className="text-muted-foreground mb-4">
-                  {expos.length === 0 
+                  {expos.length === 0
                     ? "Get started by creating your first exhibition"
                     : "Try adjusting your search criteria or filters"
                   }
@@ -1070,7 +1070,7 @@ const Expos = () => {
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
-                              
+
                               {/* Standard Actions */}
                               {expo.website_url && (
                                 <DropdownMenuItem onClick={() => window.open(expo.website_url, '_blank')}>
@@ -1083,7 +1083,7 @@ const Expos = () => {
                                 Edit Exhibition
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              
+
                               {/* Status Menu */}
                               <DropdownMenuLabel>Change Status</DropdownMenuLabel>
                               <DropdownMenuItem onClick={() => handleStatusChange(expo.id, 'Planning')}>
@@ -1115,7 +1115,7 @@ const Expos = () => {
                                 Postponed
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleDeleteExpo(expo)}
                                 className="text-red-600"
                               >
@@ -1331,7 +1331,7 @@ const Expos = () => {
                 />
               </div>
             </div>
-            
+
             {/* Date & Location Section */}
             <div className="space-y-4">
 
@@ -1398,7 +1398,7 @@ const Expos = () => {
 
             </div>
 
-            
+
             {/* Management & Settings Section */}
             <div className="space-y-4">
 
@@ -1465,7 +1465,7 @@ const Expos = () => {
 
             </div>
 
-            
+
             {/* Capacity & Budget Section */}
             <div className="space-y-4">
 
@@ -1514,7 +1514,7 @@ const Expos = () => {
 
             </div>
 
-            
+
             {/* Additional Information Section */}
             <div className="space-y-4">
 
@@ -1621,7 +1621,7 @@ const Expos = () => {
                 />
               </div>
             </div>
-            
+
             {/* Simplified Edit Form - Key Fields Only */}
             <div className="space-y-4">
 

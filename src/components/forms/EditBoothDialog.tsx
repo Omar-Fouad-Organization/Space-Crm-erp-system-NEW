@@ -70,7 +70,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
   const [clients, setClients] = useState<Client[]>([]);
   const [features, setFeatures] = useState<string[]>([]);
   const [newFeature, setNewFeature] = useState('');
-  
+
   const [formData, setFormData] = useState({
     booth_number: '',
     booth_code: '',
@@ -167,7 +167,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
     if (field === 'client_id' && value === 'none') {
       value = '';
     }
-    
+
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -193,7 +193,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
 
   const validateForm = () => {
     const errors: string[] = [];
-    
+
     // Only booth_code is required now (booth_number is optional)
     if (!formData.booth_code.trim()) errors.push('Booth code is required');
     if (!formData.size_sqm || parseFloat(formData.size_sqm) <= 0) {
@@ -202,13 +202,13 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
     if (!formData.base_price || parseFloat(formData.base_price) < 0) {
       errors.push('Base price must be 0 or greater');
     }
-    
+
     return errors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!booth) return;
 
     const errors = validateForm();
@@ -222,7 +222,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
     }
 
     setLoading(true);
-    
+
     try {
       // 🔥 MINIMAL: Extremely clean booth data
       const boothData: Partial<Booth> = {
@@ -338,7 +338,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         placeholder="e.g., A001, B102 (optional)"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="booth_code">Booth Code *</Label>
                       <Input
@@ -385,7 +385,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -404,7 +404,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         placeholder="e.g., Hall A, Main Hall"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="zone">Zone</Label>
                       <Input
@@ -426,7 +426,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         placeholder="e.g., A1, Main Aisle"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="position">Position</Label>
                       <Input
@@ -504,7 +504,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="width_m">Width (m)</Label>
                       <Input
@@ -517,7 +517,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         step="0.01"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="length_m">Length (m)</Label>
                       <Input
@@ -530,7 +530,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         step="0.01"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="height_m">Height (m)</Label>
                       <Input
@@ -546,7 +546,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -569,7 +569,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="additional_costs">Additional Costs</Label>
                       <Input
@@ -582,7 +582,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         step="0.01"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="currency">Currency</Label>
                       <Select value={formData.currency} onValueChange={(value) => handleInputChange('currency', value)}>
@@ -613,7 +613,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Features</CardTitle>
@@ -630,7 +630,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {features.map((feature, index) => (
                       <Badge key={index} variant="outline" className="flex items-center gap-1">
@@ -689,7 +689,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         placeholder="Company name"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="assigned_to_contact">Contact Person</Label>
                       <Input
@@ -712,7 +712,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                         placeholder="contact@company.com"
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="assigned_to_phone">Phone</Label>
                       <Input
@@ -725,7 +725,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Additional Information</CardTitle>
@@ -741,7 +741,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                       rows={3}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="special_requirements">Special Requirements</Label>
                     <Textarea
@@ -826,7 +826,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
               <div className="text-sm text-gray-500">
                 Fields marked with * are required
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel

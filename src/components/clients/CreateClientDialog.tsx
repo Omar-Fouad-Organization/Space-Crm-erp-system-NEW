@@ -33,7 +33,7 @@ import { CreateClientForm } from '@/types';
 
 const clientFormSchema = z.object({
   type: z.enum(['exhibitor', 'sponsor', 'sector_sponsor'], {
-    required_error: 'Client type is required',
+    error: 'Client type is required',
   }),
   company_name: z.string().min(1, 'Company name is required').max(100, 'Company name too long'),
   contact_person: z.string().min(1, 'Contact person is required').max(100, 'Contact person name too long'),

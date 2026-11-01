@@ -1,11 +1,14 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
+import {toast} from '@/hooks/use-toast';
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
   Trash2,
   CheckSquare,
   Clock,
@@ -52,102 +55,9 @@ import CreateTicketDialog from '@/components/tasks/CreateTicketDialog';
 import { format } from 'date-fns';
 
 // Mock data
-const mockTasks: (Task & { assigned_user?: { full_name: string }; deal?: { name: string }; client?: { company_name: string } })[] = [
-  {
-    id: '1',
-    title: 'Follow up with TechCorp on contract terms',
-    description: 'Discuss final terms and conditions with client',
-    assigned_user_id: '1',
-    created_by_id: '1',
-    deal_id: '1',
-    due_date: '2024-01-20',
-    priority: 'high',
-    status: 'in_progress',
-    created_at: '2024-01-17T09:00:00Z',
-    updated_at: '2024-01-17T09:00:00Z',
-    assigned_user: { full_name: 'Sarah Johnson' },
-    deal: { name: 'Tech Expo 2024 - Premium Booth A1' }
-  },
-  {
-    id: '2',
-    title: 'Prepare booth layout proposal',
-    assigned_user_id: '2',
-    created_by_id: '1',
-    deal_id: '1',
-    due_date: '2024-01-22',
-    priority: 'medium',
-    status: 'pending',
-    created_at: '2024-01-17T10:00:00Z',
-    updated_at: '2024-01-17T10:00:00Z',
-    assigned_user: { full_name: 'Mike Rodriguez' },
-    deal: { name: 'Tech Expo 2024 - Premium Booth A1' }
-  },
-  {
-    id: '3',
-    title: 'Send welcome package to new client',
-    assigned_user_id: '1',
-    created_by_id: '2',
-    client_id: '2',
-    due_date: '2024-01-18',
-    priority: 'low',
-    status: 'completed',
-    created_at: '2024-01-16T14:00:00Z',
-    updated_at: '2024-01-17T16:00:00Z',
-    assigned_user: { full_name: 'Sarah Johnson' },
-    client: { company_name: 'MedTech Industries' }
-  }
-];
 
-const mockTickets: (Ticket & { client?: { company_name: string }; deal?: { name: string }; assigned_user?: { full_name: string } })[] = [
-  {
-    id: '1',
-    title: 'Booth location change request',
-    description: 'Client wants to change from Hall A to Hall B due to better visibility',
-    client_id: '1',
-    deal_id: '1',
-    issue_type: 'general',
-    priority: 'medium',
-    status: 'open',
-    sla_due_date: '2024-01-19T12:00:00Z',
-    created_at: '2024-01-17T10:00:00Z',
-    updated_at: '2024-01-17T10:00:00Z',
-    client: { company_name: 'TechCorp Solutions' },
-    deal: { name: 'Tech Expo 2024 - Premium Booth A1' }
-  },
-  {
-    id: '2',
-    title: 'Payment processing issue',
-    description: 'Client reports payment was made but not reflected in system',
-    client_id: '2',
-    deal_id: '2',
-    issue_type: 'billing',
-    priority: 'high',
-    status: 'in_progress',
-    assigned_user_id: '3',
-    sla_due_date: '2024-01-18T16:00:00Z',
-    created_at: '2024-01-17T08:00:00Z',
-    updated_at: '2024-01-17T11:00:00Z',
-    client: { company_name: 'MedTech Industries' },
-    deal: { name: 'Healthcare Summit - Platinum Sponsorship' },
-    assigned_user: { full_name: 'Lisa Chen' }
-  },
-  {
-    id: '3',
-    title: 'Technical setup requirements',
-    description: 'Client needs special electrical and internet setup for their booth',
-    client_id: '1',
-    issue_type: 'technical',
-    priority: 'medium',
-    status: 'resolved',
-    assigned_user_id: '2',
-    sla_due_date: '2024-01-16T18:00:00Z',
-    resolution_notes: 'Coordinated with venue technical team. Setup scheduled for expo day.',
-    created_at: '2024-01-15T14:00:00Z',
-    updated_at: '2024-01-16T17:30:00Z',
-    client: { company_name: 'TechCorp Solutions' },
-    assigned_user: { full_name: 'Mike Rodriguez' }
-  }
-];
+
+
 
 const getPriorityColor = (priority: 'low' | 'medium' | 'high' | 'urgent') => {
   const colors = {
@@ -209,21 +119,26 @@ const getStatusIcon = (status: string, type: 'task' | 'ticket') => {
   }
 };
 
-export default function TasksPage() {
-  const [tasks, setTasks] = useState(mockTasks);
-  const [tickets, setTickets] = useState(mockTickets);
+export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
+  const [editingTask,setEditingTask]=useState<any>(null);
+  const [editingTicket,setEditingTicket]=useState<any>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
 
+  React.useEffect(()=>{Promise.all([apiAll('tasks'),apiAll('tickets')]).then(([tasks,tickets])=>{setTasks(tasks);setTickets(tickets);}).catch(error=>toast({title:'Unable to load tasks',description:error.message,variant:'destructive'}));},[]);
+  const changeStatus=async(resource:string,row:any,status:string)=>{try{const updated=await apiSave(resource,{status},row.id);(resource==='tasks'?setTasks:setTickets)(prev=>prev.map(r=>r.id===row.id?updated:r));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
+  const deleteRecord=async(resource:string,row:any)=>{try{await apiRemove(resource,row.id);(resource==='tasks'?setTasks:setTickets)(prev=>prev.filter(r=>r.id!==row.id));}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});}};
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    
+
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
@@ -232,35 +147,13 @@ export default function TasksPage() {
                          ticket.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
-    
+
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const handleCreateTask = (taskData: any) => {
-    const newTask = {
-      id: Date.now().toString(),
-      ...taskData,
-      status: 'pending' as const,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      created_by_id: '1' // Current user
-    };
-    setTasks([...tasks, newTask]);
-    setShowCreateTaskDialog(false);
-  };
+  const handleCreateTask = async(taskData:any)=>{try{const row=await apiSave('tasks',{...taskData,status:editingTask?.status||'pending'},editingTask?.id);setTasks(prev=>editingTask?prev.map(t=>t.id===row.id?row:t):[...prev,row]);setEditingTask(null);setShowCreateTaskDialog(false);}catch(error){toast({title:'Task not saved',description:(error as Error).message,variant:'destructive'});}};
 
-  const handleCreateTicket = (ticketData: any) => {
-    const newTicket = {
-      id: Date.now().toString(),
-      ...ticketData,
-      status: 'open' as const,
-      sla_due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setTickets([...tickets, newTicket]);
-    setShowCreateTicketDialog(false);
-  };
+  const handleCreateTicket = async(ticketData:any)=>{try{const row=await apiSave('tickets',{...ticketData,status:editingTicket?.status||'open'},editingTicket?.id);setTickets(prev=>editingTicket?prev.map(t=>t.id===row.id?row:t):[...prev,row]);setEditingTicket(null);setShowCreateTicketDialog(false);}catch(error){toast({title:'Ticket not saved',description:(error as Error).message,variant:'destructive'});}};
 
   // Calculate stats
   const taskStats = {
@@ -331,7 +224,7 @@ export default function TasksPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="tasks" className="space-y-6">
+      <Tabs defaultValue={initialTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="tasks">
             Tasks ({taskStats.total})
@@ -468,23 +361,19 @@ export default function TasksPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingTask(task);setShowCreateTaskDialog(true);}}><Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingTask(task);setShowCreateTaskDialog(true);}}><Edit className="mr-2 h-4 w-4" />
                               Edit Task
                             </DropdownMenuItem>
                             {task.status !== 'completed' && (
-                              <DropdownMenuItem>
-                                <CheckCircle className="mr-2 h-4 w-4" />
+                              <DropdownMenuItem onClick={()=>{changeStatus('tasks',task,'completed')}}><CheckCircle className="mr-2 h-4 w-4" />
                                 Mark Complete
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem className="text-red-600" onClick={()=>{deleteRecord('tasks',task)}}><Trash2 className="mr-2 h-4 w-4" />
                               Delete Task
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -608,7 +497,7 @@ export default function TasksPage() {
                         <div className="flex items-center space-x-1">
                           <Clock className="h-4 w-4 text-crm-secondary-text" />
                           <span className="text-sm">
-                            {format(new Date(ticket.sla_due_date), 'MMM dd, HH:mm')}
+                            {ticket.sla_due_date && !isNaN(new Date(ticket.sla_due_date).getTime()) ? format(new Date(ticket.sla_due_date), 'MMM dd, HH:mm') : 'Not set'}
                           </span>
                         </div>
                       </TableCell>
@@ -630,27 +519,22 @@ export default function TasksPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingTicket(ticket);setShowCreateTicketDialog(true);}}><Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingTicket(ticket);setShowCreateTicketDialog(true);}}><Edit className="mr-2 h-4 w-4" />
                               Edit Ticket
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <MessageSquare className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingTicket(ticket);setShowCreateTicketDialog(true);}}><MessageSquare className="mr-2 h-4 w-4" />
                               Add Comment
                             </DropdownMenuItem>
                             {ticket.status !== 'resolved' && (
-                              <DropdownMenuItem>
-                                <CheckCircle className="mr-2 h-4 w-4" />
+                              <DropdownMenuItem onClick={()=>{changeStatus('tickets',ticket,'resolved')}}><CheckCircle className="mr-2 h-4 w-4" />
                                 Mark Resolved
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem className="text-red-600" onClick={()=>{deleteRecord('tickets',ticket)}}><Trash2 className="mr-2 h-4 w-4" />
                               Delete Ticket
                             </DropdownMenuItem>
                           </DropdownMenuContent>

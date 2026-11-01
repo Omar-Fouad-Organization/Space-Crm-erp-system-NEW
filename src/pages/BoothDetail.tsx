@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -123,96 +125,7 @@ const BoothDetail = () => {
     loadBoothData();
   }, [boothId]);
 
-  const loadBoothData = async () => {
-    setLoading(true);
-    try {
-      // Mock booth data - replace with actual API call
-      const mockBoothData: BoothData = {
-        id: boothId || '1',
-        code: 'A-101',
-        size_sqm: 48,
-        price_per_meter: 1200,
-        total_price: 57600,
-        zone: 'Zone A',
-        aisle: 'Main Aisle',
-        hall: 'Hall 1',
-        is_corner: true,
-        status: 'Confirmed',
-        client: {
-          id: 'client-1',
-          name: 'EcoTech Solutions',
-          contact_person: 'John Smith',
-          email: 'john.smith@ecotech.com',
-          phone: '+1 (555) 123-4567'
-        },
-        expo: {
-          id: 'expo-1',
-          name: 'Green Life Expo 2024',
-          start_date: '2024-03-15',
-          end_date: '2024-03-18'
-        },
-        deal: {
-          id: 'deal-1',
-          title: 'Main Sponsor Package',
-          value: 57600,
-          status: 'Closed Won'
-        },
-        features: ['Power', 'WiFi', 'Corner Location', 'Premium Parking', 'Storage Area', 'Meeting Room Access'],
-        reserved_date: '2023-12-15',
-        confirmed_date: '2023-12-20',
-        setup_date: '2024-03-14',
-        breakdown_date: '2024-03-19',
-        notes: 'Premium corner booth with excellent visibility. Client requested additional power outlets and WiFi access points.',
-        analytics: {
-          revenue_generated: 57600,
-          visitor_count: 1250,
-          lead_conversions: 45,
-          satisfaction_score: 4.8,
-          utilization_rate: 95,
-          setup_efficiency: 92
-        },
-        timeline: [
-          {
-            id: '1',
-            type: 'confirmation',
-            title: 'Booth Confirmed',
-            description: 'EcoTech Solutions confirmed booth reservation with full payment',
-            date: '2023-12-20T14:30:00Z',
-            user: 'Sarah Johnson',
-            status: 'completed'
-          },
-          {
-            id: '2',
-            type: 'reservation',
-            title: 'Booth Reserved',
-            description: 'Initial booth reservation with 30% deposit',
-            date: '2023-12-15T09:15:00Z',
-            user: 'Mike Chen',
-            status: 'completed'
-          },
-          {
-            id: '3',
-            type: 'setup',
-            title: 'Setup Scheduled',
-            description: 'Booth setup scheduled for March 14th, 8:00 AM',
-            date: '2024-01-10T16:00:00Z',
-            user: 'Operations Team',
-            status: 'pending'
-          }
-        ]
-      };
-
-      setBoothData(mockBoothData);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load booth data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadBoothData = async()=>{setLoading(true);try{const [booths,deals,expos,clients]=await Promise.all([apiAll('booths'),apiAll('deals'),apiAll('exhibitions'),apiAll('clients')]);const b=booths.find(b=>b.id===boothId);if(!b)throw new Error('Booth not found');const deal=deals.find(d=>d.booth_id===b.id&&!['cancelled','closed_lost'].includes(d.stage)),client=clients.find(c=>c.id===deal?.client_id),expo=expos.find(e=>e.id===b.exhibition_id);setBoothData({...b,code:b.booth_code,price_per_meter:b.size_sqm?b.total_price/b.size_sqm:0,is_corner:!!b.is_corner,status:b.status==='Sold'?'Confirmed':b.status,client:client?{...client,name:client.name}:undefined,expo,deal:deal?{...deal,value:deal.deal_value}:undefined,features:b.features||[],analytics:{revenue_generated:deal?.stage==='closed_won'?deal.deal_value:0,visitor_count:Number(b.visitor_count||0),lead_conversions:0,satisfaction_score:0,utilization_rate:deal?100:0,setup_efficiency:0},timeline:[]} as any);}catch(error){toast({title:'Booth unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -296,12 +209,12 @@ const BoothDetail = () => {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              
+
               <div className="flex items-center space-x-4">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Building2 className="h-6 w-6 text-blue-600" />
                 </div>
-                
+
                 <div className="text-left">
                   <div className="flex items-center space-x-3">
                     <h1 className="text-2xl font-bold text-gray-900">
@@ -407,7 +320,7 @@ const BoothDetail = () => {
                     )}
                   </CardContent>
                 </Card>
-                
+
                 {/* Client Information */}
                 {boothData.client && (
                   <Card>
@@ -487,7 +400,7 @@ const BoothDetail = () => {
                     </div>
                   </CardContent>
                 </Card>
-                
+
                 {/* Analytics */}
                 <Card>
                   <CardHeader>
@@ -545,7 +458,7 @@ const BoothDetail = () => {
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="overview" className="space-y-4">
                   <Card>
                     <CardHeader>
@@ -576,7 +489,7 @@ const BoothDetail = () => {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader>
                       <CardTitle>
@@ -603,7 +516,7 @@ const BoothDetail = () => {
                     </CardContent>
                   </Card>
                 </TabsContent>
-                
+
                 <TabsContent value="timeline" className="space-y-4">
                   <Card>
                     <CardHeader>

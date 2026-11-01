@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Loader2, 
-  Briefcase, 
-  DollarSign, 
-  CreditCard, 
+import {
+  Loader2,
+  Briefcase,
+  DollarSign,
+  CreditCard,
   Target,
   Building2,
   Calendar,
@@ -27,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useUserTracking } from '@/hooks/useUserTracking';
 import { supabase } from '@/integrations/supabase/client';
-import { boothService, expoService } from '@/services/supabaseService';
+import { boothService, dealService, expoService } from '@/services/supabaseService';
 import type { Client, Exhibition, Booth } from '@/services/supabaseService';
 
 interface CreateDealDialogProps {
@@ -80,7 +82,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
   const { userId, userName, userEmail } = useUserTracking();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
-  
+
   // Booth and Sponsorship data
   const [booths, setBooths] = useState<Booth[]>([]);
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
@@ -125,10 +127,10 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
     const subtotal = basePrice - discountAmount;
     const taxAmount = (subtotal * taxPercentage) / 100;
     const totalAmount = subtotal + taxAmount;
-    
+
     // FIXED: Commission should be calculated from base_price, not total_amount
     const commissionAmount = (basePrice * commissionPercentage) / 100;
-    
+
     console.log('💰 COMMISSION CALC:', {
       basePrice,
       commissionPercentage,
@@ -150,7 +152,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
         ...installment,
         amount: ((totalAmount * parseFloat(installment.percentage)) / 100).toFixed(2)
       }));
-      
+
       setFormData(prev => ({
         ...prev,
         installments: updatedInstallments
@@ -159,249 +161,24 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
   }, [formData.base_price, formData.discount_percentage, formData.tax_percentage, formData.commission_percentage, formData.payment_plan_type]);
 
   // Load booth data directly from Booths page using boothService
-  const loadBooths = async () => {
-    setLoadingBooths(true);
-    try {
-      console.log('🏢 BOOTH IMPORT: Loading booths from Booths page via boothService...');
-      const allBooths = await boothService.getAll();
-      console.log('💾 BOOTH IMPORT: Raw booth data:', allBooths?.length || 0, 'booths loaded');
-      
-      if (!allBooths || allBooths.length === 0) {
-        console.log('📝 BOOTH IMPORT: No real booths found, creating demo booths');
-        // Create demo booths that match the Booth interface
-        const demoBooths = [
-          {
-            id: 'demo-booth-1',
-            booth_number: 'A-101',
-            booth_code: 'A-101',
-            size_sqm: 36,
-            base_price: 5400,
-            total_price: 5400,
-            status: 'Available',
-            booth_type: 'Standard',
-            currency: 'EGP',
-            exhibition_id: formData.exhibition_id || null,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 'demo-booth-2',
-            booth_number: 'A-102',
-            booth_code: 'A-102',
-            size_sqm: 48,
-            base_price: 7200,
-            total_price: 7200,
-            status: 'Available',
-            booth_type: 'Premium',
-            currency: 'EGP',
-            exhibition_id: formData.exhibition_id || null,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 'demo-booth-3',
-            booth_number: 'B-201',
-            booth_code: 'B-201',
-            size_sqm: 24,
-            base_price: 2880,
-            total_price: 2880,
-            status: 'Available',
-            booth_type: 'Standard',
-            currency: 'EGP',
-            exhibition_id: formData.exhibition_id || null,
-            created_at: new Date().toISOString()
-          }
-        ];
-        setBooths(demoBooths);
-        console.log('✅ BOOTH IMPORT: Demo booths created');
-        return;
-      }
-      
-      // Filter booths by exhibition if selected, otherwise show all available booths
-      let filteredBooths = allBooths;
-      if (formData.exhibition_id) {
-        filteredBooths = allBooths.filter(booth => 
-          booth.exhibition_id === formData.exhibition_id && 
-          ['Available', 'Reserved'].includes(booth.status)
-        );
-        console.log(`💾 BOOTH IMPORT: Filtered ${filteredBooths.length} booths for exhibition:`, formData.exhibition_id);
-      } else {
-        filteredBooths = allBooths.filter(booth => ['Available', 'Reserved'].includes(booth.status));
-        console.log(`💾 BOOTH IMPORT: Showing ${filteredBooths.length} available booths (no exhibition filter)`);
-      }
-
-      // Set the filtered booths or add demo booths if none found
-      if (filteredBooths.length > 0) {
-        setBooths(filteredBooths);
-        console.log('✅ Real booths loaded:', filteredBooths.length);
-      } else {
-        // Create demo booths as fallback
-        const demoBooths = [
-          {
-            id: 'demo-booth-1',
-            booth_code: 'A-101',
-            booth_number: 'A-101',
-            size_sqm: 36,
-            base_price: 5400, // 36 * 150
-            total_price: 5400,
-            status: 'Available',
-            booth_type: 'Standard',
-            currency: 'EGP',
-            exhibition_id: formData.exhibition_id || 'demo-expo'
-          },
-          {
-            id: 'demo-booth-2',
-            booth_code: 'A-102',
-            booth_number: 'A-102',
-            size_sqm: 48,
-            base_price: 7200, // 48 * 150
-            total_price: 7200,
-            status: 'Available',
-            booth_type: 'Standard',
-            currency: 'EGP',
-            exhibition_id: formData.exhibition_id || 'demo-expo'
-          },
-          {
-            id: 'demo-booth-3',
-            booth_code: 'B-201',
-            booth_number: 'B-201',
-            size_sqm: 24,
-            base_price: 2880, // 24 * 120
-            total_price: 2880,
-            status: 'Available',
-            booth_type: 'Standard',
-            currency: 'EGP',
-            exhibition_id: formData.exhibition_id || 'demo-expo'
-          }
-        ];
-        setBooths(demoBooths);
-        console.log('✅ Demo booths loaded as fallback');
-      }
-    } catch (error: any) {
-      console.error('❌ BOOTH IMPORT ERROR:', {
-        error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        status: error?.status
-      });
-      
-      // Create demo booths as fallback when real data fails
-      console.log('📝 FALLBACK: Creating demo booths due to error');
-      const fallbackBooths = [
-        {
-          id: 'fallback-booth-1',
-          booth_number: 'A-101',
-          booth_code: 'A-101',
-          size_sqm: 36,
-          base_price: 5400,
-          total_price: 5400,
-          status: 'Available',
-          booth_type: 'Standard',
-          currency: 'EGP',
-          exhibition_id: formData.exhibition_id || null,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'fallback-booth-2',
-          booth_number: 'A-102',
-          booth_code: 'A-102',
-          size_sqm: 48,
-          base_price: 7200,
-          total_price: 7200,
-          status: 'Available',
-          booth_type: 'Premium',
-          currency: 'EGP',
-          exhibition_id: formData.exhibition_id || null,
-          created_at: new Date().toISOString()
-        }
-      ];
-      setBooths(fallbackBooths);
-      
-      toast({
-        title: "Booth Loading Failed",
-        description: `Error: ${error?.message || 'Unknown error'}. Using demo booths.`,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingBooths(false);
-    }
-  };
+  const loadBooths = async()=>{setLoadingBooths(true);try{const rows=await boothService.getAll();setBooths(rows.filter(b=>(!formData.exhibition_id||b.exhibition_id===formData.exhibition_id)&&b.status==='Available'));}catch(error){toast({title:'Booths unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoadingBooths(false);}};
 
   // Load sponsorship data
-  const loadSponsorships = async () => {
-    setLoadingSponsorships(true);
-    try {
-      console.log('🎯 Loading sponsorships from database...');
-      
-      const { data, error } = await supabase
-        .from('sponsorship_packages_2026_01_10')
-        .select('id, package_name, package_tier, base_price, benefits')
-        .limit(50);
-
-      if (error || !data || data.length === 0) {
-        console.log('📝 Creating demo sponsorships (no real data found)');
-        // Create demo sponsorships as fallback
-        const demoSponsorships = [
-          {
-            id: 'demo-sponsor-1',
-            package_name: 'Platinum Sponsor',
-            package_tier: 'Platinum',
-            base_price: 500000,
-            benefits: 'Exclusive naming rights, premium booth location, VIP access, speaking opportunities'
-          },
-          {
-            id: 'demo-sponsor-2',
-            package_name: 'Gold Sponsor',
-            package_tier: 'Gold',
-            base_price: 300000,
-            benefits: 'Premium booth location, VIP access, networking events'
-          },
-          {
-            id: 'demo-sponsor-3',
-            package_name: 'Silver Sponsor',
-            package_tier: 'Silver',
-            base_price: 150000,
-            benefits: 'Standard booth, networking access, promotional opportunities'
-          },
-          {
-            id: 'demo-sponsor-4',
-            package_name: 'Bronze Sponsor',
-            package_tier: 'Bronze',
-            base_price: 75000,
-            benefits: 'Basic booth space, event materials, networking access'
-          }
-        ];
-        setSponsorships(demoSponsorships);
-        console.log('✅ Demo sponsorships loaded');
-      } else {
-        setSponsorships(data);
-        console.log('✅ Real sponsorships loaded:', data.length);
-      }
-    } catch (error: any) {
-      console.error('Error loading sponsorships:', error);
-      toast({
-        title: "Error Loading Sponsorships",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingSponsorships(false);
-    }
-  };
+  const loadSponsorships = async()=>{setLoadingSponsorships(true);try{const rows=await apiAll('sponsorship_packages');setSponsorships(rows.filter(p=>!formData.exhibition_id||p.exhibition_id===formData.exhibition_id).map(p=>({...p,id:p.id,package_name:p.name,price_egp:p.price,price:p.price,base_price:p.price,total_price:p.price,description:p.description||''})) as any);}catch(error){toast({title:'Packages unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoadingSponsorships(false);}};
 
   // Handle deal type change
   const handleDealTypeChange = (dealType: string) => {
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       deal_type: dealType,
       package_id: '',
       base_price: ''
     }));
-    
+
     // Clear previous data
     setBooths([]);
     setSponsorships([]);
-    
+
     // Auto-load appropriate data based on deal type
     if (dealType === 'booth') {
       console.log('🏢 AUTO-LOAD: Loading booths for booth deal type');
@@ -415,14 +192,14 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
   // Handle package selection (booth or sponsorship)
   const handlePackageSelect = (packageId: string) => {
     setFormData(prev => ({ ...prev, package_id: packageId }));
-    
+
     if (formData.deal_type === 'booth') {
       const selectedBooth = booths.find(b => b.id === packageId);
       if (selectedBooth) {
         // Use total_price if available, otherwise calculate from base_price
         const totalPrice = selectedBooth.total_price || selectedBooth.base_price || 0;
-        setFormData(prev => ({ 
-          ...prev, 
+        setFormData(prev => ({
+          ...prev,
           base_price: totalPrice.toString(),
           description: `${selectedBooth.booth_code || selectedBooth.booth_number} - ${selectedBooth.size_sqm}sqm - ${selectedBooth.booth_type || 'Standard'}`
         }));
@@ -431,8 +208,8 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
     } else if (formData.deal_type === 'sponsorship' || formData.deal_type === 'sector_sponsor') {
       const selectedSponsorship = sponsorships.find(s => s.id === packageId);
       if (selectedSponsorship) {
-        setFormData(prev => ({ 
-          ...prev, 
+        setFormData(prev => ({
+          ...prev,
           base_price: selectedSponsorship.base_price.toString(),
           description: `${selectedSponsorship.package_name} - ${selectedSponsorship.package_tier}`
         }));
@@ -449,7 +226,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
   const handleExhibitionSelect = (exhibitionId: string) => {
     const actualId = exhibitionId === 'none' ? '' : exhibitionId;
     setFormData(prev => ({ ...prev, exhibition_id: actualId }));
-    
+
     // If booth deal type is selected, reload booths for new exhibition
     if (formData.deal_type === 'booth' && actualId) {
       console.log('🏢 Exhibition selected, reloading all booths (will filter by exhibition)');
@@ -483,7 +260,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
     setFormData(prev => {
       const updatedInstallments = [...prev.installments];
       updatedInstallments[index] = { ...updatedInstallments[index], [field]: value };
-      
+
       // If percentage changed, recalculate amount
       if (field === 'percentage') {
         const totalAmount = parseFloat(prev.total_amount) || 0;
@@ -496,7 +273,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
           calculatedAmount
         });
       }
-      
+
       return { ...prev, installments: updatedInstallments };
     });
   };
@@ -504,9 +281,9 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     console.log('🚀 ENHANCED: Form submitted');
-    
+
     // Validation
     if (!formData.title.trim()) {
       toast({
@@ -516,7 +293,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
       });
       return;
     }
-    
+
     if (!formData.client_id) {
       toast({
         title: "Validation Error",
@@ -525,7 +302,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
       });
       return;
     }
-    
+
     if (!formData.deal_type) {
       toast({
         title: "Validation Error",
@@ -534,21 +311,21 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
       });
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       const dealValue = parseFloat(formData.total_amount) || parseFloat(formData.base_price) || 0;
       const currentUserId = userId || 'demo-user';
       const currentUserName = userName || userEmail || 'Demo User';
-      
+
       // CRITICAL: Validate exhibition_id to prevent 409 foreign key errors
       console.log('🔍 EXHIBITION VALIDATION:', {
         formData_exhibition_id: formData.exhibition_id,
         exhibitions_count: exhibitions?.length || 0,
         exhibitions_ids: exhibitions?.map(e => e.id) || []
       });
-      
+
       let validExhibitionId = null;
       if (formData.exhibition_id && formData.exhibition_id.trim() !== '') {
         // Check if exhibitions array is available
@@ -575,7 +352,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
         console.log('📝 No exhibition_id provided, setting to null');
         validExhibitionId = null;
       }
-      
+
       const dealData = {
         title: formData.title.trim(),
         description: formData.description?.trim() || null,
@@ -607,24 +384,24 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
         terms_conditions: formData.terms_conditions?.trim() || null,
         special_requirements: formData.special_requirements?.trim() || null
       };
-      
+
       // Validate required fields
       if (!dealData.title || !dealData.client_id || !dealData.deal_type) {
         throw new Error('Missing required fields: title, client_id, or deal_type');
       }
-      
+
       if (!dealData.deal_value || dealData.deal_value <= 0) {
         throw new Error('Deal value must be greater than 0');
       }
-      
+
       // Validate client_id exists to prevent foreign key errors
       const clientExists = clients.some(client => client.id === dealData.client_id);
       if (!clientExists) {
         throw new Error(`Invalid client_id: ${dealData.client_id}. Client not found.`);
       }
-      
+
       console.log('✅ All validations passed - client and exhibition IDs are valid');
-      
+
       console.log('💾 ENHANCED: Creating deal with validated data:', {
         title: dealData.title,
         client_id: dealData.client_id,
@@ -635,64 +412,27 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
         total_amount: dealData.total_amount,
         package_id: dealData.package_id
       });
-      
-      // CRITICAL SAFETY: Force exhibition_id to null to prevent ALL foreign key errors
-      // TODO: Remove this once exhibition foreign key issues are resolved
-      if (dealData.exhibition_id) {
-        console.log('⚠️ TEMPORARY FIX: Forcing exhibition_id to null to prevent 409 errors');
-        console.log('Original exhibition_id was:', dealData.exhibition_id);
-        dealData.exhibition_id = null;
-      }
-      
-      console.log('🔒 FINAL DEAL DATA FOR INSERT:', {
+
+      console.log('Creating deal with validated exhibition relationship:', {
         title: dealData.title,
         client_id: dealData.client_id,
         exhibition_id: dealData.exhibition_id,
         deal_type: dealData.deal_type,
         deal_value: dealData.deal_value
       });
-      
-      // Try direct database insert first, fallback to dealService
-      let result;
-      try {
-        console.log('💾 Attempting direct database insert...');
-        const insertPromise = supabase
-          .from('deals_2026_01_10_12_00')
-          .insert([dealData])
-          .select('id, title, deal_value, deal_type')
-          .single();
-        
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Direct insert timed out after 5 seconds')), 5000)
-        );
-        
-        result = await Promise.race([insertPromise, timeoutPromise]);
-        
-        if (result.error) {
-          throw result.error;
-        }
-        
-        console.log('✅ Direct insert successful:', result.data);
-      } catch (directError) {
-        console.log('⚠️ Direct insert failed, trying dealService...', directError);
-        
-        // Fallback to dealService
-        const { dealService } = await import('@/services/supabaseService');
-        result = { data: await dealService.create(dealData) };
-        console.log('✅ DealService fallback successful:', result.data);
-      }
-      
+
+      const result={data:await dealService.create(dealData)};
       console.log('✅ ENHANCED: Deal created successfully:', result.data);
-      
+
       // Create payment schedules if installments are configured
       if (formData.payment_plan_type === 'installments' && formData.installments.length > 0) {
         try {
           console.log('💰 Creating payment schedules for installments...');
           const { paymentScheduleService } = await import('@/services/supabaseService');
-          
+
           // Create payment schedules from installments
           await paymentScheduleService.create(result.data.id, dealData, formData.installments);
-          
+
           console.log('✅ Payment schedules created successfully');
           toast({
             title: "Payment Schedules Created",
@@ -707,13 +447,13 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
           });
         }
       }
-      
+
       // Create commission schedules if commission is configured
       if (formData.commission_percentage && parseFloat(formData.commission_percentage) > 0) {
         try {
           console.log('💰 Creating commission schedules for deal...');
           const { commissionService } = await import('@/services/supabaseService');
-          
+
           // Prepare enhanced form data with user information
           const enhancedFormData = {
             ...formData,
@@ -722,10 +462,10 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
             sales_person_id: currentUserId,
             sales_person_name: currentUserName
           };
-          
+
           // Create commission schedules based on payment plan
           await commissionService.createFromDeal(result.data.id, dealData, enhancedFormData);
-          
+
           console.log('✅ Commission schedules created successfully');
           toast({
             title: "Commission Schedules Created",
@@ -740,12 +480,12 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
           });
         }
       }
-      
+
       toast({
         title: "Deal Created Successfully!",
         description: `"${formData.title}" has been created as a ${DEAL_TYPES.find(dt => dt.value === formData.deal_type)?.label}`,
       });
-      
+
       // Reset form
       setFormData({
         title: '',
@@ -773,12 +513,12 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
         terms_conditions: '',
         special_requirements: ''
       });
-      
+
       setActiveTab('basic');
       setLoading(false);
       onSuccess();
       onClose();
-      
+
     } catch (error: any) {
       console.error('❌ DEAL CREATION ERROR:', {
         error,
@@ -795,13 +535,13 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
           total_amount: formData.total_amount
         }
       });
-      
+
       toast({
         title: "Deal Creation Failed",
         description: `Error: ${error?.message || 'Unknown error'}. Check console for details.`,
         variant: "destructive",
       });
-      
+
       setLoading(false);
     }
   };
@@ -933,7 +673,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
                             </div>
                           </div>
                         )}
-                        
+
                         {(formData.deal_type === 'sponsorship' || formData.deal_type === 'sector_sponsor') && sponsorships.length === 0 && (
                           <div className="mt-2 p-4 bg-green-50 border border-green-200 rounded-lg">
                             <div className="flex items-center justify-between">
@@ -963,11 +703,11 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
                             </div>
                           </div>
                         )}
-                        
+
                         <Select value={formData.package_id} onValueChange={handlePackageSelect}>
                           <SelectTrigger className="mt-2">
                             <SelectValue placeholder={
-                              formData.deal_type === 'booth' 
+                              formData.deal_type === 'booth'
                                 ? (booths.length > 0 ? "Select a booth" : "Load booths first")
                                 : (sponsorships.length > 0 ? "Select a package" : "Load packages first")
                             } />
@@ -985,7 +725,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
                                 </div>
                               </SelectItem>
                             ))}
-                            
+
                             {(formData.deal_type === 'sponsorship' || formData.deal_type === 'sector_sponsor') && sponsorships.map((sponsorship) => (
                               <SelectItem key={sponsorship.id} value={sponsorship.id}>
                                 <div className="flex items-center justify-between w-full">
@@ -1427,7 +1167,7 @@ const CreateDealDialog: React.FC<CreateDealDialogProps> = ({
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
-                
+
                 {/* CREATE DEAL BUTTON - ALWAYS VISIBLE */}
                 <Button type="submit" disabled={loading} className="crm-button-primary">
                   {loading ? (

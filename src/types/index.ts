@@ -13,15 +13,15 @@ export interface User {
   permissions?: Permission[];
 }
 
-export type UserRole = 
-  | 'super_admin' 
-  | 'management' 
-  | 'sales_manager' 
-  | 'sales_executive' 
-  | 'finance_manager' 
-  | 'finance_officer' 
-  | 'operations' 
-  | 'support' 
+export type UserRole =
+  | 'super_admin'
+  | 'management'
+  | 'sales_manager'
+  | 'sales_executive'
+  | 'finance_manager'
+  | 'finance_officer'
+  | 'operations'
+  | 'support'
   | 'client';
 
 export interface Permission {
@@ -86,7 +86,7 @@ export interface SponsorshipPackage {
   updated_at: string;
 }
 
-export type DealStatus = 
+export type DealStatus =
   | 'lead_created'
   | 'talking'
   | 'meeting'
@@ -114,7 +114,7 @@ export interface Deal {
   created_at: string;
   updated_at: string;
   created_by: string;
-  
+
   // Relations
   client?: Client;
   expo?: Expo;

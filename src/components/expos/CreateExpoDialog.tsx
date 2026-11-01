@@ -40,13 +40,13 @@ const expoFormSchema = z.object({
   name: z.string().min(1, 'Expo name is required').max(100, 'Expo name too long'),
   location: z.string().min(1, 'Location is required').max(200, 'Location too long'),
   start_date: z.date({
-    required_error: 'Start date is required',
+    error: 'Start date is required',
   }),
   end_date: z.date({
-    required_error: 'End date is required',
+    error: 'End date is required',
   }),
   status: z.enum(['planning', 'active'], {
-    required_error: 'Status is required',
+    error: 'Status is required',
   }),
   notes: z.string().optional(),
 }).refine((data) => data.end_date >= data.start_date, {

@@ -78,13 +78,13 @@ export default function CreateCommissionDialog({ open, onOpenChange, onSubmit }:
   const watchedPaymentId = form.watch('payment_id');
   const watchedCommissionPercentage = form.watch('commission_percentage');
 
-  const availablePayments = mockPayments.filter(payment => 
+  const availablePayments = mockPayments.filter(payment =>
     watchedDealId ? payment.deal_id === watchedDealId : true
   );
 
   const selectedPayment = mockPayments.find(p => p.id === watchedPaymentId);
-  const commissionAmount = selectedPayment && watchedCommissionPercentage 
-    ? (selectedPayment.amount * watchedCommissionPercentage) / 100 
+  const commissionAmount = selectedPayment && watchedCommissionPercentage
+    ? (selectedPayment.amount * watchedCommissionPercentage) / 100
     : 0;
 
   const handleSubmit = (values: CommissionFormValues) => {

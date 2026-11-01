@@ -1,3 +1,4 @@
+import {useRecordOptions} from '@/hooks/useRecordOptions';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -78,6 +79,7 @@ const zones = [
 ];
 
 export default function CreateBoothDialog({ open, onOpenChange, onSubmit }: CreateBoothDialogProps) {
+  const mockExpos=useRecordOptions('exhibitions',open);
   const form = useForm<BoothFormValues>({
     resolver: zodResolver(boothFormSchema),
     defaultValues: {

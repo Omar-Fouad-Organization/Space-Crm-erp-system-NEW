@@ -1,270 +1,64 @@
-# SPACE CRM & ERP System
+# SPACE CRM & ERP — React / Laravel / MySQL
 
-A comprehensive Enterprise Resource Planning (ERP) and Customer Relationship Management (CRM) system built for SPACE Organizing, featuring 14 integrated modules for complete business management.
+The active application uses React + TypeScript + Vite 8, a Laravel 12 JSON API, and MySQL 8.4. The original React screens, layouts, fields, dialogs, and styling are restored from commit bc25301. Their existing service calls now use the session-authenticated Laravel API. Original ancillary fields are retained in validated MySQL JSON attributes; relationships and financial values remain explicit validated columns. No Supabase service is used.
 
-## 🚀 Live Demo
+## Current local preview
 
-**Frontend Application**: [https://wgdwzhvhc2.skywork.website](https://wgdwzhvhc2.skywork.website)
+Open http://127.0.0.1:8080/ . Laravel listens on 127.0.0.1:8000 and MySQL on 127.0.0.1:3307. All services bind to loopback.
 
-## 📋 Features
+From this project folder, restart local services without changing the data:
 
-### Core Modules (14 Total)
-
-1. **📊 Dashboard** - Real-time analytics and KPI monitoring
-2. **🤝 Deals & Pipeline** - Sales pipeline management with comprehensive deal tracking
-3. **👥 Clients Management** - Complete client relationship management
-4. **🏢 Exhibitions & Expos** - Event and exhibition management
-5. **💰 Finance Management** - Financial tracking, payments, and reporting
-6. **📋 Tasks & Operations** - Task management and workflow automation
-7. **👤 Users & Permissions** - User management with role-based access control
-8. **💼 Commissions** - Sales commission tracking and management
-9. **🏪 Booths Management** - Exhibition booth allocation and management
-10. **🤝 Sponsorship Packages** - Sponsorship management and tracking
-11. **🏭 Exhibitors Management** - Exhibitor registration and management
-12. **💳 Payments Processing** - Payment schedules and transaction management
-13. **📄 Proposals System** - Proposal creation and management
-14. **📝 Documents & Contracts** - Document management with file attachments
-15. **👥 HR & Team Management** - Employee management and HR operations
-16. **🗓️ Meetings & Calendar** - Meeting scheduling and calendar management
-
-### Technical Features
-
-- **🎨 Modern UI/UX** - Built with React, TypeScript, and Tailwind CSS
-- **🔐 Authentication & Authorization** - Role-based access control system
-- **📱 Responsive Design** - Works seamlessly on desktop, tablet, and mobile
-- **🗄️ Database Integration** - Supabase backend with PostgreSQL
-- **📊 Real-time Analytics** - Live data updates and reporting
-- **📁 File Management** - Document upload and attachment system
-- **🔍 Advanced Search & Filtering** - Comprehensive search across all modules
-- **📈 Data Visualization** - Charts and graphs for business insights
-- **🌐 Multi-currency Support** - International business operations
-- **📧 Notification System** - Real-time alerts and notifications
-
-## 🛠️ Technology Stack
-
-### Frontend
-- **React 18** - Modern React with hooks and functional components
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool and development server
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - High-quality UI components
-- **Lucide React** - Beautiful icon library
-- **React Hook Form** - Form management with validation
-- **Zod** - Schema validation
-- **React Router** - Client-side routing
-- **Recharts** - Data visualization library
-
-### Backend & Database
-- **Supabase** - Backend-as-a-Service platform
-- **PostgreSQL** - Robust relational database
-- **Row Level Security (RLS)** - Database-level security
-- **Real-time Subscriptions** - Live data updates
-- **Edge Functions** - Serverless functions for business logic
-
-### Development Tools
-- **ESLint** - Code linting and quality
-- **Prettier** - Code formatting
-- **Git** - Version control
-- **npm/pnpm** - Package management
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or pnpm
-- Git
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW.git
-   cd Space-Crm-erp-system-NEW
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   pnpm install
-   ```
-
-3. **Environment Setup**
-   ```bash
-   cp .env.example .env.local
-   ```
-   
-   Configure your environment variables:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-4. **Database Setup**
-   
-   Run the Supabase migrations in order:
-   ```bash
-   # Navigate to supabase/migrations/ and run each SQL file in your Supabase SQL editor:
-   # 01_core_users_and_auth.sql
-   # 02_core_business_entities.sql
-   # 03_deals_and_sales_pipeline.sql
-   # 04_finance_and_payments.sql
-   # 05_tasks_communication_notifications.sql
-   # 06_client_portal_and_analytics.sql
-   ```
-
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   # or
-   pnpm dev
-   ```
-
-6. **Build for Production**
-   ```bash
-   npm run build
-   # or
-   pnpm build
-   ```
-
-## 📁 Project Structure
-
-```
-space_crm_system/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── ui/             # shadcn/ui components
-│   │   ├── auth/           # Authentication components
-│   │   ├── layout/         # Layout components
-│   │   └── forms/          # Form components
-│   ├── pages/              # Page components (14 modules)
-│   ├── contexts/           # React contexts for state management
-│   ├── hooks/              # Custom React hooks
-│   ├── services/           # API services and business logic
-│   ├── types/              # TypeScript type definitions
-│   └── lib/                # Utility functions
-├── supabase/
-│   ├── migrations/         # Database migration files
-│   └── edge_functions/     # Serverless functions
-├── public/                 # Static assets
-└── docs/                   # Documentation
+```powershell
+node scripts/start-local.mjs
 ```
 
-## 🔧 Configuration
+The portable PHP/MySQL installation and database files are in `../tools`, outside the repository. The start script is specific to this workspace. Database credentials are in ignored `backend/.env`; no passwords are shipped in frontend code. Login details for this review are in the delivered review guide.
 
-### Supabase Setup
+## Standard installation on another computer
 
-1. Create a new Supabase project
-2. Run the migration files in the `supabase/migrations/` directory
-3. Configure Row Level Security (RLS) policies
-4. Set up authentication providers if needed
+Install PHP 8.4+ with PDO MySQL, OpenSSL, mbstring, fileinfo, curl, XML/DOM, and ZIP; Composer; Node 22.12+ (this workspace uses Node 24); and MySQL 8.4. Create an empty `space_crm` database and a separate `space_crm_test` database. Create an application MySQL account with access only to these databases. Give the deployed runtime account narrower privileges after migrations.
 
-### Environment Variables
-
-```env
-# Supabase Configuration
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-
-# Optional: Third-party integrations
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-VITE_RESEND_API_KEY=re_...
+```sh
+npm ci
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
 ```
 
-## 📊 Database Schema
+Set MySQL connection settings, APP_URL, and CRM_ADMIN_PASSWORD (at least 12 characters) in backend/.env. Set the desired CRM_ADMIN_EMAIL. Then:
 
-The system uses a comprehensive PostgreSQL schema with the following main tables:
+```sh
+php artisan migrate --seed
+php artisan serve --host=127.0.0.1 --port=8000
+```
 
-- **Users & Authentication** - User accounts, roles, and permissions
-- **Business Entities** - Clients, companies, and contacts
-- **Sales Pipeline** - Deals, opportunities, and sales stages
-- **Financial Management** - Payments, invoices, and financial records
-- **Task Management** - Tasks, projects, and workflow automation
-- **Communication** - Messages, notifications, and activity logs
+In a separate terminal at the project root run `npm run dev`. Vite proxies same-origin `/api` calls to Laravel, preserving session and CSRF protection. Use 127.0.0.1 consistently for the local preview.
 
-## 🔐 Security Features
+For deployment, serve the React dist files and route `/api` to Laravel's public directory under the same HTTPS origin. Set APP_ENV=production, APP_DEBUG=false, SESSION_SECURE_COOKIE=true, configure persistent private file storage, backups, mail, and a real web server. The PHP built-in server and Vite are local development servers.
 
-- **Row Level Security (RLS)** - Database-level access control
-- **Role-based Permissions** - Granular access control system
-- **JWT Authentication** - Secure token-based authentication
-- **Data Encryption** - Encrypted sensitive data storage
-- **Audit Logging** - Complete activity tracking
+## Verification
 
-## 🎨 UI/UX Features
+```powershell
+node scripts/verify-local.mjs
+```
 
-- **Dark/Light Mode** - Theme switching capability
-- **Responsive Design** - Mobile-first approach
-- **Accessibility** - WCAG 2.1 compliant
-- **Internationalization** - Multi-language support ready
-- **Progressive Web App** - PWA capabilities
+Or run `npm run typecheck`, `npm run lint`, `npm run build`, then `php vendor/phpunit/phpunit/phpunit` from backend. Copy backend/.env into backend/.env.testing, change APP_ENV to testing and DB_DATABASE to space_crm_test, and use a separate test database. Tests assert the database name before destructive test setup; never point tests at your review data. PHPUnit's XML intentionally omits a redundant bootstrap attribute because the installed PHPUnit executable already loads Composer's autoloader; this also avoids a restricted-Windows is_readable false negative.
 
-## 📈 Performance
+The local Windows bootstrap compatibility helper verifies an actual temporary write to bootstrap/cache when Windows ACL checks incorrectly report it unwritable. It never changes ACLs or modifies vendor files.
 
-- **Code Splitting** - Lazy loading for optimal performance
-- **Caching Strategy** - Efficient data caching
-- **Bundle Optimization** - Minimized bundle sizes
-- **CDN Integration** - Fast global content delivery
+## Retained dummy cycle
 
-## 🤝 Contributing
+The fresh database contains records prefixed DUMMY. The main client has a closed-won EGP 100,000 booth deal, two installments and receipts totaling EGP 100,000, an invoice with zero remaining balance, and a paid EGP 5,000 commission. A second EGP 50,000 sponsorship deal remains in proposal stage. Meeting attendance, task completion, proposal acceptance, contract attachment, employee account, support resolution, and chat are linked to the cycle. The original data is retained alongside the additional review cycles described below.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+`scripts/demo-cycle.mjs` exercises the live HTTP API, including sessions, CSRF, protected deletes, and overpayment rejection. It requires CRM_ADMIN_PASSWORD in the environment and refuses to duplicate an existing review cycle. The completed run's results are supplied with the review guide. It records simulated receipts only and never calls a payment processor or sends email.
 
-## 📝 License
+See docs/RELATIONSHIPS.md for the relationship map and business rules.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Scope and remaining boundaries
 
-## 👥 Team
+The restored core screens use persistent Laravel records, real relationship options, session permissions, private attachments, and the tested sales/receipt/commission cycle. The original checkout also contains unfinished controls and missing pages; these are not evidence of implemented functionality. It does not implement bank/payment-provider execution, email delivery, verified electronic signatures, tax-compliant invoice issuance, refunds/reversals, live WebSocket chat, payroll processing, recurring meeting automation, AI features, or a full accounting ledger. Status changes record internal business states. Those features were not operational in the original checkout and are not represented as working integrations now.
 
-- **Omar Fouad Organization** - Project Owner & Lead Developer
-- **SPACE Organizing** - Business Requirements & Domain Expertise
+List pagination/search currently operate in the browser after loading a module's records; API-side pagination, bulk datasets, and concurrent-user load testing should be added before a large deployment. This is one organization's workspace with module-level roles, not a multi-tenant SaaS or ownership-scoped access system.
 
-## 📞 Support
-
-For support and questions:
-- Email: om301208@gmail.com
-- GitHub Issues: [Create an Issue](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/issues)
-
-## 🚀 Deployment
-
-The application is deployed and accessible at:
-- **Production**: [https://wgdwzhvhc2.skywork.website](https://wgdwzhvhc2.skywork.website)
-
-### Deployment Options
-
-1. **Vercel** (Recommended)
-   ```bash
-   npm run build
-   vercel --prod
-   ```
-
-2. **Netlify**
-   ```bash
-   npm run build
-   netlify deploy --prod --dir=dist
-   ```
-
-3. **Docker**
-   ```bash
-   docker build -t space-crm .
-   docker run -p 3000:3000 space-crm
-   ```
-
-## 📋 Roadmap
-
-- [ ] Mobile Application (React Native)
-- [ ] Advanced Analytics Dashboard
-- [ ] AI-powered Insights
-- [ ] Third-party Integrations (Salesforce, HubSpot)
-- [ ] Advanced Reporting Engine
-- [ ] Workflow Automation Builder
-- [ ] Multi-tenant Architecture
-- [ ] API Documentation Portal
-
----
-
-**Built with ❤️ by Omar Fouad Organization for SPACE Organizing**
+Original Supabase-shaped service names remain as compatibility imports only and route to Laravel. No live Supabase data was read or migrated.

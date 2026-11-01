@@ -1,3 +1,4 @@
+import {useAuth} from '@/contexts/AuthContext';
 import React from 'react';
 
 interface PermissionGuardProps {
@@ -15,5 +16,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 }) => {
   // For now, we'll just return the children
   // In a real implementation, you would check user permissions here
+  const {user,hasRole}=useAuth();
+  if(!user||(role&&!hasRole(role)))return <>{fallback}</>;
   return <>{children}</>;
 };

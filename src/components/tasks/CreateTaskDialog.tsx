@@ -1,3 +1,4 @@
+import {useRecordOptions} from '@/hooks/useRecordOptions';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,16 +44,17 @@ const taskFormSchema = z.object({
   deal_id: z.string().optional(),
   client_id: z.string().optional(),
   due_date: z.date({
-    required_error: 'Due date is required',
+    error: 'Due date is required',
   }),
   priority: z.enum(['low', 'medium', 'high', 'urgent'], {
-    required_error: 'Priority is required',
+    error: 'Priority is required',
   }),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 interface CreateTaskDialogProps {
+  initialData?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CreateTaskForm) => void;
@@ -76,7 +78,10 @@ const mockClients = [
   { id: '3', company_name: 'EcoSolutions Ltd' },
 ];
 
-export default function CreateTaskDialog({ open, onOpenChange, onSubmit }: CreateTaskDialogProps) {
+export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initialData }: CreateTaskDialogProps) {
+  const mockUsers=useRecordOptions('users',open);
+  const mockClients=useRecordOptions('clients',open);
+  const mockDeals=useRecordOptions('deals',open);
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -89,6 +94,8 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit }: Creat
       priority: 'medium',
     },
   });
+
+  React.useEffect(()=>{if(open&&initialData)form.reset({...initialData,...(initialData.due_date?{due_date:new Date(initialData.due_date+'T12:00:00')}: {})});},[open,initialData,form]);
 
   const handleSubmit = (values: TaskFormValues) => {
     const taskData: CreateTaskForm = {

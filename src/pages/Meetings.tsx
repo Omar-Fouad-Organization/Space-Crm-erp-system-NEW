@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -165,209 +167,13 @@ const Meetings = () => {
     loadMeetings();
   }, []);
 
-  const loadMeetings = async () => {
-    try {
-      setLoading(true);
-      
-      // Sample meeting data with enhanced features
-      const sampleMeetings: Meeting[] = [
-        {
-          id: "meeting-001",
-          title: "EcoTech Solutions - Contract Review & Finalization",
-          type: "Client Meeting",
-          status: "Scheduled",
-          date: "2026-01-15",
-          time: "10:00 AM",
-          duration: 90,
-          location: "Conference Room A - Executive Floor",
-          meetingType: "In-Person",
-          organizer: "Sarah Johnson",
-          attendees: ["John Smith (EcoTech)", "Mike Chen", "Emma Davis", "Legal Team"],
-          client: "EcoTech Solutions",
-          deal: "Main Sponsor Package - $250,000",
-          agenda: "Review final contract terms, discuss payment schedule, address legal concerns, finalize sponsorship agreement, plan activation timeline",
-          notes: "Client requested changes to payment terms. Legal review completed. Ready for signature.",
-          priority: "High",
-          meetingUrl: "",
-          attachments: ["Contract_v3.pdf", "Payment_Schedule.xlsx", "Legal_Review.docx"],
-          reminders: ["1 day before", "2 hours before", "30 minutes before"],
-          recurring: false,
-          created_at: "2026-01-10T09:00:00Z",
-          updated_at: "2026-01-12T14:30:00Z"
-        },
-        {
-          id: "meeting-002",
-          title: "Solar Dynamics Corp - Booth Planning & Technical Setup",
-          type: "Planning Meeting",
-          status: "In Progress",
-          date: "2026-01-10",
-          time: "2:00 PM",
-          duration: 60,
-          location: "https://zoom.us/j/123456789",
-          meetingType: "Virtual",
-          organizer: "Mike Chen",
-          attendees: ["Maria Garcia (Solar Dynamics)", "Lisa Wang", "Alex Thompson", "Technical Team"],
-          client: "Solar Dynamics Corp",
-          deal: "Premium Booth (48 sqm) - $120,000",
-          agenda: "Discuss booth layout design, technical requirements, power and internet setup, equipment installation timeline, staff coordination",
-          notes: "Client requested additional power outlets and premium internet package. Technical team to provide cost estimate.",
-          priority: "Medium",
-          meetingUrl: "https://zoom.us/j/123456789",
-          recordingUrl: "https://zoom.us/rec/share/recording123",
-          attachments: ["Booth_Layout.pdf", "Technical_Requirements.docx"],
-          reminders: ["30 minutes before"],
-          recurring: false,
-          created_at: "2026-01-08T11:00:00Z",
-          updated_at: "2026-01-10T13:45:00Z"
-        },
-        {
-          id: "meeting-003",
-          title: "Weekly Sales Team Standup & Pipeline Review",
-          type: "Internal Meeting",
-          status: "Completed",
-          date: "2026-01-08",
-          time: "9:00 AM",
-          duration: 45,
-          location: "Conference Room B",
-          meetingType: "Hybrid",
-          organizer: "John Manager",
-          attendees: ["Sarah Johnson", "Mike Chen", "Emma Davis", "Lisa Wang", "Alex Thompson", "Remote Team"],
-          client: "",
-          deal: "",
-          agenda: "Weekly progress review, deal pipeline updates, upcoming targets discussion, resource allocation, team announcements",
-          notes: "Q1 targets discussed. New lead assignments made. Marketing collaboration planned. Remote team integration successful.",
-          priority: "Medium",
-          meetingUrl: "https://teams.microsoft.com/l/meetup-join/123",
-          recordingUrl: "https://teams.microsoft.com/l/recording/456",
-          attachments: ["Weekly_Report.pdf", "Pipeline_Analysis.xlsx"],
-          reminders: ["15 minutes before"],
-          recurring: true,
-          recurringPattern: "weekly",
-          created_at: "2026-01-01T08:00:00Z",
-          updated_at: "2026-01-08T09:45:00Z"
-        },
-        {
-          id: "meeting-004",
-          title: "Green Energy Alliance - Proposal Presentation & Demo",
-          type: "Presentation",
-          status: "Scheduled",
-          date: "2026-01-16",
-          time: "3:00 PM",
-          duration: 120,
-          location: "Client Office - Green Energy HQ",
-          meetingType: "In-Person",
-          organizer: "Emma Davis",
-          attendees: ["Robert Green (CEO)", "Jennifer Smith (CMO)", "Sarah Johnson", "Mike Chen", "Demo Team"],
-          client: "Green Energy Alliance",
-          deal: "Sector Sponsor - $180,000",
-          agenda: "Present comprehensive sponsorship proposal, demonstrate expo benefits, showcase previous success stories, negotiate terms, discuss activation opportunities",
-          notes: "CEO will attend. Prepare executive summary. Demo equipment confirmed. Catering arranged.",
-          priority: "High",
-          meetingUrl: "",
-          attachments: ["Proposal_Presentation.pptx", "Case_Studies.pdf", "ROI_Analysis.xlsx"],
-          reminders: ["2 days before", "1 day before", "4 hours before"],
-          recurring: false,
-          created_at: "2026-01-09T16:00:00Z",
-          updated_at: "2026-01-11T10:20:00Z"
-        },
-        {
-          id: "meeting-005",
-          title: "Clean Tech Innovations - Urgent Follow-up Call",
-          type: "Follow-up",
-          status: "Overdue",
-          date: "2026-01-09",
-          time: "11:00 AM",
-          duration: 30,
-          location: "Phone Call",
-          meetingType: "Phone",
-          organizer: "Lisa Wang",
-          attendees: ["David Clean (Clean Tech)", "Lisa Wang"],
-          client: "Clean Tech Innovations",
-          deal: "Platinum Sponsor Package - $320,000",
-          agenda: "Follow up on contract amendments, address payment term concerns, resolve outstanding issues, confirm commitment",
-          notes: "Client requested changes to payment terms. Legal team reviewing. Urgent response needed to maintain deal momentum.",
-          priority: "High",
-          meetingUrl: "",
-          attachments: ["Contract_Amendments.pdf", "Payment_Options.docx"],
-          reminders: ["Overdue notification sent"],
-          recurring: false,
-          created_at: "2026-01-07T09:30:00Z",
-          updated_at: "2026-01-09T12:00:00Z"
-        },
-        {
-          id: "meeting-006",
-          title: "WindTech Industries - Product Demo & Integration Discussion",
-          type: "Demo",
-          status: "Scheduled",
-          date: "2026-01-14",
-          time: "1:00 PM",
-          duration: 75,
-          location: "https://meet.google.com/abc-defg-hij",
-          meetingType: "Virtual",
-          organizer: "Alex Thompson",
-          attendees: ["Michael Wind (CTO)", "Sarah Tech (Product Manager)", "Alex Thompson", "Technical Team"],
-          client: "WindTech Industries",
-          deal: "Technology Partner - $150,000",
-          agenda: "Demonstrate expo platform capabilities, discuss API integration, review technical requirements, plan implementation timeline",
-          notes: "Technical demo prepared. API documentation ready. Integration timeline to be discussed.",
-          priority: "Medium",
-          meetingUrl: "https://meet.google.com/abc-defg-hij",
-          attachments: ["API_Documentation.pdf", "Integration_Guide.docx", "Demo_Script.pdf"],
-          reminders: ["1 day before", "1 hour before"],
-          recurring: false,
-          created_at: "2026-01-11T14:00:00Z",
-          updated_at: "2026-01-12T09:15:00Z"
-        },
-        {
-          id: "meeting-007",
-          title: "Monthly Team Training - CRM Best Practices",
-          type: "Training",
-          status: "Scheduled",
-          date: "2026-01-17",
-          time: "10:00 AM",
-          duration: 90,
-          location: "Training Room - Main Building",
-          meetingType: "In-Person",
-          organizer: "HR Team",
-          attendees: ["All Sales Team", "Marketing Team", "Customer Success", "External Trainer"],
-          client: "",
-          deal: "",
-          agenda: "CRM system updates, best practices training, new feature overview, Q&A session, certification process",
-          notes: "External trainer confirmed. Training materials prepared. Certificates will be issued upon completion.",
-          priority: "Medium",
-          meetingUrl: "",
-          attachments: ["Training_Materials.pdf", "CRM_Guide.docx", "Certification_Info.pdf"],
-          reminders: ["3 days before", "1 day before"],
-          recurring: true,
-          recurringPattern: "monthly",
-          created_at: "2026-01-05T12:00:00Z",
-          updated_at: "2026-01-10T16:45:00Z"
-        }
-      ];
-
-      setMeetings(sampleMeetings);
-      
-      toast({
-        title: "Meetings Loaded",
-        description: `Loaded ${sampleMeetings.length} meetings successfully`,
-      });
-    } catch (error) {
-      console.error("Error loading meetings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load meetings",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadMeetings = async () => {setLoading(true);try{setMeetings(await apiAll('meetings') as any);}catch(error){toast({title:'Unable to load records',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const handleCreateMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      const newMeeting: Meeting = {
+      let newMeeting: Meeting = {
         id: `meeting-${Date.now()}`,
         title: meetingForm.title,
         type: meetingForm.type as Meeting['type'],
@@ -391,19 +197,20 @@ const Meetings = () => {
         updated_at: new Date().toISOString()
       };
 
+      newMeeting=await apiSave('meetings',{...newMeeting,organizer_id:(await apiMetadata()).user.id,meeting_type:meetingForm.type}) as any;
       setMeetings(prev => [newMeeting, ...prev]);
-      
+
       toast({
         title: "Meeting Created",
         description: `${meetingForm.title} has been scheduled successfully`,
       });
-      
+
       setShowCreateDialog(false);
       resetForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create meeting",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -412,9 +219,9 @@ const Meetings = () => {
   const handleEditMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMeeting) return;
-    
+
     try {
-      const updatedMeeting: Meeting = {
+      let updatedMeeting: Meeting = {
         ...selectedMeeting,
         title: meetingForm.title,
         type: meetingForm.type as Meeting['type'],
@@ -435,20 +242,21 @@ const Meetings = () => {
         updated_at: new Date().toISOString()
       };
 
+      updatedMeeting=await apiSave('meetings',{...updatedMeeting,meeting_type:meetingForm.type},selectedMeeting.id) as any;
       setMeetings(prev => prev.map(m => m.id === selectedMeeting.id ? updatedMeeting : m));
-      
+
       toast({
         title: "Meeting Updated",
         description: `${meetingForm.title} has been updated successfully`,
       });
-      
+
       setShowEditDialog(false);
       setSelectedMeeting(null);
       resetForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update meeting",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -456,39 +264,28 @@ const Meetings = () => {
 
   const handleDeleteMeeting = async () => {
     if (!meetingToDelete) return;
-    
+
     try {
+      await apiRemove('meetings',meetingToDelete.id);
       setMeetings(prev => prev.filter(m => m.id !== meetingToDelete.id));
-      
+
       toast({
         title: "Meeting Deleted",
         description: `${meetingToDelete.title} has been cancelled and removed`,
       });
-      
+
       setShowDeleteDialog(false);
       setMeetingToDelete(null);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete meeting",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
   };
 
-  const handleStartMeeting = (meetingId: string) => {
-    const meeting = meetings.find(m => m.id === meetingId);
-    if (meeting) {
-      setMeetings(prev => prev.map(m => 
-        m.id === meetingId ? { ...m, status: 'In Progress' as const } : m
-      ));
-      
-      toast({
-        title: "Meeting Started",
-        description: `${meeting.title} is now in progress`,
-      });
-    }
-  };
+  const handleStartMeeting = async (meetingId:string)=>{try{const record=await apiSave('meetings',{status:'In Progress'},meetingId);setMeetings(prev=>prev.map(m=>m.id===meetingId?record as any:m));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
 
   const handleJoinMeeting = (meetingId: string) => {
     const meeting = meetings.find(m => m.id === meetingId);
@@ -507,29 +304,9 @@ const Meetings = () => {
     }
   };
 
-  const handleCompleteMeeting = (meetingId: string) => {
-    const meeting = meetings.find(m => m.id === meetingId);
-    if (meeting) {
-      setMeetings(prev => prev.map(m => 
-        m.id === meetingId ? { ...m, status: 'Completed' as const } : m
-      ));
-      
-      toast({
-        title: "Meeting Completed",
-        description: `${meeting.title} has been marked as completed`,
-      });
-    }
-  };
+  const handleCompleteMeeting = async (meetingId:string)=>{try{const record=await apiSave('meetings',{status:'Completed'},meetingId);setMeetings(prev=>prev.map(m=>m.id===meetingId?record as any:m));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
 
-  const handleSendReminder = (meetingId: string) => {
-    const meeting = meetings.find(m => m.id === meetingId);
-    if (meeting) {
-      toast({
-        title: "Reminder Sent",
-        description: `Meeting reminder sent to all attendees of ${meeting.title}`,
-      });
-    }
-  };
+  const handleSendReminder = (_id?:string)=>toast({title:'Email not configured',description:'No reminder has been sent. Configure a mail provider before sending reminders.',variant:'destructive'});
 
   const resetForm = () => {
     setMeetingForm({
@@ -554,19 +331,19 @@ const Meetings = () => {
 
   // Filter meetings based on search and filters
   const filteredMeetings = meetings.filter(meeting => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (meeting.client && meeting.client.toLowerCase().includes(searchTerm.toLowerCase())) ||
       meeting.organizer.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all-status" || meeting.status === statusFilter;
     const matchesType = typeFilter === "all-types" || meeting.type === typeFilter;
-    
+
     // Date filter logic
     const today = new Date().toISOString().split('T')[0];
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
+
     let matchesDate = true;
     if (dateFilter === "today") {
       matchesDate = meeting.date === today;
@@ -579,7 +356,7 @@ const Meetings = () => {
       const nextWeekEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       matchesDate = meeting.date >= nextWeekStart && meeting.date <= nextWeekEnd;
     }
-    
+
     return matchesSearch && matchesStatus && matchesType && matchesDate;
   });
 
@@ -744,7 +521,7 @@ const Meetings = () => {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button 
+          <Button
             onClick={() => setShowCreateDialog(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
@@ -1020,8 +797,8 @@ const Meetings = () => {
                           <MapPin className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">{meeting.location}</span>
                           {meeting.meetingUrl && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => window.open(meeting.meetingUrl, '_blank')}
                               className="h-6 px-2"
@@ -1060,7 +837,7 @@ const Meetings = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       {meeting.status === "Scheduled" && (
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={() => handleStartMeeting(meeting.id)}
                         >
@@ -1070,15 +847,15 @@ const Meetings = () => {
                       )}
                       {meeting.status === "In Progress" && (
                         <>
-                          <Button 
+                          <Button
                             size="sm"
                             onClick={() => handleJoinMeeting(meeting.id)}
                           >
                             <Video className="h-4 w-4 mr-1" />
                             Join Meeting
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleCompleteMeeting(meeting.id)}
                           >
@@ -1137,7 +914,7 @@ const Meetings = () => {
                             <Copy className="h-4 w-4 mr-2" />
                             Copy Meeting Link
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => {
                               setMeetingToDelete(meeting);
                               setShowDeleteDialog(true);
@@ -1227,7 +1004,7 @@ const Meetings = () => {
                           {meeting.status}
                         </Badge>
                         {meeting.status === "Scheduled" && (
-                          <Button 
+                          <Button
                             size="sm"
                             onClick={() => handleStartMeeting(meeting.id)}
                           >
@@ -1235,7 +1012,7 @@ const Meetings = () => {
                           </Button>
                         )}
                         {meeting.status === "In Progress" && (
-                          <Button 
+                          <Button
                             size="sm"
                             onClick={() => handleJoinMeeting(meeting.id)}
                           >
@@ -1786,7 +1563,7 @@ const Meetings = () => {
               Cancel Meeting
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to cancel "{meetingToDelete?.title}"? 
+              Are you sure you want to cancel "{meetingToDelete?.title}"?
               This action will notify all attendees and cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

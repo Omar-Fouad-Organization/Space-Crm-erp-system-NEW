@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSystemSettings } from '@/contexts/SystemSettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
+import {
   Briefcase,
   CreditCard,
   DollarSign,
@@ -90,7 +90,7 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { companyName } = useSystemSettings();
-  const { hasPageAccess, hasRole, roles } = useAuth();
+  const { hasPageAccess, hasRole, roles,logout,user } = useAuth();
 
   const canAccessMenuItem = (item: any) => {
     // Check if user has specific roles required for this item
@@ -156,19 +156,19 @@ export function Sidebar() {
               {section.items.filter(canAccessMenuItem).map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);
-                
+
                 return (
                   <button
                     key={item.name}
                     onClick={() => navigate(item.path)}
                     className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-all duration-300 group relative transform hover:scale-105 hover:translate-x-1 sidebar-item-glow rounded-lg ${
-                      active 
-                        ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md' 
+                      active
+                        ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md'
                         : 'text-white hover:bg-gradient-to-r hover:from-slate-700 hover:to-slate-600 hover:text-white hover:shadow-md'
                     }`}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
-                    
+
                     <div className="flex-1 min-w-0">
 
                       <div className="text-sm font-medium truncate">
@@ -210,14 +210,14 @@ export function Sidebar() {
                 admin
               </div>
               <div className="text-xs text-slate-300 truncate">
-                User • General
+                {user?.role}
               </div>
             </div>
 
           </div>
 
           {/* Sign Out */}
-          <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+          <button onClick={()=>void logout()} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
             <LogOut className="h-4 w-4" />
             Sign Out
           </button>

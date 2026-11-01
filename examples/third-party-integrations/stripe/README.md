@@ -105,7 +105,7 @@ Use test card numbers:
 **Q: Payment form is blank?**
 A: Check if environment variables are correctly configured and if there are any error messages in the console
 
-**Q: Payment failed?**  
+**Q: Payment failed?**
 A: Confirm if Supabase Edge Function is running normally, check network requests
 
 **Q: How to customize styles?**

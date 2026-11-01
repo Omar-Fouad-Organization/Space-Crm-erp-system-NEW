@@ -41,7 +41,7 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
             {description}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="py-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="font-medium text-red-800 mb-2">

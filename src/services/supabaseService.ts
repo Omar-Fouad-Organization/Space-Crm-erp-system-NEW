@@ -1,7 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
-
+import { all, save, remove, LegacyRecord } from './laravelClient';
 // Base interfaces
-export interface Client {
+export interface Client extends LegacyRecord {
   id: string;
   name: string;
   email: string;
@@ -61,7 +60,7 @@ export interface ClientDocument {
   category: string;
 }
 
-export interface Exhibition {
+export interface Exhibition extends LegacyRecord {
   id: string;
   name: string;
   description?: string;
@@ -73,7 +72,7 @@ export interface Exhibition {
   updated_at?: string;
 }
 
-export interface Booth {
+export interface Booth extends LegacyRecord {
   id: string;
   booth_number?: string;
   booth_code: string;
@@ -111,7 +110,7 @@ export interface Booth {
   created_by?: string;
 }
 
-export interface Deal {
+export interface Deal extends LegacyRecord {
   id: string;
   title: string;
   description?: string;
@@ -135,7 +134,7 @@ export interface Deal {
   health_score?: number;
 }
 
-export interface Task {
+export interface Task extends LegacyRecord {
   id: string;
   title: string;
   description?: string;
@@ -148,354 +147,32 @@ export interface Task {
   updated_at?: string;
 }
 
-// Service classes
-class BaseService<T> {
-  constructor(protected tableName: string) {}
 
-  async getAll(): Promise<T[]> {
-    try {
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error(`Error fetching ${this.tableName}:`, error);
-      return [];
-    }
-  }
-
-  async getById(id: string): Promise<T | null> {
-    try {
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error(`Error fetching ${this.tableName} by id:`, error);
-      return null;
-    }
-  }
-
-  async create(data: Partial<T>): Promise<T> {
-    try {
-      const { data: result, error } = await supabase
-        .from(this.tableName)
-        .insert([data])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return result;
-    } catch (error) {
-      console.error(`Error creating ${this.tableName}:`, error);
-      throw error;
-    }
-  }
-
-  async update(id: string, data: Partial<T>): Promise<T> {
-    try {
-      const { data: result, error } = await supabase
-        .from(this.tableName)
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return result;
-    } catch (error) {
-      console.error(`Error updating ${this.tableName}:`, error);
-      throw error;
-    }
-  }
-
-  async delete(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from(this.tableName)
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error(`Error deleting ${this.tableName}:`, error);
-      throw error;
-    }
-  }
+class BaseService<T = LegacyRecord> {
+ constructor(public resource:string){}
+ async getAll():Promise<T[]>{return all(this.resource) as Promise<T[]>;}
+ async getById(id:string):Promise<T|null>{return (await this.getAll()).find((r:any)=>String(r.id)===String(id))??null;}
+ async create(data:Partial<T>|LegacyRecord):Promise<T>{return await save(this.resource,data) as T;}
+ async update(id:string,data:Partial<T>):Promise<T>{return await save(this.resource,data,id) as T;}
+ async delete(id:string){await remove(this.resource,id);}
 }
-
-// Specific service implementations
-export const clientService = new BaseService<Client>('clients_2026_01_17_19_00');
-export const expoService = new BaseService<Exhibition>('exhibitions_2026_01_17_19_00');
-export const boothService = {
-  ...new BaseService<Booth>('booths_2026_01_17_19_00'),
-  
-  async updateStatus(id: string, status: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('booths_2026_01_17_19_00')
-        .update({ status })
-        .eq('id', id);
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error updating booth status:', error);
-      throw error;
-    }
-  }
+export const clientService=new BaseService<Client>('clients');
+export const expoService=new BaseService<Exhibition>('exhibitions');
+export const boothService=Object.assign(new BaseService<Booth>('booths'),{async updateStatus(id:string,status:string){await save('booths',{status},id);}});
+export const dealService=new BaseService<Deal>('deals');
+export const taskService=new BaseService<Task>('tasks');
+export const paymentService=new BaseService<any>('payments');
+export const paymentScheduleService:any=Object.assign(new BaseService<any>('payment_schedules'),{async create(dealId:any,data?:any,installments?:any[]){if(typeof dealId==='object')return save('payment_schedules',dealId);const existing=(await all('payment_schedules')).filter(r=>r.deal_id===String(dealId));if(existing.length)return existing;throw new Error('Installments must be saved atomically with the deal.');}});
+export const commissionService={async createFromDeal(dealId:string,..._args:any[]){return (await all('commissions')).filter(r=>r.deal_id===String(dealId));}};
+export const settingsService={
+ async getAllCommissionSchedules():Promise<any[]>{const [rows,deals]=await Promise.all([all('commissions'),all('deals')]);return rows.map(row=>({...row,client_name:deals.find(d=>d.id===row.deal_id)?.client_name||'',deal_amount:deals.find(d=>d.id===row.deal_id)?.deal_value||0,commission_percentage:Number(deals.find(d=>d.id===row.deal_id)?.commission_percentage||0)}));},
+ async getCommissionSummary():Promise<any[]>{const rows=await this.getAllCommissionSchedules();return [...new Set(rows.map(r=>r.sales_person_id))].map(id=>{const data=rows.filter(r=>r.sales_person_id===id);const sum=(status?:string)=>data.filter(r=>!status||r.status===status).reduce((s,r)=>s+Number(r.commission_amount),0);return {sales_person_id:id,sales_person_name:data[0].sales_person_name,total_deals:data.length,total_commission_amount:sum(),paid_commission_amount:sum('paid'),pending_commission_amount:sum('pending'),approved_commission_amount:sum('approved'),disputed_commission_amount:sum('disputed')};});},
+ async updateCommissionStatus(id:string,status:string,paidAmount?:number,method?:string,notes?:string){await save('commissions',{status,paid_amount:paidAmount,payment_method:method,notes},id);return true;}
 };
-export const dealService = new BaseService<Deal>('deals_2026_01_17_19_00');
-export const taskService = new BaseService<Task>('tasks_2026_01_17_19_00');
+export type Payment = LegacyRecord;
+export type PaymentSchedule = LegacyRecord;
+export type CommissionSchedule = LegacyRecord;
+export type CommissionSummary = LegacyRecord;
+export default {clientService,expoService,boothService,dealService,taskService,paymentService,paymentScheduleService,commissionService,settingsService};
 
-// Payment interface
-export interface Payment {
-  id: string;
-  payment_number: string;
-  invoice_number?: string;
-  client_id: string;
-  client_name: string;
-  deal_id?: string;
-  deal_name?: string;
-  deal_type?: string;
-  total_amount: number;
-  paid_amount: number;
-  remaining_amount: number;
-  currency: string;
-  payment_status: 'Pending' | 'Processing' | 'Completed' | 'Partial' | 'Failed' | 'Cancelled' | 'Refunded';
-  payment_method?: string;
-  due_date?: string;
-  payment_date?: string;
-  transaction_id?: string;
-  reference_number?: string;
-  notes?: string;
-  description?: string;
-  tags?: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-// Payment Schedule interface
-export interface PaymentSchedule {
-  payment_schedule_id: string;
-  deal_id: string;
-  deal_number: string;
-  deal_title: string;
-  client_name: string;
-  payment_name: string;
-  scheduled_amount: string;
-  currency: string;
-  due_date?: string;
-  paid_date?: string;
-  payment_status: 'Pending' | 'Paid' | 'Overdue' | 'Cancelled';
-  payment_method?: string;
-  urgency_status?: string;
-  days_until_due?: number;
-  payment_description?: string;
-  notes?: string;
-}
-
-// Payment Service
-export const paymentService = new BaseService<Payment>('payments_2026_01_17_19_00');
-
-// Payment Schedule Service
-export const paymentScheduleService = {
-  ...new BaseService<PaymentSchedule>('payment_schedules_2026_01_17_19_00'),
-  
-  async create(dealId: string, dealData: any, installments: any[]) {
-    console.log('Creating payment schedules for deal:', dealId);
-    // Mock implementation - in real app, this would create payment schedule records
-    return Promise.resolve();
-  }
-};
-
-// Commission interfaces
-export interface CommissionSchedule {
-  id: string;
-  deal_id: string;
-  payment_schedule_id: string;
-  sales_person_id: string;
-  sales_person_name?: string;
-  commission_name: string;
-  commission_percentage: number;
-  commission_amount: number;
-  due_date: string;
-  status: 'pending' | 'approved' | 'paid' | 'cancelled' | 'disputed';
-  paid_date?: string;
-  paid_amount: number;
-  payment_method?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  // Joined data
-  deal_title?: string;
-  client_name?: string;
-  payment_name?: string;
-  payment_status?: string;
-}
-
-export interface CommissionSummary {
-  sales_person_id: string;
-  sales_person_name: string;
-  total_deals: number;
-  total_commission_amount: number;
-  paid_commission_amount: number;
-  pending_commission_amount: number;
-  approved_commission_amount: number;
-  disputed_commission_amount: number;
-}
-
-// Commission Service
-export const commissionService = {
-  async createFromDeal(dealId: string, dealData: any, formData: any) {
-    console.log('Creating commission schedules for deal:', dealId);
-    // Mock implementation - in real app, this would create commission records
-    return Promise.resolve();
-  }
-};
-
-// Settings Service (includes commission management)
-export const settingsService = {
-  async getAllCommissionSchedules(): Promise<CommissionSchedule[]> {
-    try {
-      // Mock data for commission schedules
-      const mockCommissions: CommissionSchedule[] = [
-        {
-          id: '1',
-          deal_id: 'deal-1',
-          payment_schedule_id: 'ps-1',
-          sales_person_id: 'user-1',
-          sales_person_name: 'John Smith',
-          commission_name: 'Q1 2024 Commission',
-          commission_percentage: 5.0,
-          commission_amount: 2500,
-          due_date: '2024-03-31',
-          status: 'pending',
-          paid_amount: 0,
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-15T10:00:00Z',
-          deal_title: 'Enterprise Software License',
-          client_name: 'Tech Corp Inc.',
-          payment_name: 'Initial Payment'
-        },
-        {
-          id: '2',
-          deal_id: 'deal-2',
-          payment_schedule_id: 'ps-2',
-          sales_person_id: 'user-2',
-          sales_person_name: 'Sarah Johnson',
-          commission_name: 'Q1 2024 Commission',
-          commission_percentage: 7.5,
-          commission_amount: 3750,
-          due_date: '2024-03-31',
-          status: 'approved',
-          paid_amount: 0,
-          created_at: '2024-01-20T14:30:00Z',
-          updated_at: '2024-01-25T09:15:00Z',
-          deal_title: 'Cloud Infrastructure Setup',
-          client_name: 'StartupXYZ',
-          payment_name: 'Milestone 1'
-        },
-        {
-          id: '3',
-          deal_id: 'deal-3',
-          payment_schedule_id: 'ps-3',
-          sales_person_id: 'user-1',
-          sales_person_name: 'John Smith',
-          commission_name: 'Q4 2023 Commission',
-          commission_percentage: 5.0,
-          commission_amount: 1800,
-          due_date: '2023-12-31',
-          status: 'paid',
-          paid_date: '2024-01-05',
-          paid_amount: 1800,
-          payment_method: 'Bank Transfer',
-          created_at: '2023-12-15T16:45:00Z',
-          updated_at: '2024-01-05T11:20:00Z',
-          deal_title: 'Consulting Services',
-          client_name: 'Global Industries',
-          payment_name: 'Final Payment'
-        }
-      ];
-      
-      return mockCommissions;
-    } catch (error) {
-      console.error('Error fetching commission schedules:', error);
-      return [];
-    }
-  },
-
-  async getCommissionSummary(): Promise<CommissionSummary[]> {
-    try {
-      // Mock data for commission summary
-      const mockSummary: CommissionSummary[] = [
-        {
-          sales_person_id: 'user-1',
-          sales_person_name: 'John Smith',
-          total_deals: 5,
-          total_commission_amount: 12500,
-          paid_commission_amount: 8000,
-          pending_commission_amount: 2500,
-          approved_commission_amount: 2000,
-          disputed_commission_amount: 0
-        },
-        {
-          sales_person_id: 'user-2',
-          sales_person_name: 'Sarah Johnson',
-          total_deals: 3,
-          total_commission_amount: 9750,
-          paid_commission_amount: 6000,
-          pending_commission_amount: 0,
-          approved_commission_amount: 3750,
-          disputed_commission_amount: 0
-        },
-        {
-          sales_person_id: 'user-3',
-          sales_person_name: 'Mike Wilson',
-          total_deals: 2,
-          total_commission_amount: 4200,
-          paid_commission_amount: 4200,
-          pending_commission_amount: 0,
-          approved_commission_amount: 0,
-          disputed_commission_amount: 0
-        }
-      ];
-      
-      return mockSummary;
-    } catch (error) {
-      console.error('Error fetching commission summary:', error);
-      return [];
-    }
-  },
-
-  async updateCommissionStatus(
-    commissionId: string, 
-    newStatus: string, 
-    paidAmount?: number, 
-    paymentMethod?: string, 
-    notes?: string
-  ): Promise<boolean> {
-    try {
-      console.log('Updating commission status:', {
-        commissionId,
-        newStatus,
-        paidAmount,
-        paymentMethod,
-        notes
-      });
-      
-      // Mock implementation - in real app, this would update the database
-      // For now, just return success
-      return true;
-    } catch (error) {
-      console.error('Error updating commission status:', error);
-      return false;
-    }
-  }
-};
+Object.assign(paymentScheduleService,{async updateStatus(id:string,status:string,paidDate?:string){const s=(await all('payment_schedules')).find(r=>r.id===String(id));if(!s)throw new Error('Installment not found.');if(status!=='paid')throw new Error('Installment status is calculated from receipts.');if(Number(s.remaining_amount)<=0)return s;return save('payments',{name:'PAY-'+crypto.randomUUID(),payment_schedule_id:id,amount:String(s.remaining_amount),paid_date:(paidDate||new Date().toISOString()).slice(0,10),method:'bank_transfer'});}});

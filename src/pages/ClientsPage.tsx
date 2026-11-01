@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
   Trash2,
   Building2,
   User,
@@ -110,7 +110,7 @@ export default function ClientsPage() {
                          client.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === 'all' || client.type === typeFilter;
     const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
-    
+
     return matchesSearch && matchesType && matchesStatus;
   });
 

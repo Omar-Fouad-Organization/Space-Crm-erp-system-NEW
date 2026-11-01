@@ -1,8 +1,10 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
+import {
+  TrendingUp,
+  Users,
+  DollarSign,
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
@@ -42,108 +44,15 @@ import {
 import { DashboardKPI, Deal, DealStatus } from '@/types';
 
 // Mock data for demonstration
-const kpiData: DashboardKPI[] = [
-  {
-    label: 'Total Revenue',
-    value: '$2,847,500',
-    change: 12.5,
-    trend: 'up',
-    format: 'currency'
-  },
-  {
-    label: 'Active Deals',
-    value: '47',
-    change: -3.2,
-    trend: 'down',
-    format: 'number'
-  },
-  {
-    label: 'Conversion Rate',
-    value: '68.4%',
-    change: 5.1,
-    trend: 'up',
-    format: 'percentage'
-  },
-  {
-    label: 'Active Clients',
-    value: '234',
-    change: 8.7,
-    trend: 'up',
-    format: 'number'
-  }
-];
 
-const revenueData = [
-  { month: 'Jan', revenue: 245000, deals: 12 },
-  { month: 'Feb', revenue: 289000, deals: 15 },
-  { month: 'Mar', revenue: 324000, deals: 18 },
-  { month: 'Apr', revenue: 378000, deals: 22 },
-  { month: 'May', revenue: 445000, deals: 28 },
-  { month: 'Jun', revenue: 512000, deals: 31 }
-];
 
-const dealStatusData = [
-  { name: 'Lead Created', value: 15, color: '#E4E7EC' },
-  { name: 'Talking', value: 12, color: '#2BB0E6' },
-  { name: 'Meeting', value: 8, color: '#10B981' },
-  { name: 'Strategy Proposal', value: 6, color: '#F59E0B' },
-  { name: 'Terms Finalized', value: 4, color: '#8B5CF6' },
-  { name: 'Closed Won', value: 18, color: '#059669' }
-];
 
-const topDeals = [
-  {
-    id: '1',
-    name: 'Tech Expo 2024 - Premium Booth',
-    client: 'TechCorp Solutions',
-    value: 125000,
-    status: 'terms_finalized' as DealStatus,
-    probability: 85,
-    close_date: '2024-02-15'
-  },
-  {
-    id: '2',
-    name: 'Healthcare Summit - Platinum Sponsorship',
-    client: 'MedTech Industries',
-    value: 89000,
-    status: 'strategy_proposal' as DealStatus,
-    probability: 70,
-    close_date: '2024-02-20'
-  },
-  {
-    id: '3',
-    name: 'Green Energy Expo - Gold Package',
-    client: 'EcoSolutions Ltd',
-    value: 67000,
-    status: 'meeting' as DealStatus,
-    probability: 60,
-    close_date: '2024-02-28'
-  }
-];
 
-const upcomingTasks = [
-  {
-    id: '1',
-    title: 'Follow up with TechCorp on contract terms',
-    due_date: '2024-01-18',
-    priority: 'high' as const,
-    deal: 'Tech Expo 2024'
-  },
-  {
-    id: '2',
-    title: 'Prepare proposal for MedTech Industries',
-    due_date: '2024-01-19',
-    priority: 'medium' as const,
-    deal: 'Healthcare Summit'
-  },
-  {
-    id: '3',
-    title: 'Schedule meeting with EcoSolutions',
-    due_date: '2024-01-20',
-    priority: 'medium' as const,
-    deal: 'Green Energy Expo'
-  }
-];
+
+
+
+
+
 
 const getStatusColor = (status: DealStatus) => {
   const colors = {
@@ -172,6 +81,10 @@ const getPriorityColor = (priority: 'low' | 'medium' | 'high' | 'urgent') => {
 };
 
 export default function Dashboard() {
+ const [kpiData,setKpis]=React.useState<DashboardKPI[]>([{label:'Total Revenue',value:'0',change:0,trend:'up',format:'currency'},{label:'Active Deals',value:'0',change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:'0%',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:'0',change:0,trend:'up',format:'number'}]);
+ const [revenueData,setRevenue]=React.useState<any[]>([]),[dealStatusData,setPipeline]=React.useState<any[]>([]),[topDeals,setTopDeals]=React.useState<any[]>([]),[upcomingTasks,setUpcomingTasks]=React.useState<any[]>([]);
+ React.useEffect(()=>{Promise.all([apiAll('deals'),apiAll('clients'),apiAll('tasks'),apiAll('payments'),apiMetadata()]).then(([deals,clients,tasks,payments,meta])=>{const won=deals.filter(d=>d.stage==='closed_won'),revenue=won.filter(d=>d.currency===meta.settings.currency).reduce((n,d)=>n+Number(d.deal_value),0);setKpis([{label:'Total Revenue',value:new Intl.NumberFormat('en-US',{style:'currency',currency:meta.settings.currency}).format(revenue),change:0,trend:'up',format:'currency'},{label:'Active Deals',value:String(deals.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.stage)).length),change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:(deals.length?won.length/deals.length*100:0).toFixed(1)+'%',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:String(clients.filter(c=>c.status==='Active').length),change:0,trend:'up',format:'number'}]);setPipeline([...new Set(deals.map(d=>d.stage))].map(stage=>({name:String(stage).replaceAll('_',' '),value:deals.filter(d=>d.stage===stage).length,color:stage==='closed_won'?'#059669':'#2BB0E6'})));setTopDeals([...deals].sort((a,b)=>b.deal_value-a.deal_value).slice(0,3).map(d=>({...d,name:d.title,client:d.client_name,value:d.deal_value,status:d.stage})));setUpcomingTasks(tasks.filter(t=>t.status!=='completed').slice(0,3).map(t=>({...t,deal:t.deal_id_label||''})));const grouped:any={};for(const p of payments.filter(p=>p.currency===meta.settings.currency)){const month=String(p.paid_date).slice(0,7);grouped[month]=(grouped[month]||0)+Number(p.amount);}setRevenue(Object.entries(grouped).map(([month,revenue])=>({month,revenue,deals:deals.length})));}).catch(error=>console.error('Dashboard load failed',error));},[]);
+
   const [selectedExpo, setSelectedExpo] = useState('all');
   const [dateRange, setDateRange] = useState('6m');
 
@@ -253,18 +166,18 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4E7EC" />
                 <XAxis dataKey="month" stroke="#667085" />
                 <YAxis stroke="#667085" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#FFFFFF', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
                     border: '1px solid #E4E7EC',
                     borderRadius: '8px'
                   }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#2BB0E6" 
-                  fill="#2BB0E6" 
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#2BB0E6"
+                  fill="#2BB0E6"
                   fillOpacity={0.1}
                 />
               </AreaChart>
@@ -300,8 +213,8 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-2 mt-4">
               {dealStatusData.map((item, index) => (
                 <div key={index} className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
+                  <div
+                    className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                   <span className="text-xs text-crm-secondary-text">{item.name}</span>
@@ -345,7 +258,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-crm-primary-text font-tabular">
-                      ${deal.value.toLocaleString()}
+                      {new Intl.NumberFormat('en-US',{style:'currency',currency:deal.currency||'EGP'}).format(deal.value)}
                     </p>
                     <p className="text-xs text-crm-secondary-text">{deal.close_date}</p>
                   </div>

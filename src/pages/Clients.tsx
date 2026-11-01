@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,89 +117,10 @@ const Clients = () => {
       setLoading(true);
       const data = await clientService.getAll();
       setClients(data);
-      
-      // Generate mock metrics and activities for each client
-      const metrics: Record<string, ClientMetrics> = {};
-      const activities: Record<string, ClientActivity[]> = {};
-      const documents: Record<string, ClientDocument[]> = {};
-      
-      data.forEach(client => {
-        // Mock metrics
-        metrics[client.id] = {
-          total_deals: Math.floor(Math.random() * 20) + 1,
-          active_deals: Math.floor(Math.random() * 5) + 1,
-          won_deals: Math.floor(Math.random() * 10) + 1,
-          total_value: Math.floor(Math.random() * 500000) + 50000,
-          won_value: Math.floor(Math.random() * 300000) + 25000,
-          avg_deal_size: Math.floor(Math.random() * 50000) + 10000,
-          conversion_rate: Math.floor(Math.random() * 80) + 20,
-          lifetime_value: Math.floor(Math.random() * 1000000) + 100000,
-          open_tasks: Math.floor(Math.random() * 8),
-          overdue_payments: Math.floor(Math.random() * 3),
-          last_activity: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-          engagement_score: Math.floor(Math.random() * 100) + 1,
-          satisfaction_score: Math.floor(Math.random() * 5) + 1,
-          growth_trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable'
-        };
 
-        // Mock activities
-        activities[client.id] = [
-          {
-            id: '1',
-            type: 'deal',
-            title: 'New deal created',
-            description: 'Created deal "Q1 Exhibition Package"',
-            timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'completed',
-            user: 'John Smith',
-            priority: 'high'
-          },
-          {
-            id: '2',
-            type: 'email',
-            title: 'Email sent',
-            description: 'Sent proposal follow-up email',
-            timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'completed',
-            user: 'Sarah Johnson'
-          },
-          {
-            id: '3',
-            type: 'meeting',
-            title: 'Meeting scheduled',
-            description: 'Quarterly review meeting',
-            timestamp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'pending',
-            user: 'Mike Davis',
-            priority: 'medium'
-          }
-        ];
-
-        // Mock documents
-        documents[client.id] = [
-          {
-            id: '1',
-            name: 'Service Agreement 2024',
-            type: 'PDF',
-            size: 2048576,
-            uploaded_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-            uploaded_by: 'John Smith',
-            status: 'signed',
-            category: 'contract'
-          },
-          {
-            id: '2',
-            name: 'Exhibition Proposal',
-            type: 'PDF',
-            size: 1024768,
-            uploaded_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-            uploaded_by: 'Sarah Johnson',
-            status: 'pending',
-            category: 'proposal'
-          }
-        ];
-      });
-
+      const [deals,tasks,docs]=await Promise.all([apiAll('deals'),apiAll('tasks'),apiAll('documents')]);
+      const metrics:any={},activities:any={},documents:any={};
+      for(const client of data){const linked=deals.filter(d=>d.client_id===client.id),won=linked.filter(d=>d.stage==='closed_won');const sum=(rows:any[])=>rows.reduce((n,r)=>n+Number(r.deal_value),0);metrics[client.id]={total_deals:linked.length,active_deals:linked.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.stage)).length,won_deals:won.length,total_value:sum(linked),won_value:sum(won),avg_deal_size:linked.length?sum(linked)/linked.length:0,conversion_rate:linked.length?won.length/linked.length*100:0,lifetime_value:sum(won),open_tasks:tasks.filter(t=>t.client_id===client.id&&t.status!=='completed').length,overdue_payments:0,last_activity:client.updated_at||client.created_at,engagement_score:0,satisfaction_score:0,growth_trend:'stable'};activities[client.id]=linked.map(d=>({id:d.id,type:'deal',title:d.title,description:d.description||'',timestamp:d.updated_at,status:d.status,user:d.assigned_to_name}));documents[client.id]=docs.filter(d=>d.client_id===client.id).map(d=>({...d,name:d.title,uploaded_at:d.created_at,uploaded_by:d.created_by_name,category:d.document_type,size:(d.attachments||[]).reduce((n:any,a:any)=>n+a.size,0)}));}
       setClientMetrics(metrics);
       setClientActivities(activities);
       setClientDocuments(documents);
@@ -264,10 +187,10 @@ const Clients = () => {
       'Interested': { color: 'bg-yellow-100 text-yellow-800', icon: Heart },
       'Not Interested': { color: 'bg-red-100 text-red-800', icon: HeartOff }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.Active;
     const Icon = config.icon;
-    
+
     return (
       <Badge className={`${config.color} flex items-center gap-1`}>
         <Icon className="h-3 w-3" />
@@ -321,7 +244,7 @@ const Clients = () => {
   const renderClientCard = (client: Client) => {
     const metrics = clientMetrics[client.id];
     const engagement = getEngagementScore(metrics?.engagement_score || 0);
-    
+
     return (
       <Card key={client.id} className="hover:shadow-lg transition-shadow">
         <CardHeader className="pb-3">
@@ -507,7 +430,7 @@ const Clients = () => {
 
   const renderClientDetails = () => {
     if (!selectedClient) return null;
-    
+
     const metrics = clientMetrics[selectedClient.id];
     const activities = clientActivities[selectedClient.id] || [];
     const documents = clientDocuments[selectedClient.id] || [];
@@ -1030,7 +953,7 @@ const Clients = () => {
               </div>
 
             </div>
-            
+
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-48">
                 <Filter className="h-4 w-4 mr-2" />
@@ -1109,7 +1032,7 @@ const Clients = () => {
                 {filteredClients.map((client) => {
                   const metrics = clientMetrics[client.id];
                   const engagement = getEngagementScore(metrics?.engagement_score || 0);
-                  
+
                   return (
                     <TableRow key={client.id}>
                       <TableCell>
@@ -1265,7 +1188,7 @@ const Clients = () => {
         client={selectedClient}
       />
       {renderClientDetails()}
-      
+
     </div>
   );
 };

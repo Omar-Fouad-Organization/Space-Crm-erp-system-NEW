@@ -1,3 +1,6 @@
+import {useState} from 'react';
+import {useAuth} from '@/contexts/AuthContext';
+import {LoginDialog} from '@/components/auth/LoginDialog';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, TrendingUp, Users, Calendar } from 'lucide-react';
@@ -6,23 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const Index = () => {
   const navigate = useNavigate();
+  const {user}=useAuth();const [loginOpen,setLoginOpen]=useState(false);
 
-  // Auto-redirect to CRM dashboard
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigate('/crm/dashboard');
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [navigate]);
-
-  const handleEnterCRM = () => {
-    navigate('/crm/dashboard');
-  };
+  useEffect(()=>{if(user)navigate('/dashboard');},[user,navigate]);
+  const handleEnterCRM=()=>{if(user)navigate('/dashboard');else setLoginOpen(true);};
 
   return (
     <div className="min-h-screen bg-crm-background flex items-center justify-center p-6">
       <div className="max-w-4xl w-full">
+        <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-6">
@@ -34,9 +29,9 @@ const Index = () => {
           <p className="text-xl text-crm-secondary-text mb-8">
             Enterprise-grade CRM for Space Organizing
           </p>
-          <Button 
+          <Button
             onClick={handleEnterCRM}
-            size="lg" 
+            size="lg"
             className="crm-button-primary text-lg px-8 py-3"
           >
             Enter CRM System
@@ -126,7 +121,7 @@ const Index = () => {
         {/* Auto-redirect notice */}
         <div className="text-center mt-8">
           <p className="text-sm text-crm-secondary-text">
-            Automatically redirecting to CRM Dashboard in 3 seconds...
+            Sign in to enter your CRM workspace.
           </p>
         </div>
       </div>

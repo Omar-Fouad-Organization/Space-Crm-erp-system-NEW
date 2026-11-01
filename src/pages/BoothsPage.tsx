@@ -74,13 +74,13 @@ const Booths = () => {
       console.log('🏢 Booths: Loading booths from database...');
       const data = await boothService.getAll();
       console.log('✅ Booths: Loaded booths:', data?.length, data);
-      
+
       if (!data || data.length === 0) {
         console.log('📝 Booths: No booths found in database, showing empty state');
         setBooths([]);
         return;
       }
-      
+
       console.log('✅ Booths: Set booths data:', data);
       setBooths(data);
     } catch (error) {
@@ -99,26 +99,26 @@ const Booths = () => {
   const handleDeleteBooth = async (boothId: string) => {
     try {
       console.log('🗑️ Booths: Deleting booth with ID:', boothId);
-      
+
       // Remove from local state immediately for better UX
       const originalBooths = booths;
       setBooths(prevBooths => prevBooths.filter(booth => booth.id !== boothId));
-      
+
       // Try to delete from backend database
       await boothService.delete(boothId);
       console.log('✅ Booths: Delete successful');
-      
+
       toast({
         title: "Booth Deleted",
         description: "Booth has been permanently removed from the system",
       });
-      
+
       // Trigger expo booth count refresh if function is available
       if ((window as any).refreshExpoBoothCounts) {
         console.log('🔄 Triggering expo booth count refresh after booth deletion');
         (window as any).refreshExpoBoothCounts();
       }
-      
+
       // Force reload to ensure consistency
       setTimeout(() => {
         loadBooths();
@@ -138,17 +138,17 @@ const Booths = () => {
   const handleStatusChange = async (boothId: string, newStatus: string) => {
     try {
       console.log('🔄 Booths: Updating booth status:', boothId, newStatus);
-      
+
       // Update local state immediately
-      setBooths(prevBooths => 
-        prevBooths.map(booth => 
+      setBooths(prevBooths =>
+        prevBooths.map(booth =>
           booth.id === boothId ? { ...booth, status: newStatus } : booth
         )
       );
-      
+
       // Update in database
       await boothService.updateStatus(boothId, newStatus);
-      
+
       toast({
         title: "Status Updated",
         description: `Booth status changed to ${newStatus}`,
@@ -221,7 +221,7 @@ const Booths = () => {
 
   // Filter booths based on search and filters
   const filteredBooths = booths.filter(booth => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       booth.booth_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booth.booth_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booth.expo_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -349,7 +349,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -367,7 +367,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -385,7 +385,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -403,7 +403,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -421,7 +421,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -439,7 +439,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -461,7 +461,7 @@ const Booths = () => {
 
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4 text-center">
 
@@ -501,7 +501,7 @@ const Booths = () => {
               </div>
 
               <div className="flex items-center space-x-3">
-              
+
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-48">
                     <Filter className="h-4 w-4 mr-2" />
@@ -517,7 +517,7 @@ const Booths = () => {
                     <SelectItem value="Unavailable">Unavailable</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-48">
                     <Filter className="h-4 w-4 mr-2" />
@@ -534,7 +534,7 @@ const Booths = () => {
                     <SelectItem value="Custom">Custom</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <div className="flex items-center space-x-2">
 
                   <Button
@@ -588,7 +588,7 @@ const Booths = () => {
               </h3>
 
               <p className="text-gray-600 mb-6">
-                {booths.length === 0 
+                {booths.length === 0
                   ? "Create your first booth to get started with booth management"
                   : "Try adjusting your search criteria or filters"
                 }
@@ -662,7 +662,7 @@ const Booths = () => {
 
                 </CardHeader>
                 <CardContent className="pt-0">
-                
+
                   {/* Location Info */}
                   <div className="flex items-center text-sm text-gray-600 mb-3">
                     <MapPin className="h-4 w-4 mr-2 text-gray-400" />
@@ -770,7 +770,7 @@ const Booths = () => {
 
                   )}
                 </CardContent>
-                
+
                 {/* Card Footer with Actions */}
                 <div className="px-6 pb-4 pt-2 border-t bg-gray-50">
 
@@ -837,7 +837,7 @@ const Booths = () => {
           onClose={() => setCreateDialogOpen(false)}
           onSuccess={loadBooths}
         />
-        
+
         <EditBoothDialog
           isOpen={editDialogOpen}
           onClose={() => setEditDialogOpen(false)}
@@ -854,7 +854,7 @@ const Booths = () => {
                 Booth Actions: {selectedBooth?.booth_code}
               </DialogTitle>
             </DialogHeader>
-            
+
             {selectedBooth && (
               <div className="space-y-6">
 
@@ -1061,13 +1061,13 @@ const Booths = () => {
           onSuccess={() => {
             setCreateDialogOpen(false);
             loadBooths(); // Refresh booth list
-            
+
             // Trigger expo booth count refresh if function is available
             if ((window as any).refreshExpoBoothCounts) {
               console.log('🔄 Triggering expo booth count refresh after booth creation');
               (window as any).refreshExpoBoothCounts();
             }
-            
+
             toast({
               title: "Booth Created",
               description: "New booth has been created and expo booth counts updated",
@@ -1087,7 +1087,7 @@ const Booths = () => {
               setEditDialogOpen(false);
               setSelectedBooth(null);
               loadBooths(); // Refresh booth list
-              
+
               // Trigger expo booth count refresh if function is available
               if ((window as any).refreshExpoBoothCounts) {
                 console.log("🔄 Triggering expo booth count refresh after booth update");

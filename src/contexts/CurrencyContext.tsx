@@ -31,9 +31,9 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
       return formatter.format(amount);
     } catch (error) {
       // Fallback formatting if currency is not supported
-      return `${amount.toLocaleString('en-US', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
+      return `${amount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
       })} ${currency}`;
     }
   };

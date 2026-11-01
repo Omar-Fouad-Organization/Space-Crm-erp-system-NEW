@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import {all as apiAll,save as apiSave} from '@/services/laravelClient';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -189,6 +190,15 @@ const Deals = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
+    if (!selectedDeal) return;
+    setDealNotes(selectedDeal.deal_notes || []);
+    Promise.all([apiAll('payment_schedules'), apiAll('commissions')]).then(([payments, commissions]) => {
+      setPaymentSchedule(payments.filter(p=>p.deal_id===selectedDeal.id).map(p=>({...p,description:p.name})));
+      setCommissions(commissions.filter(c=>c.deal_id===selectedDeal.id).map(c=>({...c,user_id:c.salesperson_id,user_name:c.sales_person_name,percentage:selectedDeal.commission_percentage})));
+    }).catch(error=>toast({title:'Related records unavailable',description:error.message,variant:'destructive'}));
+  }, [selectedDeal]);
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -202,7 +212,7 @@ const Deals = () => {
         taskService.getAll(),
         expoService.getAll()
       ]);
-      
+
       // Transform deals to match pipeline stages
       const transformedDeals = (dealsData || []).map(deal => ({
         ...deal,
@@ -220,7 +230,7 @@ const Deals = () => {
       }));
 
       console.log('📊 Loaded', transformedDeals.length, 'deals for UI');
-      
+
       setDeals(transformedDeals);
       setClients(clientsData || []);
       setExpos(exposData || []);
@@ -302,22 +312,22 @@ const Deals = () => {
 
   const calculateHealthScore = (deal: any) => {
     let score = 50; // Base score
-    
+
     if (deal) {
       // Factor in time in stage
       const daysInStage = calculateDaysInStage(deal.updated_at);
       if (daysInStage > 30) score -= 20;
       else if (daysInStage > 14) score -= 10;
-      
+
       // Factor in deal value
       if (deal.value > 100000) score += 20;
       else if (deal.value > 50000) score += 10;
-      
+
       // Factor in client engagement
       if (deal.priority === 'High') score += 15;
       else if (deal.priority === 'Low') score -= 10;
     }
-    
+
     return Math.max(0, Math.min(100, score));
   };
 
@@ -340,14 +350,14 @@ const Deals = () => {
 
     try {
       // Update both stage and status fields in the database
-      await dealService.update(dealId, { 
+      await dealService.update(dealId, {
         stage: newStage,
         status: newStatus,
         updated_at: new Date().toISOString()
       });
-      
+
       console.log('✅ Deal updated successfully in database');
-      
+
       // Update local state
       setDeals(prevDeals =>
         prevDeals.map(deal =>
@@ -375,7 +385,7 @@ const Deals = () => {
         description: "Failed to update deal stage. Please try again.",
         variant: "destructive",
       });
-      
+
       // Reload data to ensure UI is in sync with database
       loadData();
     }
@@ -396,16 +406,16 @@ const Deals = () => {
 
     try {
       console.log('🗑️ Deleting deal with cascade deletion:', dealToDelete.id);
-      
+
       await dealService.delete(dealToDelete.id);
-      
+
       setDeals(prevDeals => prevDeals.filter(deal => deal.id !== dealToDelete.id));
-      
+
       toast({
         title: "Deal Deleted Successfully",
         description: `Deal "${dealToDelete.title}" and all associated payment schedules and commissions have been deleted.`,
       });
-      
+
       setShowDeleteDialog(false);
       setDealToDelete(null);
     } catch (error: any) {
@@ -436,12 +446,12 @@ const Deals = () => {
             : deal
         )
       );
-      
+
       toast({
         title: "Deal Updated",
         description: `Deal "${updatedDeal.title}" has been updated successfully`,
       });
-      
+
       setShowEditDialog(false);
       setEditingDeal(null);
     } catch (error: any) {
@@ -514,10 +524,10 @@ const Deals = () => {
     const matchesSearch = deal.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          deal.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          deal.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStage = filterStage === "all" || deal.stage === filterStage;
     const matchesPriority = filterPriority === "all" || deal.priority === filterPriority;
-    
+
     return matchesSearch && matchesStage && matchesPriority;
   });
 
@@ -682,7 +692,7 @@ const Deals = () => {
                 const IconComponent = stage.icon;
                 const stageDeals = getDealsByStage(stage.id);
                 const totalValue = stageDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
-                
+
                 return (
                   <div key={stage.id} className="flex-shrink-0 w-80">
                     {/* Stage Header Card */}
@@ -690,7 +700,7 @@ const Deals = () => {
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <div 
+                            <div
                               className="p-2 rounded-lg text-white"
                               style={{ backgroundColor: stage.color }}
                             >
@@ -709,7 +719,7 @@ const Deals = () => {
                             {stageDeals.length}
                           </Badge>
                         </div>
-                        
+
                         {/* Stage Statistics */}
                         <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
                           <div className="text-center">
@@ -748,7 +758,7 @@ const Deals = () => {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  onClick={() => navigate(`/crm/deals/${deal.id}`)}
+                                  onClick={() => navigate(`/deals/${deal.id}`)}
                                   className={`cursor-pointer hover:shadow-lg transition-shadow card-overflow-safe ${
                                     snapshot.isDragging ? 'shadow-lg rotate-2' : ''
                                   }`}
@@ -766,8 +776,8 @@ const Deals = () => {
                                         </p>
                                       </div>
                                       <div className="flex items-center space-x-1 ml-2">
-                                        <Badge 
-                                          variant="outline" 
+                                        <Badge
+                                          variant="outline"
                                           className={`text-xs ${getPriorityColor(deal.priority)}`}
                                         >
                                           {deal.priority}
@@ -779,9 +789,9 @@ const Deals = () => {
                                     <div className="flex items-center justify-between mb-3">
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                          <Button 
-                                            variant="ghost" 
-                                            size="sm" 
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
                                             className="h-6 w-6 p-0"
                                             onClick={(e) => e.stopPropagation()}
                                           >
@@ -873,7 +883,7 @@ const Deals = () => {
                               )}
                             </Draggable>
                           ))}
-                          
+
                           {/* Empty State */}
                           {stageDeals.length === 0 && (
                             <div className="text-center py-8 text-gray-400">
@@ -882,7 +892,7 @@ const Deals = () => {
                               <p className="text-xs">Drag deals here or create new ones</p>
                             </div>
                           )}
-                          
+
                           {provided.placeholder}
                         </div>
                       )}
@@ -1014,7 +1024,7 @@ const Deals = () => {
                 <TabsTrigger value="commission">Commission</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="overview" className="space-y-4">
                 {/* Deal Information */}
                 <Card>
@@ -1048,7 +1058,7 @@ const Deals = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>Created by</Label>
@@ -1065,7 +1075,7 @@ const Deals = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <Label>Next Action</Label>
                       <div className="font-medium">{selectedDeal.next_action}</div>
@@ -1112,7 +1122,7 @@ const Deals = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="notes" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Add Note</h3>
@@ -1124,7 +1134,7 @@ const Deals = () => {
                     onChange={(e) => setNewNote(e.target.value)}
                     rows={3}
                   />
-                  <Button onClick={() => {
+                  <Button onClick={async () => {
                     if (newNote.trim()) {
                       const note: DealNote = {
                         id: Date.now().toString(),
@@ -1133,6 +1143,9 @@ const Deals = () => {
                         timestamp: new Date().toISOString(),
                         type: 'note'
                       };
+                      try {
+                        await apiSave('deals',{deal_notes:[note,...dealNotes]},selectedDeal.id);
+                      } catch(error) { toast({title:'Note not saved',description:(error as Error).message,variant:'destructive'});return; }
                       setDealNotes([note, ...dealNotes]);
                       setNewNote('');
                     }
@@ -1141,7 +1154,7 @@ const Deals = () => {
                     Add Note
                   </Button>
                 </div>
-                
+
                 <div className="space-y-3">
                   {dealNotes.map((note) => (
                     <Card key={note.id}>
@@ -1161,11 +1174,11 @@ const Deals = () => {
                   ))}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="tasks">
                 <p className="text-gray-600">Task management will be displayed here</p>
               </TabsContent>
-              
+
               <TabsContent value="payments" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -1191,7 +1204,7 @@ const Deals = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="commission" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -1217,7 +1230,7 @@ const Deals = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="activity">
                 <p className="text-gray-600">Activity timeline will be displayed here</p>
               </TabsContent>

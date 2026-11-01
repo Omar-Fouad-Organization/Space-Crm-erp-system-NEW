@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,127 +77,7 @@ const Sponsorship = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      console.log('📦 Sponsorship Packages: Loading data...');
-      
-      // Load expos first
-      const exposData = await expoService.getAll();
-      console.log('✅ Sponsorship Packages: Loaded expos:', exposData?.length);
-      setExpos(exposData || []);
-      
-      // Load all sponsorship packages from all expos
-      const allPackages: any[] = [];
-      
-      if (exposData && exposData.length > 0) {
-        for (const expo of exposData) {
-          try {
-            // For now, we'll create mock packages since the API might not have this endpoint
-            // In a real implementation, you'd call something like: await expoService.getSponsorshipPackages(expo.id)
-            const mockPackages = [
-              {
-                id: `${expo.id}-title`,
-                package_name: `${expo.name} - Title Sponsor`,
-                tier_level: 'Title',
-                price_egp: 500000,
-                max_sponsors: 1,
-                current_sponsors: 0,
-                benefits: 'Exclusive naming rights, premium booth location, VIP access, speaking opportunities',
-                visibility_level: 'Premium',
-                marketing_materials: 'Logo on all materials, website prominence, press releases',
-                booth_allocation: 'Premium 100sqm booth in prime location',
-                additional_services: 'Dedicated account manager, custom activation space',
-                status: 'Active',
-                expo_id: expo.id,
-                expo_name: expo.name,
-                expo_number: expo.expo_number,
-                expo_start_date: expo.start_date,
-                expo_end_date: expo.end_date,
-                expo_city: expo.city
-              },
-              {
-                id: `${expo.id}-platinum`,
-                package_name: `${expo.name} - Platinum Sponsor`,
-                tier_level: 'Platinum',
-                price_egp: 300000,
-                max_sponsors: 3,
-                current_sponsors: 1,
-                benefits: 'Premium booth location, VIP access, networking events',
-                visibility_level: 'High',
-                marketing_materials: 'Logo on key materials, website listing',
-                booth_allocation: '60sqm booth in premium area',
-                additional_services: 'Welcome reception invitation, media kit',
-                status: 'Active',
-                expo_id: expo.id,
-                expo_name: expo.name,
-                expo_number: expo.expo_number,
-                expo_start_date: expo.start_date,
-                expo_end_date: expo.end_date,
-                expo_city: expo.city
-              },
-              {
-                id: `${expo.id}-gold`,
-                package_name: `${expo.name} - Gold Sponsor`,
-                tier_level: 'Gold',
-                price_egp: 150000,
-                max_sponsors: 5,
-                current_sponsors: 3,
-                benefits: 'Standard booth, networking access, promotional opportunities',
-                visibility_level: 'Medium',
-                marketing_materials: 'Logo on select materials, website listing',
-                booth_allocation: '40sqm booth in main exhibition area',
-                additional_services: 'Networking event access, promotional materials',
-                status: 'Active',
-                expo_id: expo.id,
-                expo_name: expo.name,
-                expo_number: expo.expo_number,
-                expo_start_date: expo.start_date,
-                expo_end_date: expo.end_date,
-                expo_city: expo.city
-              },
-              {
-                id: `${expo.id}-silver`,
-                package_name: `${expo.name} - Silver Sponsor`,
-                tier_level: 'Silver',
-                price_egp: 75000,
-                max_sponsors: 10,
-                current_sponsors: 7,
-                benefits: 'Exhibition booth, basic promotional opportunities',
-                visibility_level: 'Standard',
-                marketing_materials: 'Logo on program, website listing',
-                booth_allocation: '25sqm booth in exhibition area',
-                additional_services: 'Basic promotional support',
-                status: 'Active',
-                expo_id: expo.id,
-                expo_name: expo.name,
-                expo_number: expo.expo_number,
-                expo_start_date: expo.start_date,
-                expo_end_date: expo.end_date,
-                expo_city: expo.city
-              }
-            ];
-            allPackages.push(...mockPackages);
-          } catch (error) {
-            console.log('⚠️ Sponsorship Packages: Error loading packages for expo:', expo.id, error);
-          }
-        }
-      }
-      
-      console.log('✅ Sponsorship Packages: Loaded all packages:', allPackages.length);
-      setPackages(allPackages);
-    } catch (error) {
-      console.error("🚨 Sponsorship Packages: Error loading data:", error);
-      toast({
-        title: "Error Loading Packages",
-        description: "Failed to load sponsorship package data. Please try refreshing the page.",
-        variant: "destructive",
-      });
-      setPackages([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadData = async()=>{setLoading(true);try{const [expos,packages,deals]=await Promise.all([apiAll('exhibitions'),apiAll('sponsorship_packages'),apiAll('deals')]);setExpos(expos);setPackages(packages.map(p=>{const e=expos.find(x=>x.id===p.exhibition_id);return {...p,package_name:p.name,tier_level:p.tier_level||p.tier,price_egp:p.price,current_sponsors:deals.filter(d=>d.sponsorship_package_id===p.id&&d.stage==='closed_won').length,max_sponsors:p.max_sponsors||1,status:p.status||'Active',expo_id:p.exhibition_id,expo_name:e?.name||'',expo_number:e?.expo_number||'',expo_start_date:e?.start_date,expo_end_date:e?.end_date,expo_city:e?.city||'',benefits:Array.isArray(p.benefits)?p.benefits.join(', '):p.benefits};}));}catch(error){toast({title:'Load failed',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const handleCreatePackage = async () => {
     try {
@@ -216,8 +98,8 @@ const Sponsorship = () => {
       };
 
       // In a real implementation, you'd call: await expoService.createSponsorshipPackage(formData.expo_id, packageData);
-      console.log('Creating package:', packageData);
-      
+      await apiSave('sponsorship_packages',{...packageData,price:packageData.price_egp,tier:({Title:'platinum',Platinum:'platinum',Gold:'gold',Silver:'silver',Bronze:'bronze'} as any)[packageData.tier_level]||'gold',currency:'EGP'});
+
       toast({
         title: "Success",
         description: "Sponsorship package created successfully",
@@ -247,8 +129,8 @@ const Sponsorship = () => {
       };
 
       // In a real implementation, you'd call: await expoService.updateSponsorshipPackage(editingPackage.expo_id, editingPackage.id, packageData);
-      console.log('Updating package:', packageData);
-      
+      await apiSave('sponsorship_packages',{...packageData,price:packageData.price_egp,tier:({Title:'platinum',Platinum:'platinum',Gold:'gold',Silver:'silver',Bronze:'bronze'} as any)[packageData.tier_level]||'gold'},editingPackage.id);
+
       toast({
         title: "Success",
         description: "Sponsorship package updated successfully",
@@ -273,8 +155,8 @@ const Sponsorship = () => {
 
     try {
       // In a real implementation, you'd call: await expoService.deleteSponsorshipPackage(packageItem.expo_id, packageItem.id);
-      console.log('Deleting package:', packageItem.id);
-      
+      await apiRemove('sponsorship_packages',packageItem.id);
+
       toast({
         title: "Success",
         description: "Sponsorship package deleted successfully",
@@ -368,7 +250,7 @@ const Sponsorship = () => {
 
   // Filter packages based on search and filters
   const filteredPackages = packages.filter(pkg => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       pkg.package_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pkg.tier_level?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pkg.expo_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -641,7 +523,7 @@ const Sponsorship = () => {
               {packages.length === 0 ? "No Packages Found" : "No Matching Packages"}
             </h3>
             <p className="text-muted-foreground mb-4">
-              {packages.length === 0 
+              {packages.length === 0
                 ? "Sponsorship packages will appear here when created for exhibitions"
                 : "Try adjusting your search criteria or filters"
               }
@@ -700,7 +582,7 @@ const Sponsorship = () => {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Package
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleDeletePackage(pkg)}
                           className="text-red-600"
                         >
@@ -747,8 +629,8 @@ const Sponsorship = () => {
                           {pkg.current_sponsors || 0}/{pkg.max_sponsors || 0}
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
                             style={{ width: `${((pkg.current_sponsors || 0) / (pkg.max_sponsors || 1)) * 100}%` }}
                           ></div>
                         </div>
@@ -956,7 +838,7 @@ const Sponsorship = () => {
                     placeholder="List the benefits included in this package"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="marketing_materials">Marketing Materials</Label>
                   <Textarea
@@ -966,7 +848,7 @@ const Sponsorship = () => {
                     placeholder="Describe marketing materials and promotional opportunities"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="booth_allocation">Booth Allocation</Label>
                   <Textarea
@@ -976,7 +858,7 @@ const Sponsorship = () => {
                     placeholder="Describe booth space allocation and specifications"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="additional_services">Additional Services</Label>
                   <Textarea
@@ -1113,7 +995,7 @@ const Sponsorship = () => {
                     placeholder="List the benefits included in this package"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="edit_marketing_materials">Marketing Materials</Label>
                   <Textarea
@@ -1123,7 +1005,7 @@ const Sponsorship = () => {
                     placeholder="Describe marketing materials and promotional opportunities"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="edit_booth_allocation">Booth Allocation</Label>
                   <Textarea
@@ -1133,7 +1015,7 @@ const Sponsorship = () => {
                     placeholder="Describe booth space allocation and specifications"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="edit_additional_services">Additional Services</Label>
                   <Textarea

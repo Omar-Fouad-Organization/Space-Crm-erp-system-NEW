@@ -1,3 +1,4 @@
+import {all as apiAll} from '@/services/laravelClient';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { 
-  Building, 
-  Users, 
-  MapPin, 
-  Calendar, 
-  Phone, 
-  Mail, 
+import {
+  Building,
+  Users,
+  MapPin,
+  Calendar,
+  Phone,
+  Mail,
   Globe,
   RefreshCw,
   Download,
@@ -181,163 +182,8 @@ export default function Exhibitors() {
   useEffect(() => {
     loadExhibitors();
   }, []);
-  
-  const loadExhibitors = async () => {
-    try {
-      setLoading(true);
-      console.log('🏢 Loading exhibitors from database...');
-      
-      // Load real data from clients and deals tables
-      const [clientsData, dealsData] = await Promise.all([
-        supabase.from('clients_2026_01_17_18_37').select('*'),
-        supabase.from('deals_2026_01_17_18_37').select('*')
-      ]);
-      
-      if (clientsData.error) {
-        console.error('❌ Error loading clients:', clientsData.error);
-        throw clientsData.error;
-      }
-      
-      if (dealsData.error) {
-        console.error('❌ Error loading deals:', dealsData.error);
-        // Continue without deals data
-      }
-      
-      const clients = clientsData.data || [];
-      const deals = dealsData.data || [];
-      
-      console.log('✅ Loaded data:', {
-        clients: clients.length,
-        deals: deals.length
-      });
-      
-      // Create exhibitor map from clients
-      const exhibitorMap = new Map();
-      
-      // Process clients as potential exhibitors
-      clients.forEach(client => {
-        exhibitorMap.set(client.id, {
-          id: client.id,
-          company_name: client.name || client.company || 'Unknown Company',
-          contact_person: client.contact_person || client.primary_contact || 'Unknown Contact',
-          email: client.email || 'no-email@company.com',
-          phone: client.phone || 'N/A',
-          website: client.website || undefined,
-          industry: client.industry || 'Technology',
-          company_size: client.company_size || 'medium',
-          status: client.status === 'active' ? 'active' : client.status === 'inactive' ? 'inactive' : 'active',
-          rating: 4.0, // Default rating
-          total_exhibitions: 0,
-          total_spent: 0,
-          last_exhibition: '',
-          next_exhibition: undefined,
-          booth_preferences: ['Standard Location'],
-          special_requirements: client.notes || undefined,
-          created_at: client.created_at || new Date().toISOString(),
-          notes: client.notes || 'Client from database'
-        });
-      });
-      
-      // Process deals to enhance exhibitor data
-      deals.forEach(deal => {
-        if (deal.client_id && exhibitorMap.has(deal.client_id)) {
-          const exhibitor = exhibitorMap.get(deal.client_id);
-          
-          // Count exhibitions (deals)
-          exhibitor.total_exhibitions += 1;
-          
-          // Add to total spent if deal is won
-          if (deal.status === 'Closed Won' && deal.deal_value) {
-            exhibitor.total_spent += parseFloat(deal.deal_value) || 0;
-          }
-          
-          // Update last exhibition date
-          if (deal.created_at && (!exhibitor.last_exhibition || deal.created_at > exhibitor.last_exhibition)) {
-            exhibitor.last_exhibition = deal.created_at.split('T')[0];
-          }
-          
-          // Determine booth preferences based on deal type
-          if (deal.deal_type === 'booth' || deal.package_type) {
-            const preferences = [];
-            if (deal.package_type?.toLowerCase().includes('premium')) {
-              preferences.push('Premium Location');
-            }
-            if (deal.package_type?.toLowerCase().includes('corner')) {
-              preferences.push('Corner Booth');
-            }
-            if (deal.package_type?.toLowerCase().includes('large')) {
-              preferences.push('Large Space');
-            }
-            if (preferences.length > 0) {
-              exhibitor.booth_preferences = preferences;
-            }
-          }
-          
-          // Calculate rating based on performance
-          const wonDeals = deals.filter(d => d.client_id === deal.client_id && d.status === 'Closed Won').length;
-          const totalDeals = deals.filter(d => d.client_id === deal.client_id).length;
-          if (totalDeals > 0) {
-            const winRate = wonDeals / totalDeals;
-            exhibitor.rating = Math.min(5.0, 3.0 + (winRate * 2.0)); // 3.0 to 5.0 based on win rate
-          }
-        }
-      });
-      
-      // Convert map to array and enhance with additional data
-      const realExhibitors: Exhibitor[] = Array.from(exhibitorMap.values()).map((exhibitor, index) => {
-        // Determine status based on activity
-        let status = exhibitor.status;
-        if (exhibitor.total_exhibitions === 0) {
-          status = 'pending';
-        } else if (exhibitor.last_exhibition) {
-          const lastDate = new Date(exhibitor.last_exhibition);
-          const sixMonthsAgo = new Date();
-          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-          if (lastDate < sixMonthsAgo) {
-            status = 'inactive';
-          }
-        }
-        
-        return {
-          ...exhibitor,
-          status: status as 'active' | 'inactive' | 'pending' | 'blacklisted',
-          rating: Math.round(exhibitor.rating * 10) / 10, // Round to 1 decimal
-          notes: `${exhibitor.notes}. Total exhibitions: ${exhibitor.total_exhibitions}, Total spent: $${exhibitor.total_spent.toFixed(2)}`
-        };
-      });
-      
-      // If no real exhibitors found, use sample data
-      if (realExhibitors.length === 0) {
-        console.log('⚠️ No real exhibitor data found, using sample exhibitors');
-        setExhibitors(mockExhibitors);
-      } else {
-        setExhibitors(realExhibitors);
-      }
-      
-      console.log('✅ Exhibitors loaded:', {
-        realExhibitors: realExhibitors.length,
-        sampleExhibitors: realExhibitors.length === 0 ? mockExhibitors.length : 0,
-        totalExhibitors: realExhibitors.length > 0 ? realExhibitors.length : mockExhibitors.length
-      });
-      
-      toast({
-        title: "Exhibitors Data Loaded",
-        description: `Loaded ${realExhibitors.length > 0 ? realExhibitors.length : mockExhibitors.length} exhibitors (${realExhibitors.length} from database, ${realExhibitors.length === 0 ? mockExhibitors.length : 0} sample)`,
-      });
-      
-    } catch (error) {
-      console.error('❌ Error loading exhibitors:', error);
-      // Fallback to mock data on error
-      setExhibitors(mockExhibitors);
-      toast({
-        title: "Error Loading Exhibitors",
-        description: "Failed to load exhibitor data from database. Using sample data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+
+  const loadExhibitors = async()=>{setLoading(true);try{const [clients,deals,expos]=await Promise.all([apiAll('clients'),apiAll('deals'),apiAll('exhibitions')]);setExhibitors(clients.map(client=>{const linked=deals.filter(d=>d.client_id===client.id),events=expos.filter(e=>linked.some(d=>d.exhibition_id===e.id)),today=new Date().toISOString().slice(0,10),past=events.filter(e=>e.end_date<today).sort((a,b)=>b.end_date.localeCompare(a.end_date)),next=events.filter(e=>e.start_date>=today).sort((a,b)=>a.start_date.localeCompare(b.start_date));return{id:client.id,company_name:client.company||client.name,contact_person:client.contact_person||'',email:client.email||'',phone:client.phone||'N/A',website:client.website,industry:client.industry||'N/A',company_size:({'1-10':'startup','11-50':'small','51-200':'medium','201-500':'large','501-1000':'large','1000+':'enterprise'} as any)[client.company_size]||client.company_size||'',status:client.status==='Inactive'?'inactive':linked.length?'active':'pending',rating:Number(client.rating||0),total_exhibitions:events.length,total_spent:linked.filter(d=>d.status==='Closed Won'&&d.currency==='EGP').reduce((n,d)=>n+Number(d.deal_value),0),last_exhibition:past[0]?.end_date||'',next_exhibition:next[0]?.start_date,booth_preferences:client.booth_preferences||[],special_requirements:client.special_requirements||'',created_at:client.created_at,notes:client.notes||''};}) as Exhibitor[]);}catch(error){setExhibitors([]);toast({title:'Exhibitors unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const filteredExhibitors = exhibitors.filter(exhibitor => {
     const matchesSearch = exhibitor.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -346,7 +192,7 @@ export default function Exhibitors() {
     const matchesStatus = statusFilter === 'all' || exhibitor.status === statusFilter;
     const matchesIndustry = industryFilter === 'all' || exhibitor.industry === industryFilter;
     const matchesSize = sizeFilter === 'all' || exhibitor.company_size === sizeFilter;
-    
+
     return matchesSearch && matchesStatus && matchesIndustry && matchesSize;
   });
 
@@ -363,10 +209,10 @@ export default function Exhibitors() {
       <Star
         key={i}
         className={`h-4 w-4 ${
-          i < Math.floor(rating) 
-            ? 'text-yellow-400 fill-current' 
-            : i < rating 
-            ? 'text-yellow-400 fill-current opacity-50' 
+          i < Math.floor(rating)
+            ? 'text-yellow-400 fill-current'
+            : i < rating
+            ? 'text-yellow-400 fill-current opacity-50'
             : 'text-gray-300'
         }`}
       />
@@ -552,7 +398,7 @@ export default function Exhibitors() {
                 </div>
               </div>
 
-              <select 
+              <select
                 className="px-3 py-2 border border-gray-300 rounded-md"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -562,7 +408,7 @@ export default function Exhibitors() {
                   <option key={status.value} value={status.value}>{status.label}</option>
                 ))}
               </select>
-              <select 
+              <select
                 className="px-3 py-2 border border-gray-300 rounded-md"
                 value={industryFilter}
                 onChange={(e) => setIndustryFilter(e.target.value)}
@@ -572,7 +418,7 @@ export default function Exhibitors() {
                   <option key={industry} value={industry}>{industry}</option>
                 ))}
               </select>
-              <select 
+              <select
                 className="px-3 py-2 border border-gray-300 rounded-md"
                 value={sizeFilter}
                 onChange={(e) => setSizeFilter(e.target.value)}
@@ -639,7 +485,7 @@ export default function Exhibitors() {
                               </Badge>
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
 
                             <div className="space-y-2">
@@ -668,7 +514,7 @@ export default function Exhibitors() {
                             </div>
 
                             <div className="space-y-2">
-                            
+
                               <div className="flex items-center space-x-2">
                                 <Building className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-muted-foreground">
@@ -693,7 +539,7 @@ export default function Exhibitors() {
                             </div>
 
                             <div className="space-y-2">
-                            
+
                               <div className="flex items-center space-x-2">
                                 <Star className="h-4 w-4 text-muted-foreground" />
                                 Rating:
@@ -706,7 +552,7 @@ export default function Exhibitors() {
                               </div>
 
                               <div className="text-sm text-muted-foreground">
-                                Last: {new Date(exhibitor.last_exhibition).toLocaleDateString()}
+                                Last: {exhibitor.last_exhibition?new Date(exhibitor.last_exhibition).toLocaleDateString():'N/A'}
                               </div>
 
                               {exhibitor.next_exhibition && (

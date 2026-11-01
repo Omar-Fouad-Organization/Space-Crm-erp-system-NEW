@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -172,199 +174,11 @@ const Documents = () => {
     loadDocuments();
   }, []);
 
-  const loadDocuments = async () => {
-    try {
-      setLoading(true);
-      
-      // Mock data since we don't have a documents table yet
-      const mockDocuments: Document[] = [
-        {
-          id: '1',
-          document_number: 'DOC-2026-001',
-          title: 'Solar Energy Partnership Agreement',
-          description: 'Comprehensive partnership agreement for solar energy project development',
-          document_type: 'Contract',
-          status: 'Review',
-          priority: 'High',
-          client_name: 'EcoTech Solutions',
-          deal_name: 'Solar Farm Development',
-          contract_value: 2500000,
-          currency: 'USD',
-          signature_deadline: '2026-02-15',
-          assigned_to_name: 'Sarah Johnson',
-          version: 2,
-          tags: ['renewable', 'partnership', 'high-value'],
-          file_url: '#',
-          attachments: [
-            {
-              id: '1-1',
-              name: 'Solar_Partnership_Agreement_v2.pdf',
-              size: 2456789,
-              type: 'application/pdf',
-              url: '#',
-              uploaded_at: '2026-01-05T10:00:00Z',
-              uploaded_by: 'Sarah Johnson'
-            },
-            {
-              id: '1-2',
-              name: 'Technical_Specifications.docx',
-              size: 1234567,
-              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              url: '#',
-              uploaded_at: '2026-01-08T14:30:00Z',
-              uploaded_by: 'Mike Chen'
-            },
-            {
-              id: '1-3',
-              name: 'Site_Photos.zip',
-              size: 15678901,
-              type: 'application/zip',
-              url: '#',
-              uploaded_at: '2026-01-10T09:15:00Z',
-              uploaded_by: 'Emma Davis'
-            }
-          ],
-          created_at: '2026-01-05T10:00:00Z',
-          updated_at: '2026-01-10T14:30:00Z'
-        },
-        {
-          id: '2',
-          document_number: 'DOC-2026-002',
-          title: 'Wind Energy Service Agreement',
-          description: 'Service agreement for wind turbine maintenance and operations',
-          document_type: 'Agreement',
-          status: 'Sent',
-          priority: 'Medium',
-          client_name: 'Green Energy Alliance',
-          deal_name: 'Wind Farm Operations',
-          contract_value: 850000,
-          currency: 'USD',
-          signature_deadline: '2026-01-25',
-          assigned_to_name: 'Mike Chen',
-          version: 1,
-          tags: ['wind', 'maintenance', 'operations'],
-          file_url: '#',
-          attachments: [
-            {
-              id: '2-1',
-              name: 'Wind_Service_Agreement.pdf',
-              size: 1876543,
-              type: 'application/pdf',
-              url: '#',
-              uploaded_at: '2026-01-08T09:15:00Z',
-              uploaded_by: 'Mike Chen'
-            },
-            {
-              id: '2-2',
-              name: 'Maintenance_Schedule.xlsx',
-              size: 567890,
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              url: '#',
-              uploaded_at: '2026-01-09T11:30:00Z',
-              uploaded_by: 'Lisa Wang'
-            }
-          ],
-          created_at: '2026-01-08T09:15:00Z',
-          updated_at: '2026-01-09T16:45:00Z'
-        },
-        {
-          id: '3',
-          document_number: 'DOC-2026-003',
-          title: 'Clean Tech Investment Proposal',
-          description: 'Investment proposal for clean technology development fund',
-          document_type: 'Proposal',
-          status: 'Draft',
-          priority: 'Critical',
-          client_name: 'Future Energy Corp',
-          deal_name: 'Clean Tech Fund',
-          contract_value: 5000000,
-          currency: 'USD',
-          signature_deadline: '2026-02-01',
-          assigned_to_name: 'Emma Davis',
-          version: 3,
-          tags: ['investment', 'clean-tech', 'fund'],
-          file_url: '#',
-          created_at: '2026-01-10T11:30:00Z',
-          updated_at: '2026-01-10T15:20:00Z'
-        },
-        {
-          id: '4',
-          document_number: 'DOC-2026-004',
-          title: 'Renewable Energy Consulting Contract',
-          description: 'Consulting services contract for renewable energy strategy',
-          document_type: 'Contract',
-          status: 'Signed',
-          priority: 'Medium',
-          client_name: 'Solar Dynamics Inc',
-          deal_name: 'Strategy Consulting',
-          contract_value: 125000,
-          currency: 'USD',
-          signature_deadline: '2026-01-15',
-          assigned_to_name: 'Lisa Wang',
-          version: 1,
-          tags: ['consulting', 'strategy', 'renewable'],
-          file_url: '#',
-          created_at: '2026-01-03T14:20:00Z',
-          updated_at: '2026-01-08T10:15:00Z'
-        },
-        {
-          id: '5',
-          document_number: 'DOC-2026-005',
-          title: 'Energy Storage System Quote',
-          description: 'Detailed quote for battery energy storage system installation',
-          document_type: 'Quote',
-          status: 'Sent',
-          priority: 'High',
-          client_name: 'PowerGrid Solutions',
-          deal_name: 'Battery Storage Project',
-          contract_value: 1750000,
-          currency: 'USD',
-          signature_deadline: '2026-01-30',
-          assigned_to_name: 'Alex Thompson',
-          version: 2,
-          tags: ['storage', 'battery', 'installation'],
-          file_url: '#',
-          created_at: '2026-01-07T13:45:00Z',
-          updated_at: '2026-01-10T09:30:00Z'
-        },
-        {
-          id: '6',
-          document_number: 'DOC-2026-006',
-          title: 'Environmental Impact Report',
-          description: 'Comprehensive environmental impact assessment report',
-          document_type: 'Report',
-          status: 'Review',
-          priority: 'Low',
-          client_name: 'EcoTech Solutions',
-          deal_name: 'Environmental Assessment',
-          contract_value: 75000,
-          currency: 'USD',
-          signature_deadline: '2026-02-10',
-          assigned_to_name: 'John Doe',
-          version: 1,
-          tags: ['environmental', 'assessment', 'compliance'],
-          file_url: '#',
-          created_at: '2026-01-09T16:00:00Z',
-          updated_at: '2026-01-10T12:00:00Z'
-        }
-      ];
-      setDocuments(mockDocuments);
-      
-    } catch (error: any) {
-      console.error('Error loading documents:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load documents",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadDocuments = async () => {setLoading(true);try{setDocuments(await apiAll('documents') as any);}catch(error){toast({title:'Unable to load records',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const handleCreateDocument = async () => {
     try {
-      const newDocument: Document = {
+      let newDocument: Document = {
         id: Date.now().toString(),
         document_number: `DOC-2026-${String(documents.length + 1).padStart(3, '0')}`,
         title: formData.title,
@@ -383,10 +197,12 @@ const Documents = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      setDocuments(prev => [newDocument, ...prev]);
+      newDocument=await apiSave('documents',newDocument) as any;
+      for(const file of selectedFiles){const data=new FormData();data.append('file',file);await api(`documents/${newDocument.id}/attachments`,'POST',data);}
+      await loadDocuments();
       setCreateDialogOpen(false);
       resetForm();
-      
+
       toast({
         title: "Document Created",
         description: `Document "${formData.title}" has been created successfully`,
@@ -419,14 +235,14 @@ const Documents = () => {
         tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
         updated_at: new Date().toISOString()
       };
-      setDocuments(prev => prev.map(doc => 
+      setDocuments(prev => prev.map(doc =>
         doc.id === selectedDocument.id ? updatedDocument : doc
       ));
-      
+
       setEditDialogOpen(false);
       setSelectedDocument(null);
       resetForm();
-      
+
       toast({
         title: "Document Updated",
         description: `Document "${formData.title}" has been updated successfully`,
@@ -442,10 +258,11 @@ const Documents = () => {
 
   const handleDeleteDocument = async () => {
     if (!documentToDelete) return;
-    
+
     try {
+      await apiRemove('documents',documentToDelete.id);
       setDocuments(prev => prev.filter(doc => doc.id !== documentToDelete.id));
-      
+
       toast({
         title: "Document Deleted",
         description: `Document "${documentToDelete.title}" has been deleted successfully`,
@@ -462,26 +279,7 @@ const Documents = () => {
     }
   };
 
-  const handleUpdateStatus = async (documentId: string, newStatus: string) => {
-    try {
-      setDocuments(prev => prev.map(doc => 
-        doc.id === documentId 
-          ? { ...doc, status: newStatus, updated_at: new Date().toISOString() }
-          : doc
-      ));
-      
-      toast({
-        title: "Status Updated",
-        description: `Document status updated to ${newStatus}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update document status",
-        variant: "destructive",
-      });
-    }
-  };
+  const handleUpdateStatus = async(documentId:string,newStatus:string)=>{try{const updated=await apiSave('documents',{status:newStatus},documentId);setDocuments(prev=>prev.map(doc=>doc.id===documentId?updated as any:doc));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
 
   const resetForm = () => {
     setFormData({
@@ -547,71 +345,9 @@ const Documents = () => {
   };
 
   // File upload functions
-  const handleFileUpload = async (files: File[], documentId?: string) => {
-    if (!files.length) return;
-    setUploadingFiles(true);
-    try {
-      const uploadedFiles: FileAttachment[] = [];
-      for (const file of files) {
-        // In a real implementation, you would upload to Supabase Storage
-        // For now, we'll simulate the upload
-        const mockAttachment: FileAttachment = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          url: URL.createObjectURL(file), // In real app, this would be the Supabase Storage URL
-          uploaded_at: new Date().toISOString(),
-          uploaded_by: 'Current User' // In real app, get from auth context
-        };
-        uploadedFiles.push(mockAttachment);
-      }
-      if (documentId) {
-        // Add files to existing document
-        setDocuments(prev => prev.map(doc => 
-          doc.id === documentId 
-            ? { ...doc, attachments: [...(doc.attachments || []), ...uploadedFiles] }
-            : doc
-        ));
-      } else {
-        // Store files for new document creation
-        setSelectedFiles(files);
-      }
-      toast({
-        title: "Files Uploaded",
-        description: `${files.length} file(s) uploaded successfully`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Upload Failed",
-        description: error.message || "Failed to upload files",
-        variant: "destructive",
-      });
-    } finally {
-      setUploadingFiles(false);
-      setFileUploadOpen(false);
-    }
-  };
+  const handleFileUpload = async(files:File[],documentId?:string)=>{if(!documentId){setSelectedFiles(files);return;}setUploadingFiles(true);try{for(const file of files){const data=new FormData();data.append('file',file);await api('documents/'+documentId+'/attachments','POST',data);}await loadDocuments();toast({title:'Files uploaded',description:'Files saved to private server storage.'});}catch(error){toast({title:'Upload failed',description:(error as Error).message,variant:'destructive'});}finally{setUploadingFiles(false);}};
 
-  const handleFileDelete = async (documentId: string, attachmentId: string) => {
-    try {
-      setDocuments(prev => prev.map(doc => 
-        doc.id === documentId 
-          ? { ...doc, attachments: doc.attachments?.filter(att => att.id !== attachmentId) }
-          : doc
-      ));
-      toast({
-        title: "File Deleted",
-        description: "File has been removed successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete file",
-        variant: "destructive",
-      });
-    }
-  };
+  const handleFileDelete = async(documentId:string,fileId:string)=>{try{await api('attachments/'+fileId,'DELETE');await loadDocuments();}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});}};
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -656,16 +392,16 @@ const Documents = () => {
                          doc.document_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.deal_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all-status" || doc.status === statusFilter;
     const matchesType = typeFilter === "all-types" || doc.document_type === typeFilter;
     const matchesPriority = priorityFilter === "all-priority" || doc.priority === priorityFilter;
-    const matchesTab = activeTab === 'all' || 
+    const matchesTab = activeTab === 'all' ||
                       (activeTab === 'contracts' && doc.document_type === 'Contract') ||
                       (activeTab === 'proposals' && doc.document_type === 'Proposal') ||
                       (activeTab === 'agreements' && doc.document_type === 'Agreement') ||
                       (activeTab === 'overdue' && isOverdue(doc.signature_deadline || '', doc.status));
-    
+
     return matchesSearch && matchesStatus && matchesType && matchesPriority && matchesTab;
   });
 
@@ -742,7 +478,7 @@ const Documents = () => {
     const today = new Date();
     const diffTime = date.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return `${Math.abs(diffDays)} days overdue`;
     if (diffDays === 0) return 'Due today';
     if (diffDays === 1) return 'Due tomorrow';
@@ -980,8 +716,8 @@ const Documents = () => {
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No documents found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {documents.length === 0 
-                    ? "Get started by creating your first document" 
+                  {documents.length === 0
+                    ? "Get started by creating your first document"
                     : "Try adjusting your search or filter criteria"}
                 </p>
                 {documents.length === 0 && (
@@ -1092,17 +828,17 @@ const Documents = () => {
                                   {formatFileSize(attachment.size)} • {attachment.uploaded_by}
                                 </div>
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-6 w-6 p-0"
                                 onClick={() => window.open(attachment.url, '_blank')}
                               >
                                 <ExternalLink className="h-3 w-3" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
                                 onClick={() => handleFileDelete(document.id, attachment.id)}
                               >
@@ -1123,9 +859,9 @@ const Documents = () => {
                     <div className="flex items-center justify-end gap-2 mt-4">
                       {/* File Link */}
                       {document.file_url && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => window.open(document.file_url, '_blank')}
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
@@ -1147,10 +883,10 @@ const Documents = () => {
                             }
                           }}
                         />
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
-                          onClick={() => document.getElementById(`file-upload-${document.id}`)?.click()}
+                          onClick={() => window.document.getElementById(`file-upload-${document.id}`)?.click()}
                           disabled={uploadingFiles}
                         >
                           {uploadingFiles ? (
@@ -1164,9 +900,9 @@ const Documents = () => {
 
                       {/* Quick Status Actions */}
                       {document.status === 'Draft' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleUpdateStatus(document.id, 'Review')}
                         >
                           <Eye className="h-4 w-4 mr-2" />
@@ -1174,9 +910,9 @@ const Documents = () => {
                         </Button>
                       )}
                       {document.status === 'Review' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleUpdateStatus(document.id, 'Sent')}
                         >
                           <Send className="h-4 w-4 mr-2" />
@@ -1184,9 +920,9 @@ const Documents = () => {
                         </Button>
                       )}
                       {document.status === 'Sent' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleUpdateStatus(document.id, 'Signed')}
                         >
                           <FileCheck className="h-4 w-4 mr-2" />
@@ -1208,28 +944,28 @@ const Documents = () => {
                             Edit Document
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleUpdateStatus(document.id, 'Draft')}
                             disabled={document.status === 'Draft'}
                           >
                             <FileText className="h-4 w-4 mr-2" />
                             Mark as Draft
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleUpdateStatus(document.id, 'Review')}
                             disabled={document.status === 'Review'}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             Mark as Review
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleUpdateStatus(document.id, 'Sent')}
                             disabled={document.status === 'Sent'}
                           >
                             <Send className="h-4 w-4 mr-2" />
                             Mark as Sent
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleUpdateStatus(document.id, 'Signed')}
                             disabled={document.status === 'Signed'}
                           >
@@ -1237,7 +973,7 @@ const Documents = () => {
                             Mark as Signed
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => {
                               setDocumentToDelete(document);
                               setDeleteDialogOpen(true);
@@ -1274,7 +1010,7 @@ const Documents = () => {
               Add a new document to your document management system.
             </DialogDescription>
           </DialogHeader>
-          
+
           {/* Scrollable Content Area */}
           <div className="flex-1 overflow-y-auto py-4">
             <Tabs defaultValue="basic" className="w-full">
@@ -1283,7 +1019,7 @@ const Documents = () => {
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="files">Files</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="basic" className="space-y-4 mt-4">
                 <div className="space-y-4">
                   <div>
@@ -1342,7 +1078,7 @@ const Documents = () => {
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="details" className="space-y-4 mt-4">
                 <div className="space-y-4">
                   <div>
@@ -1397,12 +1133,12 @@ const Documents = () => {
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="files" className="space-y-4 mt-4">
                 <div className="space-y-4">
                   <div>
                     <Label>Attach Files</Label>
-                    <div 
+                    <div
                       className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
                         dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
                       }`}
@@ -1425,8 +1161,8 @@ const Documents = () => {
                       <p className="text-sm text-muted-foreground">
                         Support for PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, and image files
                       </p>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="mt-2"
                         onClick={() => document.getElementById('create-file-upload')?.click()}
                       >
@@ -1449,8 +1185,8 @@ const Documents = () => {
                                     </div>
                                   </div>
                                 </div>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => {
                                     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -1469,7 +1205,7 @@ const Documents = () => {
               </TabsContent>
             </Tabs>
           </div>
-          
+
           {/* Fixed Footer */}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
@@ -1633,13 +1369,13 @@ const Documents = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the document "{documentToDelete?.title}"? 
+              Are you sure you want to delete the document "{documentToDelete?.title}"?
               This action cannot be undone and will permanently remove the document and all its associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDeleteDocument}
               className="bg-red-600 hover:bg-red-700"
             >
@@ -1663,7 +1399,7 @@ const Documents = () => {
           </DialogHeader>
           <div className="py-4">
             {/* Drag and Drop Area */}
-            <div 
+            <div
               className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors mb-6 ${
                 dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
               }`}
@@ -1686,8 +1422,8 @@ const Documents = () => {
                   }
                 }}
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => document.getElementById('file-upload-dialog')?.click()}
                 disabled={uploadingFiles}
               >
@@ -1763,8 +1499,8 @@ const Documents = () => {
                           </div>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => {
                           setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -1779,8 +1515,8 @@ const Documents = () => {
             )}
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setFileUploadOpen(false);
                 setSelectedFiles([]);
@@ -1788,7 +1524,7 @@ const Documents = () => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (selectedFiles.length > 0) {
                   handleFileUpload(selectedFiles);

@@ -1,3 +1,4 @@
+import {useRecordOptions} from '@/hooks/useRecordOptions';
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,12 +42,12 @@ const dealFormSchema = z.object({
   client_id: z.string().min(1, 'Client is required'),
   expo_id: z.string().min(1, 'Expo is required'),
   type: z.enum(['booth', 'sponsor', 'sector_sponsor'], {
-    required_error: 'Deal type is required',
+    error: 'Deal type is required',
   }),
   assigned_salesperson_id: z.string().min(1, 'Salesperson is required'),
   expected_value: z.number().min(0, 'Expected value must be positive'),
   expected_close_date: z.date({
-    required_error: 'Expected close date is required',
+    error: 'Expected close date is required',
   }),
   booth_id: z.string().optional(),
   sponsorship_package_id: z.string().optional(),
@@ -94,6 +95,9 @@ const mockSponsorshipPackages = [
 ];
 
 export default function CreateDealDialog({ open, onOpenChange, onSubmit }: CreateDealDialogProps) {
+  const mockClients=useRecordOptions('clients',open);
+  const mockExpos=useRecordOptions('exhibitions',open);
+  const mockBooths=useRecordOptions('booths',open);
   const [selectedType, setSelectedType] = useState<string>('');
   const [selectedExpo, setSelectedExpo] = useState<string>('');
 
@@ -152,12 +156,12 @@ export default function CreateDealDialog({ open, onOpenChange, onSubmit }: Creat
     onOpenChange(false);
   };
 
-  const availableBooths = mockBooths.filter(booth => 
+  const availableBooths = mockBooths.filter(booth =>
     selectedExpo ? booth.id.startsWith(selectedExpo) : true
   );
 
-  const availableSponsorshipPackages = mockSponsorshipPackages.filter(pkg => 
-    watchedType === 'sector_sponsor' 
+  const availableSponsorshipPackages = mockSponsorshipPackages.filter(pkg =>
+    watchedType === 'sector_sponsor'
       ? pkg.package_type === 'sector_sponsor'
       : pkg.package_type === 'sponsor'
   );

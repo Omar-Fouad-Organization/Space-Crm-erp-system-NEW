@@ -1,3 +1,4 @@
+import {useAuth} from '@/contexts/AuthContext';
 import React from 'react';
 
 interface PageGuardProps {
@@ -21,6 +22,8 @@ export const PageGuard: React.FC<PageGuardProps> = ({
   // - User is authenticated
   // - User has access to the required page
   // - User has the required permissions/role
-  
+
+  const {user,hasPageAccess,hasRole}=useAuth();
+  if(!user||(requiredPage&&!hasPageAccess(requiredPage))||(requiredRole&&!hasRole(requiredRole)))return <>{fallback}</>;
   return <>{children}</>;
 };

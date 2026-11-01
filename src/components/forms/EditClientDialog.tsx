@@ -36,7 +36,7 @@ const CLIENT_TYPES = [
 ];
 
 const INDUSTRIES = [
-  'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail', 
+  'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail',
   'Education', 'Hospitality', 'Real Estate', 'Automotive', 'Energy',
   'Food & Beverage', 'Beauty & Wellness', 'Home & Design', 'Green Manufacturing',
   'Entertainment', 'Media', 'Telecommunications', 'Transportation', 'Agriculture'
@@ -67,7 +67,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
   const [countries, setCountries] = useState<{id: string, name: string, code: string}[]>([]);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     company: '',
@@ -113,7 +113,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
   const populateForm = () => {
     if (!client) return;
-    
+
     setFormData({
       name: client.name || '',
       company: client.company || '',
@@ -143,20 +143,20 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
   const validateForm = () => {
     const errors: string[] = [];
-    
+
     if (!formData.name.trim()) errors.push('Client name is required');
     if (!formData.contact_person.trim()) errors.push('Contact person is required');
     if (!formData.email.trim()) errors.push('Email is required');
     if (!/\S+@\S+\.\S+/.test(formData.email)) errors.push('Email is invalid');
-    
+
     return errors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!client) return;
-    
+
     const errors = validateForm();
     if (errors.length > 0) {
       toast({
@@ -168,7 +168,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
     }
 
     setLoading(true);
-    
+
     try {
       const updates: Partial<Client> = {
         name: formData.name.trim(),

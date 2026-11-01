@@ -1,112 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  roles: string[];
+import React,{createContext,useContext,useEffect,useState} from 'react';
+import {api} from '@/crm/api';
+import {metadata,resetLegacyMetadata} from '@/services/laravelClient';
+interface User {id:string;email:string;name:string;role:string;roles:string[]}
+interface AuthContextType {user:User|null;roles:string[];hasRole:(role:string)=>boolean;hasPageAccess:(page:string)=>boolean;login:(email:string,password:string)=>Promise<void>;logout:()=>Promise<void>;loading:boolean}
+const AuthContext=createContext<AuthContextType|undefined>(undefined);
+const pages:Record<string,string>={clients:'clients',deals:'deals',exhibitions:'exhibitions',booths:'booths',sponsorship:'sponsorship_packages',exhibitors:'deals',payments:'payments',proposals:'proposals',meetings:'meetings',hr:'employees',finance:'payments',tasks:'tasks',contracts:'documents','user-management':'users'};
+export function AuthProvider({children}:{children:React.ReactNode}){
+ const [user,setUser]=useState<User|null>(null),[loading,setLoading]=useState(true),[resources,setResources]=useState<Record<string,unknown>>({});
+ async function accept(value:any){resetLegacyMetadata();if(!value){setUser(null);setResources({});return;}const m=await metadata();setResources(m.resources);setUser({...value,id:String(value.id),roles:value.role==='super_admin'?['super_admin','management','hr','sales','user']:[value.role,'user']});}
+ useEffect(()=>{api<any>('session').then(r=>accept(r.user)).finally(()=>setLoading(false));const expired=()=>void accept(null);window.addEventListener('crm-signed-out',expired);return()=>window.removeEventListener('crm-signed-out',expired);},[]);
+ const login=async(email:string,password:string)=>{await api('session');const r=await api<any>('login','POST',{email,password});await accept(r.user);};
+ const logout=async()=>{await api('logout','POST');await accept(null);};
+ return <AuthContext.Provider value={{user,roles:user?.roles||[],loading,login,logout,hasRole:role=>!!user&&(user.role==='super_admin'||user.roles.includes(role)),hasPageAccess:page=>!!user&&(user.role==='super_admin'||['dashboard','notifications'].includes(page)||!!resources[pages[page]])}}>{children}</AuthContext.Provider>;
 }
-
-interface AuthContextType {
-  user: User | null;
-  roles: string[];
-  hasRole: (role: string) => boolean;
-  hasPageAccess: (page: string) => boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  loading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Mock user data for development
-  const mockUser: User = {
-    id: '1',
-    email: 'admin@space.com',
-    name: 'Admin User',
-    role: 'super_admin',
-    roles: ['super_admin', 'management', 'hr', 'sales', 'user']
-  };
-
-  useEffect(() => {
-    // Simulate loading user data
-    setTimeout(() => {
-      setUser(mockUser);
-      setLoading(false);
-    }, 1000);
-  }, []);
-
-  const hasRole = (role: string): boolean => {
-    if (!user) return false;
-    return user.roles.includes(role);
-  };
-
-  const hasPageAccess = (page: string): boolean => {
-    if (!user) return false;
-    
-    // Define page access rules based on roles
-    const pageAccessRules: Record<string, string[]> = {
-      'dashboard': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'clients': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'deals': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'exhibitions': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'booths': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'sponsorship': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'exhibitors': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'payments': ['sales', 'management', 'hr', 'super_admin'],
-      'proposals': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'meetings': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'hr': ['hr', 'management', 'super_admin'],
-      'finance': ['management', 'hr', 'super_admin'],
-      'tasks': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'contracts': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'user-management': ['hr', 'super_admin'],
-      'analytics': ['management', 'hr', 'super_admin'],
-      'notifications': ['user', 'sales', 'management', 'hr', 'super_admin'],
-      'settings': ['super_admin']
-    };
-
-    const allowedRoles = pageAccessRules[page] || [];
-    return user.roles.some(role => allowedRoles.includes(role));
-  };
-
-  const login = async (email: string, password: string): Promise<void> => {
-    setLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      setUser(mockUser);
-      setLoading(false);
-    }, 1000);
-  };
-
-  const logout = (): void => {
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{
-      user,
-      roles: user?.roles || [],
-      hasRole,
-      hasPageAccess,
-      login,
-      logout,
-      loading
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+export function useAuth(){const context=useContext(AuthContext);if(!context)throw new Error('useAuth must be used within an AuthProvider');return context;}

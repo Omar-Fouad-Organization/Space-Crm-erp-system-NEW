@@ -1,11 +1,14 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
+import {toast} from '@/hooks/use-toast';
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
   Trash2,
   User,
   Shield,
@@ -49,93 +52,9 @@ import CreateUserDialog from '@/components/users/CreateUserDialog';
 import { format } from 'date-fns';
 
 // Mock data
-const mockUsers: (UserType & { last_login?: string })[] = [
-  {
-    id: '1',
-    email: 'admin@spaceorganizing.com',
-    full_name: 'John Admin',
-    role: 'super_admin',
-    status: 'active',
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-17T00:00:00Z',
-    last_login: '2024-01-17T08:30:00Z'
-  },
-  {
-    id: '2',
-    email: 'sarah.johnson@spaceorganizing.com',
-    full_name: 'Sarah Johnson',
-    role: 'sales_executive',
-    status: 'active',
-    created_at: '2024-01-02T00:00:00Z',
-    updated_at: '2024-01-17T00:00:00Z',
-    last_login: '2024-01-17T09:15:00Z'
-  },
-  {
-    id: '3',
-    email: 'mike.rodriguez@spaceorganizing.com',
-    full_name: 'Mike Rodriguez',
-    role: 'sales_manager',
-    status: 'active',
-    created_at: '2024-01-03T00:00:00Z',
-    updated_at: '2024-01-17T00:00:00Z',
-    last_login: '2024-01-17T07:45:00Z'
-  },
-  {
-    id: '4',
-    email: 'lisa.chen@spaceorganizing.com',
-    full_name: 'Lisa Chen',
-    role: 'finance_manager',
-    status: 'active',
-    created_at: '2024-01-04T00:00:00Z',
-    updated_at: '2024-01-17T00:00:00Z',
-    last_login: '2024-01-16T16:20:00Z'
-  },
-  {
-    id: '5',
-    email: 'david.kim@spaceorganizing.com',
-    full_name: 'David Kim',
-    role: 'operations',
-    status: 'inactive',
-    created_at: '2024-01-05T00:00:00Z',
-    updated_at: '2024-01-10T00:00:00Z',
-    last_login: '2024-01-10T14:30:00Z'
-  }
-];
 
-const mockAuditLogs: (AuditLog & { user?: { full_name: string } })[] = [
-  {
-    id: '1',
-    user_id: '1',
-    action: 'user_created',
-    table_name: 'users',
-    record_id: '5',
-    new_values: { full_name: 'David Kim', role: 'operations' },
-    created_at: '2024-01-17T10:30:00Z',
-    user: { full_name: 'John Admin' }
-  },
-  {
-    id: '2',
-    user_id: '2',
-    action: 'deal_status_updated',
-    table_name: 'deals',
-    record_id: '1',
-    old_values: { status: 'meeting' },
-    new_values: { status: 'terms_finalized' },
-    created_at: '2024-01-17T09:45:00Z',
-    user: { full_name: 'Sarah Johnson' }
-  },
-  {
-    id: '3',
-    user_id: '3',
-    action: 'payment_marked_paid',
-    table_name: 'payments',
-    record_id: '1',
-    old_values: { status: 'pending' },
-    new_values: { status: 'paid', paid_date: '2024-01-17' },
-    created_at: '2024-01-17T08:15:00Z',
-    user: { full_name: 'Mike Rodriguez' }
-  }
-];
+
+
 
 const getRoleColor = (role: UserRole) => {
   const colors = {
@@ -180,33 +99,27 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(mockUsers);
-  const [auditLogs] = useState(mockAuditLogs);
+  const [editingUser,setEditingUser]=useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [auditLogs,setAuditLogs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
+  React.useEffect(()=>{apiAll('users').then(setUsers).catch(error=>toast({title:'Load failed',description:error.message,variant:'destructive'}));api<any>('audit').then(r=>setAuditLogs(r.data.map((a:any)=>({...a,id:String(a.id),user:{full_name:a.user_name},timestamp:a.created_at,entity_type:a.resource,entity_id:String(a.record_id),details:a.action})))).catch(()=>{});},[]);
+  const userStatus=async(user:any,status:string)=>{try{const row=await apiSave('users',{status},user.id);setUsers(prev=>prev.map(u=>u.id===row.id?row:u));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
+  const deleteUser=async(user:any)=>{try{await apiRemove('users',user.id);setUsers(prev=>prev.filter(u=>u.id!==user.id));}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});}};
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    
+
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleCreateUser = (userData: any) => {
-    const newUser: UserType = {
-      id: Date.now().toString(),
-      ...userData,
-      status: 'active',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setUsers([...users, newUser]);
-    setShowCreateDialog(false);
-  };
+  const handleCreateUser = async(userData:any)=>{try{const row=await apiSave('users',userData,editingUser?.id);setUsers(prev=>editingUser?prev.map(u=>u.id===row.id?row:u):[...prev,row]);setEditingUser(null);setShowCreateDialog(false);}catch(error){toast({title:'User not saved',description:(error as Error).message,variant:'destructive'});}};
 
   // Calculate user stats
   const userStats = {
@@ -411,33 +324,27 @@ export default function UsersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingUser(user);setShowCreateDialog(true);}}><Eye className="mr-2 h-4 w-4" />
                               View Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingUser(user);setShowCreateDialog(true);}}><Edit className="mr-2 h-4 w-4" />
                               Edit User
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Settings className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setEditingUser(user);setShowCreateDialog(true);}}><Settings className="mr-2 h-4 w-4" />
                               Manage Permissions
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {user.status === 'active' ? (
-                              <DropdownMenuItem>
-                                <XCircle className="mr-2 h-4 w-4" />
+                              <DropdownMenuItem onClick={()=>{void userStatus(user,'inactive');}}><XCircle className="mr-2 h-4 w-4" />
                                 Deactivate User
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem>
-                                <CheckCircle className="mr-2 h-4 w-4" />
+                              <DropdownMenuItem onClick={()=>{void userStatus(user,'active');}}><CheckCircle className="mr-2 h-4 w-4" />
                                 Activate User
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem className="text-red-600" onClick={()=>{void deleteUser(user);}}><Trash2 className="mr-2 h-4 w-4" />
                               Delete User
                             </DropdownMenuItem>
                           </DropdownMenuContent>

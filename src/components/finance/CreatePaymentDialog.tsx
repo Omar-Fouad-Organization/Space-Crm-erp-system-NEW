@@ -1,3 +1,4 @@
+import {useRecordOptions} from '@/hooks/useRecordOptions';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,7 +41,7 @@ const paymentFormSchema = z.object({
   installment_number: z.number().min(1, 'Installment number must be positive'),
   amount: z.number().min(0, 'Amount must be positive'),
   due_date: z.date({
-    required_error: 'Due date is required',
+    error: 'Due date is required',
   }),
   payment_method: z.string().optional(),
 });
@@ -71,6 +72,7 @@ const paymentMethods = [
 ];
 
 export default function CreatePaymentDialog({ open, onOpenChange, onSubmit }: CreatePaymentDialogProps) {
+  const mockDeals=useRecordOptions('deals',open);
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {

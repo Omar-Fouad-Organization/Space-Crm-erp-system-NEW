@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { paymentScheduleService, paymentService, type PaymentSchedule } from '@/services/supabaseService';
+import { paymentScheduleService, paymentService, type PaymentSchedule as ServicePaymentSchedule } from '@/services/supabaseService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -173,371 +175,20 @@ const Payments = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      console.log('💰 Payments: Loading payment data from database...');
-      
-      // Load payment schedules from database
-      const [paymentSchedulesData, paymentsData] = await Promise.all([
-        paymentScheduleService.getAll(),
-        paymentService.getAll()
-      ]);
-      
-      console.log('💰 Payments: Loaded data:', {
-        schedules: paymentSchedulesData?.length || 0,
-        payments: paymentsData?.length || 0
-      });
-      
-      // Payment schedules are already in the correct format from the service
-      const transformedSchedules: PaymentSchedule[] = paymentSchedulesData || [];
-      
-      setPaymentSchedules(transformedSchedules);
-      setPayments(paymentsData || []);
-      
-      if (transformedSchedules.length > 0 || (paymentsData && paymentsData.length > 0)) {
-        toast({
-          title: "Payment Data Loaded",
-          description: `Loaded ${transformedSchedules.length} payment schedules and ${paymentsData?.length || 0} payments`,
-        });
-      } else {
-        console.log('💰 Payments: No payment data found, this is normal for new systems');
-      }
-    } catch (error: any) {
-      console.error('❌ Payments: Error loading payment data:', error);
-      toast({
-        title: "Error Loading Data",
-        description: "Failed to load payment data from database. Please check your connection.",
-        variant: "destructive",
-      });
-      
-      // Set empty arrays on error
-      setPaymentSchedules([]);
-      setPayments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadData = async()=>{setLoading(true);try{const [schedules,receipts]=await Promise.all([apiAll('payment_schedules'),apiAll('payments')]);setPaymentSchedules(schedules as any);setPayments(receipts as any);}catch(error){toast({title:'Unable to load payments',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const refreshData = async () => {
     console.log('🔄 Payments: Refreshing payment data...');
     await loadData();
   };
 
-  const loadMockData = async () => {
-    setLoading(true);
-    
-    try {
-      // Enhanced mock payment schedules data
-      const mockPaymentSchedules: PaymentSchedule[] = [
-        {
-          payment_schedule_id: 'ps-001',
-          deal_id: 'deal-001',
-          deal_number: 'DEAL-2026-001',
-          deal_title: 'EcoTech Solutions - Green Energy Expo Sponsorship',
-          client_name: 'EcoTech Solutions',
-          payment_name: 'Initial Payment (30%)',
-          scheduled_amount: '75000.00',
-          currency: 'USD',
-          due_date: '2026-01-15T00:00:00Z',
-          payment_status: 'Overdue',
-          payment_method: 'Bank Transfer',
-          urgency_status: 'Overdue',
-          days_until_due: -5,
-          payment_description: 'First installment for Green Energy Expo main sponsorship package',
-          notes: 'Client requested extended payment terms. Follow up required.'
-        },
-        {
-          payment_schedule_id: 'ps-002',
-          deal_id: 'deal-001',
-          deal_number: 'DEAL-2026-001',
-          deal_title: 'EcoTech Solutions - Green Energy Expo Sponsorship',
-          client_name: 'EcoTech Solutions',
-          payment_name: 'Progress Payment (40%)',
-          scheduled_amount: '100000.00',
-          currency: 'USD',
-          due_date: '2026-02-15T00:00:00Z',
-          payment_status: 'Pending',
-          payment_method: 'Bank Transfer',
-          urgency_status: 'Upcoming',
-          days_until_due: 36,
-          payment_description: 'Second installment due upon booth setup completion'
-        },
-        {
-          payment_schedule_id: 'ps-003',
-          deal_id: 'deal-001',
-          deal_number: 'DEAL-2026-001',
-          deal_title: 'EcoTech Solutions - Green Energy Expo Sponsorship',
-          client_name: 'EcoTech Solutions',
-          payment_name: 'Final Payment (30%)',
-          scheduled_amount: '75000.00',
-          currency: 'USD',
-          due_date: '2026-03-15T00:00:00Z',
-          payment_status: 'Pending',
-          payment_method: 'Bank Transfer',
-          urgency_status: 'Future',
-          days_until_due: 64,
-          payment_description: 'Final installment due after expo completion'
-        },
-        {
-          payment_schedule_id: 'ps-004',
-          deal_id: 'deal-002',
-          deal_number: 'DEAL-2026-002',
-          deal_title: 'Solar Dynamics Corp - Premium Booth Package',
-          client_name: 'Solar Dynamics Corp',
-          payment_name: 'Full Payment',
-          scheduled_amount: '120000.00',
-          currency: 'USD',
-          due_date: '2026-01-20T00:00:00Z',
-          payment_status: 'Paid',
-          paid_date: '2026-01-18T14:30:00Z',
-          payment_method: 'Wire Transfer',
-          urgency_status: 'Completed',
-          days_until_due: null,
-          payment_description: 'Complete payment for premium booth package with additional services'
-        },
-        {
-          payment_schedule_id: 'ps-005',
-          deal_id: 'deal-003',
-          deal_number: 'DEAL-2026-003',
-          deal_title: 'WindPower Solutions - Technology Partnership',
-          client_name: 'WindPower Solutions',
-          payment_name: 'Partnership Fee (50%)',
-          scheduled_amount: '90000.00',
-          currency: 'USD',
-          due_date: '2026-01-25T00:00:00Z',
-          payment_status: 'Pending',
-          payment_method: 'Credit Card',
-          urgency_status: 'Due Soon',
-          days_until_due: 15,
-          payment_description: 'First half of technology partnership agreement'
-        },
-        {
-          payment_schedule_id: 'ps-006',
-          deal_id: 'deal-003',
-          deal_number: 'DEAL-2026-003',
-          deal_title: 'WindPower Solutions - Technology Partnership',
-          client_name: 'WindPower Solutions',
-          payment_name: 'Partnership Fee (50%)',
-          scheduled_amount: '90000.00',
-          currency: 'USD',
-          due_date: '2026-04-25T00:00:00Z',
-          payment_status: 'Pending',
-          payment_method: 'Credit Card',
-          urgency_status: 'Future',
-          days_until_due: 105,
-          payment_description: 'Second half of technology partnership agreement'
-        },
-        {
-          payment_schedule_id: 'ps-007',
-          deal_id: 'deal-004',
-          deal_number: 'DEAL-2026-004',
-          deal_title: 'CleanTech Innovations - Platinum Sponsorship',
-          client_name: 'CleanTech Innovations',
-          payment_name: 'Deposit (25%)',
-          scheduled_amount: '80000.00',
-          currency: 'USD',
-          due_date: '2026-01-12T00:00:00Z',
-          payment_status: 'Paid',
-          paid_date: '2026-01-10T09:15:00Z',
-          payment_method: 'Bank Transfer',
-          urgency_status: 'Completed',
-          days_until_due: null,
-          payment_description: 'Initial deposit for platinum sponsorship package'
-        },
-        {
-          payment_schedule_id: 'ps-008',
-          deal_id: 'deal-004',
-          deal_number: 'DEAL-2026-004',
-          deal_title: 'CleanTech Innovations - Platinum Sponsorship',
-          client_name: 'CleanTech Innovations',
-          payment_name: 'Balance Payment (75%)',
-          scheduled_amount: '240000.00',
-          currency: 'USD',
-          due_date: '2026-02-01T00:00:00Z',
-          payment_status: 'Pending',
-          payment_method: 'Bank Transfer',
-          urgency_status: 'Due Soon',
-          days_until_due: 22,
-          payment_description: 'Remaining balance for platinum sponsorship package'
-        }
-      ];
-
-      // Enhanced mock payments data
-      const mockPayments: Payment[] = [
-        {
-          id: 'pay-001',
-          payment_number: 'PAY-2026-001',
-          invoice_number: 'INV-2026-001',
-          client_id: 'client-001',
-          client_name: 'EcoTech Solutions',
-          deal_id: 'deal-001',
-          deal_name: 'Green Energy Expo Sponsorship',
-          deal_type: 'Main Sponsorship',
-          total_amount: 250000,
-          paid_amount: 0,
-          remaining_amount: 250000,
-          currency: 'USD',
-          payment_status: 'Pending',
-          payment_method: 'Bank Transfer',
-          due_date: '2026-01-15T00:00:00Z',
-          transaction_id: '',
-          reference_number: 'REF-ECO-001',
-          description: 'Green Energy Expo main sponsorship package payment',
-          notes: 'Client requested payment plan: 30% initial, 40% progress, 30% final',
-          tags: ['sponsorship', 'expo', 'green-energy'],
-          created_at: '2026-01-05T10:00:00Z',
-          updated_at: '2026-01-08T14:30:00Z'
-        },
-        {
-          id: 'pay-002',
-          payment_number: 'PAY-2026-002',
-          invoice_number: 'INV-2026-002',
-          client_id: 'client-002',
-          client_name: 'Solar Dynamics Corp',
-          deal_id: 'deal-002',
-          deal_name: 'Premium Booth Package',
-          deal_type: 'Booth Rental',
-          total_amount: 120000,
-          paid_amount: 120000,
-          remaining_amount: 0,
-          currency: 'USD',
-          payment_status: 'Completed',
-          payment_method: 'Wire Transfer',
-          due_date: '2026-01-20T00:00:00Z',
-          payment_date: '2026-01-18T14:30:00Z',
-          transaction_id: 'TXN-WIRE-20260118-001',
-          reference_number: 'REF-SOL-002',
-          description: 'Premium booth package with additional services',
-          notes: 'Payment received 2 days early. Excellent client relationship.',
-          tags: ['booth', 'premium', 'solar'],
-          created_at: '2026-01-03T09:00:00Z',
-          updated_at: '2026-01-18T14:35:00Z'
-        },
-        {
-          id: 'pay-003',
-          payment_number: 'PAY-2026-003',
-          invoice_number: 'INV-2026-003',
-          client_id: 'client-003',
-          client_name: 'WindPower Solutions',
-          deal_id: 'deal-003',
-          deal_name: 'Technology Partnership',
-          deal_type: 'Partnership',
-          total_amount: 180000,
-          paid_amount: 90000,
-          remaining_amount: 90000,
-          currency: 'USD',
-          payment_status: 'Partial',
-          payment_method: 'Credit Card',
-          due_date: '2026-01-25T00:00:00Z',
-          payment_date: '2026-01-22T11:45:00Z',
-          transaction_id: 'TXN-CC-20260122-001',
-          reference_number: 'REF-WIND-003',
-          description: 'Technology partnership agreement - first installment',
-          notes: 'First 50% payment received. Second installment due in Q2.',
-          tags: ['partnership', 'technology', 'wind-power'],
-          created_at: '2026-01-02T11:30:00Z',
-          updated_at: '2026-01-22T12:00:00Z'
-        },
-        {
-          id: 'pay-004',
-          payment_number: 'PAY-2026-004',
-          invoice_number: 'INV-2026-004',
-          client_id: 'client-004',
-          client_name: 'CleanTech Innovations',
-          deal_id: 'deal-004',
-          deal_name: 'Platinum Sponsorship',
-          deal_type: 'Platinum Sponsor',
-          total_amount: 320000,
-          paid_amount: 80000,
-          remaining_amount: 240000,
-          currency: 'USD',
-          payment_status: 'Partial',
-          payment_method: 'Bank Transfer',
-          due_date: '2026-02-01T00:00:00Z',
-          payment_date: '2026-01-10T09:15:00Z',
-          transaction_id: 'TXN-BANK-20260110-001',
-          reference_number: 'REF-CLEAN-004',
-          description: 'Platinum sponsorship package - deposit payment',
-          notes: 'Initial 25% deposit received. Balance due before expo.',
-          tags: ['sponsorship', 'platinum', 'clean-tech'],
-          created_at: '2026-01-01T08:00:00Z',
-          updated_at: '2026-01-10T09:20:00Z'
-        },
-        {
-          id: 'pay-005',
-          payment_number: 'PAY-2026-005',
-          invoice_number: 'INV-2026-005',
-          client_id: 'client-005',
-          client_name: 'GreenGrid Systems',
-          deal_id: 'deal-005',
-          deal_name: 'Smart Grid Exhibition',
-          deal_type: 'Exhibition',
-          total_amount: 95000,
-          paid_amount: 0,
-          remaining_amount: 95000,
-          currency: 'USD',
-          payment_status: 'Processing',
-          payment_method: 'Check',
-          due_date: '2026-01-30T00:00:00Z',
-          transaction_id: '',
-          reference_number: 'REF-GRID-005',
-          description: 'Smart grid technology exhibition space',
-          notes: 'Check payment in processing. Expected clearance within 3-5 business days.',
-          tags: ['exhibition', 'smart-grid', 'technology'],
-          created_at: '2026-01-07T13:45:00Z',
-          updated_at: '2026-01-09T16:20:00Z'
-        },
-        {
-          id: 'pay-006',
-          payment_number: 'PAY-2026-006',
-          invoice_number: 'INV-2026-006',
-          client_id: 'client-006',
-          client_name: 'EnergyFlow Dynamics',
-          deal_id: 'deal-006',
-          deal_name: 'Workshop Series',
-          deal_type: 'Workshop',
-          total_amount: 45000,
-          paid_amount: 0,
-          remaining_amount: 45000,
-          currency: 'USD',
-          payment_status: 'Failed',
-          payment_method: 'Credit Card',
-          due_date: '2026-01-18T00:00:00Z',
-          transaction_id: 'TXN-CC-FAILED-001',
-          reference_number: 'REF-FLOW-006',
-          description: 'Workshop series on energy flow optimization',
-          notes: 'Credit card payment failed due to insufficient funds. Client contacted for alternative payment method.',
-          tags: ['workshop', 'energy-flow', 'failed-payment'],
-          created_at: '2026-01-06T10:20:00Z',
-          updated_at: '2026-01-18T15:45:00Z'
-        }
-      ];
-
-      setPaymentSchedules(mockPaymentSchedules);
-      setPayments(mockPayments);
-      
-      toast({
-        title: "Payment Data Loaded",
-        description: `Loaded ${mockPaymentSchedules.length} payment schedules and ${mockPayments.length} payments`,
-      });
-    } catch (error: any) {
-      console.error('Error loading payment data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load payment data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadMockData = async()=>{await loadData();};
 
   const handleCreatePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      const newPayment: Payment = {
+      let newPayment: Payment = {
         id: `pay-${Date.now()}`,
         payment_number: `PAY-2026-${String(payments.length + 1).padStart(3, '0')}`,
         invoice_number: paymentForm.invoice_number,
@@ -559,120 +210,53 @@ const Payments = () => {
         updated_at: new Date().toISOString()
       };
 
-      setPayments(prev => [newPayment, ...prev]);
-      
+      newPayment=await apiSave('payments',{...newPayment,paid_date:new Date().toISOString().slice(0,10)}) as any;
+      await loadData();
+
       toast({
         title: "Payment Created",
         description: `Payment ${newPayment.payment_number} has been created successfully`,
       });
-      
+
       setShowCreateDialog(false);
       resetForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create payment",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
   };
 
-  const handleUpdatePaymentStatus = async (paymentScheduleId: string, status: string) => {
-    try {
-      console.log('💰 Payments: Updating payment status:', paymentScheduleId, status);
-      
-      // Update in database first
-      const paidDate = status === 'Paid' ? new Date().toISOString() : undefined;
-      await paymentScheduleService.updateStatus(paymentScheduleId, status.toLowerCase(), paidDate);
-      
-      // Update local state after successful database update
-      setPaymentSchedules(prev => 
-        prev.map(schedule => 
-          schedule.payment_schedule_id === paymentScheduleId 
-            ? { 
-                ...schedule, 
-                payment_status: status as PaymentSchedule['payment_status'],
-                paid_date: paidDate,
-                urgency_status: status === 'Paid' ? 'Completed' : schedule.urgency_status
-              }
-            : schedule
-        )
-      );
-      
-      toast({
-        title: "Payment Updated",
-        description: `Payment status successfully updated to ${status}`,
-      });
-      
-      console.log('✅ Payments: Payment status updated successfully');
-    } catch (error: any) {
-      console.error('❌ Payments: Error updating payment status:', error);
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update payment status",
-        variant: "destructive",
-      });
-    }
-  };
+  const handleUpdatePaymentStatus = async(paymentScheduleId:string,status:string)=>{try{await paymentScheduleService.updateStatus(paymentScheduleId,status.toLowerCase(),new Date().toISOString().slice(0,10));await loadData();toast({title:'Payment recorded',description:'Receipt saved and balances recalculated.'});}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
 
-  const handleStatusChange = async (paymentId: string, newStatus: string) => {
-    try {
-      setPayments(prev => 
-        prev.map(payment => 
-          payment.id === paymentId 
-            ? { 
-                ...payment, 
-                payment_status: newStatus as Payment['payment_status'],
-                payment_date: newStatus === 'Completed' ? new Date().toISOString() : payment.payment_date,
-                paid_amount: newStatus === 'Completed' ? payment.total_amount : payment.paid_amount,
-                remaining_amount: newStatus === 'Completed' ? 0 : payment.remaining_amount,
-                updated_at: new Date().toISOString()
-              }
-            : payment
-        )
-      );
-      
-      toast({
-        title: "Status Updated",
-        description: `Payment status changed to ${newStatus}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to update status",
-        variant: "destructive",
-      });
-    }
-  };
+  const handleStatusChange = async(paymentId:string,newStatus:string)=>{try{if(newStatus!=='Completed')throw new Error('Posted receipts cannot be reversed by changing a status. An accounting adjustment is required.');await loadData();}catch(error){toast({title:'Update blocked',description:(error as Error).message,variant:'destructive'});}};
 
   const handleDeletePayment = async () => {
     if (!paymentToDelete) return;
-    
+
     try {
+      await apiRemove('payments',paymentToDelete.id);
       setPayments(prev => prev.filter(payment => payment.id !== paymentToDelete.id));
-      
+
       toast({
         title: "Payment Deleted",
         description: "Payment has been permanently removed from the system",
       });
-      
+
       setShowDeleteDialog(false);
       setPaymentToDelete(null);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete payment",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
   };
 
-  const handleSendReminder = (paymentId: string) => {
-    toast({
-      title: "Reminder Sent",
-      description: "Payment reminder has been sent to the client",
-    });
-  };
+  const handleSendReminder = (_id?:string)=>toast({title:'Email not configured',description:'No email was sent. Configure a mail provider first.',variant:'destructive'});
 
   const resetForm = () => {
     setPaymentForm({
@@ -692,7 +276,7 @@ const Payments = () => {
   const handleExportPayments = () => {
     try {
       const dataToExport = viewMode === 'schedules' ? paymentSchedules : payments;
-      
+
       if (!dataToExport || dataToExport.length === 0) {
         toast({
           title: "No Data",
@@ -748,8 +332,8 @@ const Payments = () => {
       const headers = Object.keys(csvData[0]);
       const csvContent = [
         headers.join(','),
-        ...csvData.map(row => 
-          headers.map(header => 
+        ...csvData.map(row =>
+          headers.map(header =>
             `"${String(row[header as keyof typeof row]).replace(/"/g, '""')}"`
           ).join(',')
         )
@@ -780,23 +364,23 @@ const Payments = () => {
 
   // Filter functions
   const filteredPaymentSchedules = paymentSchedules.filter(payment => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       payment.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.deal_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.deal_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.payment_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all-status" || payment.payment_status === statusFilter;
     const matchesMethod = methodFilter === "all-methods" || payment.payment_method === methodFilter;
     const matchesUrgency = urgencyFilter === "all-urgency" || payment.urgency_status === urgencyFilter;
-    
+
     // Date filter logic
     let matchesDate = true;
     if (dateFilter !== "all-dates" && payment.due_date) {
       const dueDate = new Date(payment.due_date);
       const today = new Date();
       const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       switch (dateFilter) {
         case "overdue":
           matchesDate = diffDays < 0;
@@ -812,20 +396,20 @@ const Payments = () => {
           break;
       }
     }
-    
+
     return matchesSearch && matchesStatus && matchesMethod && matchesUrgency && matchesDate;
   });
 
   const filteredPayments = payments.filter(payment => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       payment.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.payment_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.deal_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all-status" || payment.payment_status === statusFilter;
     const matchesMethod = methodFilter === "all-methods" || payment.payment_method === methodFilter;
-    
+
     return matchesSearch && matchesStatus && matchesMethod;
   });
 
@@ -951,8 +535,8 @@ const Payments = () => {
           </h1>
 
           <p className="text-muted-foreground mt-2">
-            {viewMode === 'schedules' 
-              ? 'Track payment schedules from deals for financial planning' 
+            {viewMode === 'schedules'
+              ? 'Track payment schedules from deals for financial planning'
               : viewMode === 'payments'
               ? 'Track payments, invoices, and financial transactions'
               : 'Analyze payment trends and financial performance'
@@ -965,8 +549,8 @@ const Payments = () => {
 
           {/* View Mode Toggle */}
           <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-            <Button 
-              variant={viewMode === 'schedules' ? 'default' : 'ghost'} 
+            <Button
+              variant={viewMode === 'schedules' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('schedules')}
               className="text-xs"
@@ -974,8 +558,8 @@ const Payments = () => {
               <Calendar className="h-3 w-3 mr-1" />
               Schedules
             </Button>
-            <Button 
-              variant={viewMode === 'payments' ? 'default' : 'ghost'} 
+            <Button
+              variant={viewMode === 'payments' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('payments')}
               className="text-xs"
@@ -983,8 +567,8 @@ const Payments = () => {
               <CreditCard className="h-3 w-3 mr-1" />
               Payments
             </Button>
-            <Button 
-              variant={viewMode === 'analytics' ? 'default' : 'ghost'} 
+            <Button
+              variant={viewMode === 'analytics' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('analytics')}
               className="text-xs"
@@ -1245,7 +829,7 @@ const Payments = () => {
                       Collection Rate
                     </p>
                     <p className="text-2xl font-bold">
-                      {paymentStats.totalAmount > 0 
+                      {paymentStats.totalAmount > 0
                         ? Math.round((paymentStats.paidAmount / paymentStats.totalAmount) * 100)
                         : 0}%
                     </p>
@@ -1419,7 +1003,7 @@ const Payments = () => {
                     {paymentSchedules.length === 0 ? "No Payment Schedules Found" : "No Matching Payment Schedules"}
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    {paymentSchedules.length === 0 
+                    {paymentSchedules.length === 0
                       ? "Payment schedules from deals will appear here for financial tracking"
                       : "Try adjusting your search criteria or filters"
                     }
@@ -1441,7 +1025,7 @@ const Payments = () => {
                           </div>
 
                           <div>
-                          
+
                             <div className="flex items-center space-x-2 mb-1">
                               <h3 className="text-lg font-semibold">
                                 {schedule.deal_number}
@@ -1528,7 +1112,7 @@ const Payments = () => {
                           <div>
                             <span className="font-medium">Days Until Due</span>
                             <div className="text-muted-foreground">
-                              {schedule.days_until_due !== null ? 
+                              {schedule.days_until_due !== null ?
                                 (schedule.days_until_due < 0 ? `${Math.abs(schedule.days_until_due)} days overdue` :
                                  schedule.days_until_due === 0 ? 'Due today' :
                                  `${schedule.days_until_due} days`
@@ -1616,7 +1200,7 @@ const Payments = () => {
                     {payments.length === 0 ? "No Payments Found" : "No Matching Payments"}
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    {payments.length === 0 
+                    {payments.length === 0
                       ? "Payments will appear here when transactions are processed"
                       : "Try adjusting your search criteria or filters"
                     }
@@ -1642,7 +1226,7 @@ const Payments = () => {
                           </div>
 
                           <div>
-                          
+
                             <div className="flex items-center space-x-2 mb-1">
                               <h3 className="text-lg font-semibold">
                                 {payment.payment_number}
@@ -1698,7 +1282,7 @@ const Payments = () => {
                               <Send className="h-4 w-4 mr-2" />
                               Send Reminder
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 setPaymentToDelete(payment);
                                 setShowDeleteDialog(true);
@@ -1988,7 +1572,7 @@ const Payments = () => {
               Delete Payment
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete payment "{paymentToDelete?.payment_number}"? 
+              Are you sure you want to delete payment "{paymentToDelete?.payment_number}"?
               This action cannot be undone and will permanently remove the payment record.
             </AlertDialogDescription>
           </AlertDialogHeader>

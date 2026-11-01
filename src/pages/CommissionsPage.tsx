@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  Percent, 
-  DollarSign, 
-  TrendingUp, 
-  User, 
-  Target, 
+import {
+  Percent,
+  DollarSign,
+  TrendingUp,
+  User,
+  Target,
   Calendar,
   RefreshCw,
   Download,
@@ -29,6 +29,7 @@ import SupabaseService, { settingsService } from '@/services/supabaseService';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface CommissionSchedule {
+  sales_person_name?:string;
   id: string;
   deal_id: string;
   payment_schedule_id: string;
@@ -77,21 +78,21 @@ export default function Commissions() {
     try {
       setLoading(true);
       console.log('🏦 Loading commission data...');
-      
+
       // Load commission schedules and summary in parallel
       const [schedules, summary] = await Promise.all([
         settingsService.getAllCommissionSchedules(),
         settingsService.getCommissionSummary()
       ]);
-      
+
       setCommissionSchedules(schedules);
       setCommissionSummary(summary);
-      
+
       console.log('✅ Commission data loaded:', {
         schedules: schedules.length,
         summary: summary.length
       });
-      
+
       toast({
         title: 'Commission Data Loaded',
         description: `Loaded ${schedules.length} commission schedules and ${summary.length} sales summaries.`,
@@ -116,21 +117,21 @@ export default function Commissions() {
   const handleStatusUpdate = async (commissionId: string, newStatus: string, paidAmount?: number, paymentMethod?: string, notes?: string) => {
     try {
       console.log('🏦 Updating commission status:', { commissionId, newStatus });
-      
+
       const success = await settingsService.updateCommissionStatus(
-        commissionId, 
-        newStatus, 
-        paidAmount, 
-        paymentMethod, 
+        commissionId,
+        newStatus,
+        paidAmount,
+        paymentMethod,
         notes
       );
-      
+
       if (success) {
         toast({
           title: 'Commission Updated',
           description: `Commission status updated to ${newStatus}.`,
         });
-        
+
         // Reload data to reflect changes
         await loadCommissionData();
       } else {
@@ -140,7 +141,7 @@ export default function Commissions() {
       console.error('❌ Error updating commission status:', error);
       toast({
         title: 'Update Failed',
-        description: 'Failed to update commission status. Please try again.',
+        description: (error as Error).message,
         variant: 'destructive',
       });
     }
@@ -151,14 +152,14 @@ export default function Commissions() {
     try {
       setLoading(true);
       console.log('🔄 Syncing missing commissions for existing deals...');
-      
+
       // This would ideally call a service method to create missing commissions
       // For now, we'll just reload the data as the SQL script already created them
       await loadCommissionData();
-      
+
       toast({
         title: 'Commission Sync Complete',
-        description: 'All missing commissions have been synchronized.',
+        description: 'Commission records refreshed. Laravel generates commissions automatically when deals are saved.',
       });
     } catch (error) {
       console.error('❌ Error syncing commissions:', error);
@@ -179,7 +180,7 @@ export default function Commissions() {
                          commission.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          commission.commission_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || commission.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -413,8 +414,8 @@ export default function Commissions() {
                     </div>
                   </div>
 
-                  <select 
-                    value={statusFilter} 
+                  <select
+                    value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
@@ -424,8 +425,8 @@ export default function Commissions() {
                     <option value="paid">Paid</option>
                     <option value="disputed">Disputed</option>
                   </select>
-                  <select 
-                    value={periodFilter} 
+                  <select
+                    value={periodFilter}
                     onChange={(e) => setPeriodFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
@@ -521,8 +522,8 @@ export default function Commissions() {
 
                           <div className="flex items-center space-x-2">
                             {commission.status === 'pending' && (
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleStatusUpdate(commission.id, 'approved')}
                                 className="text-blue-600 border-blue-200 hover:bg-blue-50"
@@ -532,8 +533,8 @@ export default function Commissions() {
                               </Button>
                             )}
                             {commission.status === 'approved' && (
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleStatusUpdate(commission.id, 'paid', commission.commission_amount, 'Bank Transfer')}
                                 className="text-green-600 border-green-200 hover:bg-green-50"
@@ -543,8 +544,8 @@ export default function Commissions() {
                               </Button>
                             )}
                             {commission.status !== 'paid' && commission.status !== 'cancelled' && (
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleStatusUpdate(commission.id, 'disputed')}
                                 className="text-red-600 border-red-200 hover:bg-red-50"
@@ -640,7 +641,7 @@ export default function Commissions() {
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">Payment Rate</span>
                           <span className="font-bold">
-                            {summary.total_commission_amount > 0 
+                            {summary.total_commission_amount > 0
                               ? formatPercentage((summary.paid_commission_amount / summary.total_commission_amount) * 100)
                               : '0%'
                             }
@@ -648,13 +649,13 @@ export default function Commissions() {
                         </div>
 
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                            style={{ 
-                              width: `${summary.total_commission_amount > 0 
+                          <div
+                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${summary.total_commission_amount > 0
                                 ? Math.min((summary.paid_commission_amount / summary.total_commission_amount) * 100, 100)
                                 : 0
-                              }%` 
+                              }%`
                             }}
                           />
                         </div>
@@ -668,8 +669,8 @@ export default function Commissions() {
                           {summary.total_deals} deals
                         </div>
 
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             // Filter commissions for this salesperson

@@ -33,7 +33,7 @@ const ComprehensiveDealForm: React.FC<ComprehensiveDealFormProps> = ({
   const [closeDate, setCloseDate] = useState<Date | undefined>(
     deal.close_date ? new Date(deal.close_date) : undefined
   );
-  
+
   const [formData, setFormData] = useState({
     title: deal.title || '',
     description: deal.description || '',
@@ -60,7 +60,7 @@ const ComprehensiveDealForm: React.FC<ComprehensiveDealFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title.trim()) {
       toast({
         title: "Validation Error",
@@ -89,7 +89,7 @@ const ComprehensiveDealForm: React.FC<ComprehensiveDealFormProps> = ({
     }
 
     setLoading(true);
-    
+
     try {
       const updatedDeal: Partial<Deal> = {
         title: formData.title.trim(),
@@ -108,12 +108,12 @@ const ComprehensiveDealForm: React.FC<ComprehensiveDealFormProps> = ({
       };
 
       const result = await dealService.update(deal.id, updatedDeal);
-      
+
       toast({
         title: "Success",
         description: "Deal updated successfully",
       });
-      
+
       onSuccess({ ...deal, ...result });
     } catch (error: any) {
       toast({
@@ -278,8 +278,8 @@ const ComprehensiveDealForm: React.FC<ComprehensiveDealFormProps> = ({
             </div>
             <div>
               <Label htmlFor="exhibition">Exhibition</Label>
-              <Select 
-                value={formData.exhibition_id || 'none'} 
+              <Select
+                value={formData.exhibition_id || 'none'}
                 onValueChange={(value) => handleInputChange('exhibition_id', value)}
               >
                 <SelectTrigger>

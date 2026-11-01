@@ -13,7 +13,7 @@ if (!STRIPE_PUBLIC_KEY) {
 }
 
 // ✅ Simple and direct initialization
-export const stripePromise = STRIPE_PUBLIC_KEY 
+export const stripePromise = STRIPE_PUBLIC_KEY
   ? loadStripe(STRIPE_PUBLIC_KEY)
   : null;
 
@@ -37,12 +37,12 @@ export const validateStripeSetup = (): boolean => {
     console.warn('⚠️ Stripe public key not configured, payment functionality unavailable');
     return false;
   }
-  
+
   if (!STRIPE_PUBLIC_KEY.startsWith('pk_')) {
     console.error('❌ Invalid Stripe public key format, should start with pk_');
     return false;
   }
-  
+
   return true;
 };
 
@@ -51,7 +51,7 @@ export const getStripeInstance = async (): Promise<Stripe | null> => {
   if (!validateStripeSetup()) {
     return null;
   }
-  
+
   try {
     const stripe = await stripePromise;
     if (!stripe) {
@@ -98,7 +98,7 @@ export const CheckoutForm: React.FC<CheckoutFormProps> = ({
   // ✅ Complete payment processing flow
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    
+
     // Validate required conditions
     if (!stripe || !elements) {
       setErrorMessage('Payment system is initializing, please try again later');

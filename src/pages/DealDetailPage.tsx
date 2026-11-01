@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { 
+import {
   ArrowLeft,
   Edit,
   Plus,
@@ -19,6 +21,7 @@ import {
   MessageSquare,
   Building2,
   Calendar,
+  Activity as ActivityIcon,
   DollarSign,
   User,
   Clock,
@@ -146,7 +149,7 @@ const DealDetailPage: React.FC = () => {
   const { toast } = useToast();
   const { formatAmount } = useCurrency();
   const { userId, userName } = useUserTracking();
-  
+
   const [deal, setDeal] = useState<Deal | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [exhibition, setExhibition] = useState<Exhibition | null>(null);
@@ -155,7 +158,7 @@ const DealDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState('tasks');
-  
+
   // Form states for editing
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -165,7 +168,7 @@ const DealDetailPage: React.FC = () => {
     probability: 0,
     notes: ''
   });
-  
+
   // New note state
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
@@ -180,17 +183,17 @@ const DealDetailPage: React.FC = () => {
   const loadDealData = async () => {
     try {
       setLoading(true);
-      
+
       // Load deal
       const { data: dealData, error: dealError } = await supabase
         .from('deals_2026_01_10_12_00')
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (dealError) throw dealError;
       setDeal(dealData);
-      
+
       // Set edit form data
       setEditForm({
         title: dealData.title,
@@ -199,7 +202,7 @@ const DealDetailPage: React.FC = () => {
         probability: dealData.probability,
         notes: dealData.notes || ''
       });
-      
+
       // Load client
       if (dealData.client_id) {
         const { data: clientData, error: clientError } = await supabase
@@ -207,10 +210,10 @@ const DealDetailPage: React.FC = () => {
           .select('*')
           .eq('id', dealData.client_id)
           .single();
-        
+
         if (!clientError) setClient(clientData);
       }
-      
+
       // Load exhibition
       if (dealData.exhibition_id) {
         const { data: exhibitionData, error: exhibitionError } = await supabase
@@ -218,16 +221,16 @@ const DealDetailPage: React.FC = () => {
           .select('*')
           .eq('id', dealData.exhibition_id)
           .single();
-        
+
         if (!exhibitionError) setExhibition(exhibitionData);
       }
-      
+
       // Load activities (notes and system activities)
       loadActivities();
-      
+
       // Load tasks
       loadTasks();
-      
+
     } catch (error: any) {
       console.error('Error loading deal:', error);
       toast({
@@ -240,91 +243,28 @@ const DealDetailPage: React.FC = () => {
     }
   };
 
-  const loadActivities = async () => {
-    try {
-      // For now, we'll create mock activities since the table might not exist
-      // In a real implementation, you'd load from an activities table
-      const mockActivities: Activity[] = [
-        {
-          id: '1',
-          deal_id: id!,
-          type: 'note',
-          description: 'Initial contact made with client. They showed interest in booth space.',
-          created_by: 'demo-user',
-          created_by_name: 'Demo User',
-          created_at: new Date(Date.now() - 86400000).toISOString() // 1 day ago
-        },
-        {
-          id: '2',
-          deal_id: id!,
-          type: 'status_change',
-          description: 'Deal status changed from "Lead Created" to "Talking"',
-          created_by: 'system',
-          created_by_name: 'System',
-          created_at: new Date(Date.now() - 43200000).toISOString() // 12 hours ago
-        }
-      ];
-      
-      setActivities(mockActivities);
-    } catch (error: any) {
-      console.error('Error loading activities:', error);
-    }
-  };
+  const loadActivities = async()=>{const row=(await apiAll('deals')).find(d=>d.id===id);setActivities(row?.activities||[]);};
 
-  const loadTasks = async () => {
-    try {
-      // Mock tasks for demonstration
-      const mockTasks: Task[] = [
-        {
-          id: '1',
-          deal_id: id!,
-          title: 'Follow up call',
-          description: 'Call client to discuss booth requirements',
-          assigned_to: userId || 'demo-user',
-          assigned_to_name: userName || 'Demo User',
-          due_date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-          status: 'pending',
-          priority: 'High',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          deal_id: id!,
-          title: 'Send proposal',
-          description: 'Prepare and send detailed proposal with pricing',
-          assigned_to: userId || 'demo-user',
-          assigned_to_name: userName || 'Demo User',
-          due_date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Day after tomorrow
-          status: 'pending',
-          priority: 'Medium',
-          created_at: new Date().toISOString()
-        }
-      ];
-      
-      setTasks(mockTasks);
-    } catch (error: any) {
-      console.error('Error loading tasks:', error);
-    }
-  };
+  const loadTasks = async()=>{setTasks((await apiAll('tasks')).filter(t=>t.deal_id===id) as any);};
 
   const handleStatusChange = async (newStatus: string) => {
     if (!deal) return;
-    
+
     try {
       setUpdating(true);
-      
+
       const { error } = await supabase
         .from('deals_2026_01_10_12_00')
-        .update({ 
+        .update({
           status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', deal.id);
-      
+
       if (error) throw error;
-      
+
       setDeal(prev => prev ? { ...prev, status: newStatus } : null);
-      
+
       // Add activity log
       const newActivity: Activity = {
         id: Date.now().toString(),
@@ -335,14 +275,15 @@ const DealDetailPage: React.FC = () => {
         created_by_name: userName || 'Demo User',
         created_at: new Date().toISOString()
       };
-      
+
+      await apiSave('deals',{activities:[newActivity,...activities]},deal.id);
       setActivities(prev => [newActivity, ...prev]);
-      
+
       toast({
         title: "Status Updated",
         description: `Deal status changed to ${DEAL_STATUSES.find(s => s.value === newStatus)?.label}`,
       });
-      
+
     } catch (error: any) {
       console.error('Error updating status:', error);
       toast({
@@ -357,10 +298,10 @@ const DealDetailPage: React.FC = () => {
 
   const handleSaveEdit = async () => {
     if (!deal) return;
-    
+
     try {
       setUpdating(true);
-      
+
       const { error } = await supabase
         .from('deals_2026_01_10_12_00')
         .update({
@@ -372,9 +313,9 @@ const DealDetailPage: React.FC = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', deal.id);
-      
+
       if (error) throw error;
-      
+
       setDeal(prev => prev ? {
         ...prev,
         title: editForm.title,
@@ -383,14 +324,14 @@ const DealDetailPage: React.FC = () => {
         probability: editForm.probability,
         notes: editForm.notes
       } : null);
-      
+
       setIsEditing(false);
-      
+
       toast({
         title: "Deal Updated",
         description: "Deal information has been updated successfully",
       });
-      
+
     } catch (error: any) {
       console.error('Error updating deal:', error);
       toast({
@@ -405,10 +346,10 @@ const DealDetailPage: React.FC = () => {
 
   const handleAddNote = async () => {
     if (!newNote.trim() || !deal) return;
-    
+
     try {
       setAddingNote(true);
-      
+
       const newActivity: Activity = {
         id: Date.now().toString(),
         deal_id: deal.id,
@@ -418,15 +359,15 @@ const DealDetailPage: React.FC = () => {
         created_by_name: userName || 'Demo User',
         created_at: new Date().toISOString()
       };
-      
+
       setActivities(prev => [newActivity, ...prev]);
       setNewNote('');
-      
+
       toast({
         title: "Note Added",
         description: "Your note has been added to the deal timeline",
       });
-      
+
     } catch (error: any) {
       console.error('Error adding note:', error);
       toast({
@@ -1064,7 +1005,7 @@ const DealDetailPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5" />
+                  <ActivityIcon className="h-5 w-5" />
                   <span>Activity Timeline</span>
                 </CardTitle>
               </CardHeader>

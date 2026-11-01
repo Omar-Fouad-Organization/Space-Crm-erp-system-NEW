@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,113 +106,7 @@ const ExpoDetail = () => {
     loadExpoData();
   }, [expoId]);
 
-  const loadExpoData = async () => {
-    setLoading(true);
-    try {
-      // Mock expo data - replace with actual API call
-      const mockExpoData: ExpoData = {
-        id: expoId || '1',
-        expo_number: 'EXPO-2026-001',
-        name: 'Green Energy Expo 2026',
-        description: 'Leading sustainable energy exhibition showcasing the latest innovations in renewable energy, green technology, and environmental solutions. This comprehensive event brings together industry leaders, innovators, and sustainability advocates from around the world.',
-        theme: 'Sustainable Future',
-        start_date: '2026-03-15',
-        end_date: '2026-03-18',
-        city: 'Dubai',
-        country: 'UAE',
-        venue_name: 'Dubai World Trade Centre',
-        status: 'Active',
-        priority: 'High',
-        expected_visitors: 15000,
-        booth_count: 150,
-        budget: 2500000,
-        manager_name: 'Sarah Johnson',
-        organizer_name: 'Green Energy Alliance',
-        website_url: 'https://greenenergy-expo.com',
-        tags: ['renewable', 'sustainability', 'technology', 'innovation'],
-        totalBooths: 150,
-        bookedBooths: 142,
-        totalRevenue: 2840000,
-        occupancyRate: 94.7,
-        sponsors: 12,
-        attendees: 15000,
-        analytics: {
-          total_exhibitors: 142,
-          total_visitors: 15000,
-          revenue_generated: 2840000,
-          satisfaction_score: 4.6,
-          lead_conversions: 1250,
-          networking_sessions: 45
-        },
-        timeline: [
-          {
-            id: '1',
-            type: 'opening',
-            title: 'Exhibition Opening Ceremony',
-            description: 'Official opening ceremony with keynote speakers from leading renewable energy companies',
-            date: '2026-03-15T09:00:00Z',
-            user: 'Event Team',
-            status: 'completed'
-          },
-          {
-            id: '2',
-            type: 'setup',
-            title: 'Booth Setup Complete',
-            description: 'All 142 exhibitor booths setup and ready for visitors',
-            date: '2026-03-14T18:00:00Z',
-            user: 'Operations Team',
-            status: 'completed'
-          },
-          {
-            id: '3',
-            type: 'marketing',
-            title: 'Marketing Campaign Launch',
-            description: 'Launched comprehensive marketing campaign across digital and traditional channels',
-            date: '2026-02-01T10:00:00Z',
-            user: 'Marketing Team',
-            status: 'completed'
-          },
-          {
-            id: '4',
-            type: 'planning',
-            title: 'Final Planning Meeting',
-            description: 'Last coordination meeting before exhibition start with all stakeholders',
-            date: '2026-03-10T14:00:00Z',
-            user: 'Sarah Johnson',
-            status: 'completed'
-          },
-          {
-            id: '5',
-            type: 'event',
-            title: 'Sustainability Panel Discussion',
-            description: 'Panel discussion on the future of renewable energy with industry experts',
-            date: '2026-03-16T14:00:00Z',
-            user: 'Program Committee',
-            status: 'pending'
-          },
-          {
-            id: '6',
-            type: 'closing',
-            title: 'Exhibition Closing & Awards',
-            description: 'Closing ceremony with innovation awards and networking reception',
-            date: '2026-03-18T17:00:00Z',
-            user: 'Event Team',
-            status: 'pending'
-          }
-        ]
-      };
-
-      setExpoData(mockExpoData);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load exhibition data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadExpoData = async()=>{setLoading(true);try{const [expos,booths,deals]=await Promise.all([apiAll('exhibitions'),apiAll('booths'),apiAll('deals')]);const e=expos.find(e=>e.id===expoId);if(!e)throw new Error('Exhibition not found');const related=booths.filter(b=>b.exhibition_id===e.id),won=deals.filter(d=>d.exhibition_id===e.id&&d.stage==='closed_won'),booked=related.filter(b=>b.status!=='Available').length,revenue=won.reduce((n,d)=>n+Number(d.deal_value),0);setExpoData({...e,totalBooths:related.length,bookedBooths:booked,totalRevenue:revenue,occupancyRate:related.length?booked/related.length*100:0,sponsors:won.filter(d=>d.deal_type!=='booth').length,attendees:Number(e.attendees||0),tags:e.tags||[],analytics:{total_exhibitors:won.length,total_visitors:Number(e.total_visitors||0),revenue_generated:revenue,satisfaction_score:0,lead_conversions:0,networking_sessions:0},timeline:[]} as any);}catch(error){toast({title:'Exhibition unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -251,7 +147,7 @@ const ExpoDetail = () => {
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['Planning'];
-    
+
     return (
       <Badge className={`${config.color}`}>
         {config.icon}
@@ -695,9 +591,9 @@ const ExpoDetail = () => {
               )}
               {expoData.website_url && (
                 <div className="pt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="w-full"
                     onClick={() => window.open(expoData.website_url, '_blank')}
                   >

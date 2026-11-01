@@ -1,3 +1,4 @@
+import {useRecordOptions} from '@/hooks/useRecordOptions';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,16 +38,17 @@ const ticketFormSchema = z.object({
   client_id: z.string().min(1, 'Client is required'),
   deal_id: z.string().optional(),
   issue_type: z.enum(['technical', 'billing', 'general', 'complaint'], {
-    required_error: 'Issue type is required',
+    error: 'Issue type is required',
   }),
   priority: z.enum(['low', 'medium', 'high', 'urgent'], {
-    required_error: 'Priority is required',
+    error: 'Priority is required',
   }),
 });
 
 type TicketFormValues = z.infer<typeof ticketFormSchema>;
 
 interface CreateTicketDialogProps {
+  initialData?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CreateTicketForm) => void;
@@ -64,7 +66,9 @@ const mockDeals = [
   { id: '2', name: 'Healthcare Summit - Platinum Sponsorship', client: 'MedTech Industries' },
 ];
 
-export default function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicketDialogProps) {
+export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initialData }: CreateTicketDialogProps) {
+  const mockClients=useRecordOptions('clients',open);
+  const mockDeals=useRecordOptions('deals',open);
   const form = useForm<TicketFormValues>({
     resolver: zodResolver(ticketFormSchema),
     defaultValues: {
@@ -76,6 +80,8 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit }: Cre
       priority: 'medium',
     },
   });
+
+  React.useEffect(()=>{if(open&&initialData)form.reset({...initialData,...(initialData.due_date?{due_date:new Date(initialData.due_date+'T12:00:00')}: {})});},[open,initialData,form]);
 
   const handleSubmit = (values: TicketFormValues) => {
     const ticketData: CreateTicketForm = {

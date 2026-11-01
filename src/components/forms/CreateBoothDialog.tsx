@@ -76,35 +76,35 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
     aisle: '',
     position: '',
     booth_type: 'Standard',
-    
+
     // Dimensions
     size_sqm: '',
     width_m: '',
     length_m: '',
     height_m: '',
-    
+
     // Status
     status: 'Available',
-    
+
     // Pricing (updated with price per sqm)
     price_per_sqm: '',
     additional_costs: '',
     total_price: '',
     currency: 'EGP',
-    
+
     // Assignment
     assigned_to_company: '',
     assigned_to_contact: '',
     assigned_to_email: '',
     assigned_to_phone: '',
     client_id: '',
-    
+
     // Technical
     power_supply: '',
     internet_access: false,
     water_supply: false,
     compressed_air: false,
-    
+
     // Additional
     description: '',
     notes: '',
@@ -123,10 +123,10 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
     const sizeSqm = parseFloat(formData.size_sqm) || 0;
     const pricePerSqm = parseFloat(formData.price_per_sqm) || 0;
     const additionalCosts = parseFloat(formData.additional_costs) || 0;
-    
+
     const basePrice = sizeSqm * pricePerSqm;
     const totalPrice = basePrice + additionalCosts;
-    
+
     setFormData(prev => ({
       ...prev,
       total_price: totalPrice.toFixed(2)
@@ -262,7 +262,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
         assigned_to_email: formData.assigned_to_email.trim() || null,
         assigned_to_phone: formData.assigned_to_phone.trim() || null,
         client_id: formData.client_id || null,
-        
+
         // ✅ FEATURES as JSON ARRAY (not string)
         features: [
           ...(formData.power_supply ? [`Power: ${formData.power_supply}`] : []),
@@ -270,7 +270,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
           ...(formData.water_supply ? ['Water Supply'] : []),
           ...(formData.compressed_air ? ['Compressed Air'] : [])
         ],
-        
+
         // ✅ TECHNICAL FIELDS
         power_supply: formData.power_supply.trim() || null,
         internet_access: Boolean(formData.internet_access),
@@ -279,7 +279,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
         description: formData.description.trim() || null,
         notes: formData.notes.trim() || null,
         special_requirements: formData.special_requirements.trim() || null
-        
+
         // ❌ REMOVED total_price (GENERATED column in database)
         // ❌ REMOVED created_at, updated_at (handled by service)
       };
@@ -298,9 +298,9 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
     } catch (error: any) {
       console.error('Error creating booth:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
-      
+
       let errorMessage = "Failed to create booth. Please try again.";
-      
+
       // Handle specific error types
       if (error?.code === '23505') {
         if (error.message?.includes('booth_code')) {
@@ -311,7 +311,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "Error Creating Booth",
         description: errorMessage,
@@ -365,7 +365,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="exhibition_id">Exhibition *</Label>
                       <Select value={formData.exhibition_id} onValueChange={(value) => handleInputChange('exhibition_id', value)}>
@@ -573,7 +573,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
                         />
                       </div>
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="additional_costs">Additional Costs</Label>
                       <div className="relative">
@@ -673,7 +673,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
                       </CardContent>
                     </Card>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="assigned_to_company">Company</Label>
@@ -786,7 +786,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
                       rows={3}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="special_requirements">Special Requirements</Label>
                     <Textarea
@@ -797,7 +797,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
                       rows={2}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="notes">Notes</Label>
                     <Textarea
@@ -817,7 +817,7 @@ const CreateBoothDialog: React.FC<CreateBoothDialogProps> = ({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              
+
               <div className="flex items-center space-x-3">
                 {activeTab !== 'basic' && (
                   <Button

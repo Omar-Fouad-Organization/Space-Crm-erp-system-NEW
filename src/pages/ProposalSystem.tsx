@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { 
-  FileText, 
-  Plus, 
-  Search, 
+import {all as apiAll,remove as apiRemove} from '@/services/laravelClient';
+import {toast} from '@/hooks/use-toast';
+import React, { useState, useEffect } from 'react';
+import {
+  FileText,
+  Plus,
+  Search,
   Filter,
   Download,
   Eye,
@@ -34,37 +36,9 @@ const ProposalSystem = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Mock data for proposals
-  const proposals = [
-    {
-      id: 'PROP-001',
-      title: 'Space Tech Expo 2024 - Premium Package',
-      client: 'AeroSpace Corp',
-      status: 'pending',
-      value: 125000,
-      createdDate: '2024-01-15',
-      expiryDate: '2024-02-15'
-    },
-    {
-      id: 'PROP-002',
-      title: 'Satellite Conference Sponsorship',
-      client: 'Orbital Systems Ltd',
-      status: 'approved',
-      value: 75000,
-      createdDate: '2024-01-10',
-      expiryDate: '2024-02-10'
-    },
-    {
-      id: 'PROP-003',
-      title: 'Mars Mission Summit - Booth Package',
-      client: 'Red Planet Industries',
-      status: 'draft',
-      value: 95000,
-      createdDate: '2024-01-20',
-      expiryDate: '2024-02-20'
-    }
-  ];
-
+  const [proposals,setProposals]=useState<any[]>([]);
+  useEffect(()=>{Promise.all([apiAll('proposals'),apiAll('deals')]).then(([proposals,deals])=>setProposals(proposals.map(p=>{const d=deals.find(d=>d.id===p.deal_id);return {...p,client:d?.client_name||'',value:d?.deal_value||0,currency:d?.currency||'EGP'};}))).catch(error=>toast({title:'Proposals unavailable',description:error.message,variant:'destructive'}));},[]);
+  const unavailable=()=>toast({title:'Not available in the original interface',description:'This original control has no implemented dialog or delivery integration.'});
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { variant: 'secondary' as const, label: 'Draft' },
@@ -72,7 +46,7 @@ const ProposalSystem = () => {
       approved: { variant: 'default' as const, label: 'Approved' },
       rejected: { variant: 'destructive' as const, label: 'Rejected' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
@@ -164,7 +138,7 @@ const ProposalSystem = () => {
                       <TableCell>{proposal.title}</TableCell>
                       <TableCell>{proposal.client}</TableCell>
                       <TableCell>{getStatusBadge(proposal.status)}</TableCell>
-                      <TableCell>${proposal.value.toLocaleString()}</TableCell>
+                      <TableCell>{new Intl.NumberFormat('en-US',{style:'currency',currency:proposal.currency||'EGP'}).format(proposal.value)}</TableCell>
                       <TableCell>{proposal.createdDate}</TableCell>
                       <TableCell>{proposal.expiryDate}</TableCell>
                       <TableCell className="text-right">
@@ -200,7 +174,7 @@ const ProposalSystem = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">No draft proposals found.</p>
+              <p className="text-muted-foreground">{proposals.filter(p=>p.status==='draft').map(p=>p.title).join(' • ') || 'No draft proposals found.'}</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -214,7 +188,7 @@ const ProposalSystem = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">No pending proposals found.</p>
+              <p className="text-muted-foreground">{proposals.filter(p=>p.status==='pending').map(p=>p.title).join(' • ') || 'No pending proposals found.'}</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -228,7 +202,7 @@ const ProposalSystem = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">No approved proposals found.</p>
+              <p className="text-muted-foreground">{proposals.filter(p=>p.status==='approved').map(p=>p.title).join(' • ') || 'No approved proposals found.'}</p>
             </CardContent>
           </Card>
         </TabsContent>

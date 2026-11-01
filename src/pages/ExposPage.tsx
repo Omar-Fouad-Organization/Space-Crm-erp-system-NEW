@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
   Trash2,
   Calendar,
   MapPin,
@@ -115,7 +115,7 @@ export default function ExposPage() {
     const matchesSearch = expo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          expo.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || expo.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -247,7 +247,7 @@ export default function ExposPage() {
                   <p className="font-medium">{format(new Date(expo.end_date), 'MMM dd, yyyy')}</p>
                 </div>
               </div>
-              
+
               {expo.notes && (
                 <div>
                   <p className="text-crm-secondary-text text-sm">Notes</p>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  Bell, 
-  Settings, 
-  HelpCircle, 
-  Plus, 
+import {
+  Search,
+  Bell,
+  Settings,
+  HelpCircle,
+  Plus,
   X,
   BellRing,
   Eye,
@@ -78,8 +78,8 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   const markAsRead = (notificationId: string) => {
-    const updatedNotifications = notifications.map((notification: any) => 
-      notification.id === notificationId 
+    const updatedNotifications = notifications.map((notification: any) =>
+      notification.id === notificationId
         ? { ...notification, status: 'Read', read_at: new Date().toISOString() }
         : notification
     );
@@ -90,10 +90,10 @@ export function Layout({ children }: LayoutProps) {
 
   const markAllAsRead = () => {
     const now = new Date().toISOString();
-    const updatedNotifications = notifications.map((notification: any) => ({ 
-      ...notification, 
-      status: 'Read', 
-      read_at: notification.read_at || now 
+    const updatedNotifications = notifications.map((notification: any) => ({
+      ...notification,
+      status: 'Read',
+      read_at: notification.read_at || now
     }));
     setNotifications(updatedNotifications);
     localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
@@ -104,7 +104,7 @@ export function Layout({ children }: LayoutProps) {
     const date = new Date(dateString);
     const now = new Date();
     const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
-    
+
     if (diffInMinutes < 1) {
       return 'Just now';
     } else if (diffInMinutes < 60) {
@@ -133,8 +133,8 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-slate-50">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden" 
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -161,13 +161,13 @@ export function Layout({ children }: LayoutProps) {
               >
                 <Search className="h-5 w-5 text-slate-600" />
               </Button>
-              
+
               {/* Search Bar */}
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input 
-                  className="pl-10 pr-4 py-2.5 w-80 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-slate-400" 
-                  placeholder="Search clients, deals, booths..." 
+                <input
+                  className="pl-10 pr-4 py-2.5 w-80 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-slate-400"
+                  placeholder="Search clients, deals, booths..."
                 />
               </div>
             </div>
@@ -177,8 +177,8 @@ export function Layout({ children }: LayoutProps) {
               {/* Quick Create */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm border-0 px-4 py-2 rounded-lg transition-all duration-200"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -202,19 +202,19 @@ export function Layout({ children }: LayoutProps) {
               </DropdownMenu>
 
               {/* Action buttons */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
               >
                 <HelpCircle className="h-4 w-4" />
               </Button>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="relative p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
                   >
                     {unreadCount > 0 ? (
@@ -252,7 +252,7 @@ export function Layout({ children }: LayoutProps) {
 
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  
+
                   {recentNotifications.length > 0 ? (
                     <>
                       {recentNotifications.map((notification: any) => (
@@ -312,7 +312,7 @@ export function Layout({ children }: LayoutProps) {
                         </DropdownMenuItem>
                       ))}
                       <DropdownMenuSeparator />
-                      
+
                       <div className="p-2 flex space-x-2">
 
                         {unreadCount > 0 && (
@@ -353,16 +353,16 @@ export function Layout({ children }: LayoutProps) {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
+
+              <Button
+                variant="ghost"
+                size="sm"
                 className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
                 onClick={() => navigate('/settings')}
               >
                 <Settings className="h-4 w-4" />
               </Button>
-              
+
               {/* User Menu */}
               <div className="flex items-center ml-2">
                 <UserMenu />

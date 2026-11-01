@@ -1,14 +1,16 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Building2, 
-  Mail, 
-  Phone, 
-  MapPin, 
+import {
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
   Calendar,
   DollarSign,
   FileText,
@@ -19,22 +21,9 @@ import {
 export default function ClientDetail() {
   const { id } = useParams();
 
-  // Mock client data
-  const client = {
-    id: '1',
-    company_name: 'Green Tech Solutions',
-    client_type: 'exhibitor',
-    industry: 'Renewable Energy',
-    country: 'United States',
-    primary_contact: {
-      name: 'John Smith',
-      email: 'john@greentech.com',
-      phone: '+1-555-0123',
-      position: 'CEO'
-    },
-    created_at: '2025-12-01',
-    status: 'active'
-  };
+  const [client,setClient]=React.useState<any>(null);const [linkedDeals,setLinkedDeals]=React.useState<any[]>([]);
+  React.useEffect(()=>{Promise.all([apiAll('clients'),apiAll('deals')]).then(([clients,deals])=>{const c=clients.find(c=>c.id===id);if(c)setClient({...c,client_type:c.type,primary_contact:{name:c.contact_person,email:c.email,phone:c.phone,position:c.position||''}});setLinkedDeals(deals.filter(d=>d.client_id===id));});},[id]);
+  if(!client)return <div role="status">Loading client…</div>;
 
   return (
     <div className="space-y-6">
@@ -129,17 +118,17 @@ export default function ClientDetail() {
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Active Deals</span>
-                  <span className="font-semibold">2</span>
+                  <span className="font-semibold">{linkedDeals.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.stage)).length}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Value</span>
-                  <span className="font-semibold">$125,000</span>
+                  <span className="font-semibold">{linkedDeals.reduce((sum,d)=>sum+d.deal_value,0).toLocaleString()}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Last Activity</span>
-                  <span className="font-semibold">2026-01-08</span>
+                  <span className="font-semibold">{String(client.updated_at||client.created_at).slice(0,10)}</span>
                 </div>
 
               </CardContent>

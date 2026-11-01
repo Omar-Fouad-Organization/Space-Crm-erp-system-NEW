@@ -1,3 +1,5 @@
+import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +111,7 @@ const HR = () => {
     position: '',
     hire_date: '',
     salary: '',
-    status: 'active' as const,
+    status: 'active' as Employee['status'],
     address: '',
     emergency_contact: '',
     notes: ''
@@ -119,300 +121,13 @@ const HR = () => {
     loadEmployees();
   }, []);
 
-  const loadEmployees = async () => {
-    try {
-      setLoading(true);
-      console.log('🏢 HR: Loading employees from database...');
-      
-      // Load real user data from deals and commissions
-      const [dealsData, commissionsData] = await Promise.all([
-        supabase.from('deals_2026_01_17_18_37').select('*'),
-        supabase.from('commission_schedules_2026_01_17_18_37').select('*')
-      ]);
-      
-      if (dealsData.error) {
-        console.error('❌ Error loading deals:', dealsData.error);
-        throw dealsData.error;
-      }
-      
-      if (commissionsData.error) {
-        console.error('❌ Error loading commissions:', commissionsData.error);
-        // Continue without commission data
-      }
-      
-      const deals = dealsData.data || [];
-      const commissions = commissionsData.data || [];
-      
-      // Create user map from deals and commissions
-      const userMap = new Map();
-      
-      // Process deal creators and assignees
-      deals.forEach(deal => {
-        if (deal.created_by && deal.created_by_name) {
-          if (!userMap.has(deal.created_by)) {
-            userMap.set(deal.created_by, {
-              id: deal.created_by,
-              full_name: deal.created_by_name,
-              email: `${deal.created_by_name.toLowerCase().replace(' ', '.')}@company.com`,
-              department: 'Sales',
-              position: 'Sales Representative',
-              status: 'active',
-              deals_created: 0,
-              deals_won: 0,
-              total_commission: 0,
-              hire_date: deal.created_at ? deal.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
-            });
-          }
-          
-          const user = userMap.get(deal.created_by);
-          user.deals_created += 1;
-          if (deal.status === 'Closed Won') {
-            user.deals_won += 1;
-          }
-        }
-        
-        if (deal.assigned_to && deal.assigned_to_name && deal.assigned_to !== deal.created_by) {
-          if (!userMap.has(deal.assigned_to)) {
-            userMap.set(deal.assigned_to, {
-              id: deal.assigned_to,
-              full_name: deal.assigned_to_name,
-              email: `${deal.assigned_to_name.toLowerCase().replace(' ', '.')}@company.com`,
-              department: 'Sales',
-              position: 'Account Manager',
-              status: 'active',
-              deals_created: 0,
-              deals_won: 0,
-              total_commission: 0,
-              hire_date: deal.created_at ? deal.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
-            });
-          }
-        }
-      });
-      
-      // Process commission data
-      commissions.forEach(commission => {
-        if (commission.sales_person_id && commission.sales_person_name) {
-          if (!userMap.has(commission.sales_person_id)) {
-            userMap.set(commission.sales_person_id, {
-              id: commission.sales_person_id,
-              full_name: commission.sales_person_name,
-              email: `${commission.sales_person_name.toLowerCase().replace(' ', '.')}@company.com`,
-              department: 'Sales',
-              position: 'Sales Person',
-              status: 'active',
-              deals_created: 0,
-              deals_won: 0,
-              total_commission: 0,
-              hire_date: commission.created_at ? commission.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
-            });
-          }
-          
-          const user = userMap.get(commission.sales_person_id);
-          user.total_commission += parseFloat(commission.commission_amount) || 0;
-        }
-      });
-      
-      // Convert map to array and enhance with additional data
-      const realEmployees: Employee[] = Array.from(userMap.values()).map((user, index) => {
-        // Determine position based on performance
-        let position = 'Sales Representative';
-        let salary = 50000;
-        
-        if (user.deals_won >= 5) {
-          position = 'Senior Sales Manager';
-          salary = 85000;
-        } else if (user.deals_won >= 3) {
-          position = 'Sales Manager';
-          salary = 70000;
-        } else if (user.deals_created >= 3) {
-          position = 'Sales Executive';
-          salary = 60000;
-        }
-        
-        // Add estimated salary based on commission
-        if (user.total_commission > 10000) {
-          salary += 15000;
-        } else if (user.total_commission > 5000) {
-          salary += 10000;
-        }
-        
-        return {
-          id: user.id,
-          full_name: user.full_name,
-          email: user.email,
-          phone: `+1 (555) ${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-          department: user.department,
-          position: position,
-          hire_date: user.hire_date,
-          salary: salary,
-          status: user.status as 'active' | 'inactive' | 'on_leave' | 'terminated',
-          address: `${Math.floor(Math.random() * 999) + 1} ${['Main St', 'Oak Ave', 'Pine St', 'Elm Dr'][index % 4]}, City, State ${String(Math.floor(Math.random() * 90000) + 10000)}`,
-          emergency_contact: `Emergency Contact - +1 (555) ${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-          notes: `Active sales team member. Created ${user.deals_created} deals, won ${user.deals_won} deals. Total commission: $${user.total_commission.toFixed(2)}.`,
-          created_at: user.hire_date + 'T09:00:00Z'
-        };
-      });
-      
-      // Define sample employees data
-      const sampleEmployees: Employee[] = [
-        {
-          id: "emp-001",
-          full_name: "Sarah Johnson",
-          email: "sarah.johnson@company.com",
-          phone: "+1 (555) 123-4567",
-          department: "Sales",
-          position: "Senior Sales Manager",
-          hire_date: "2022-03-15",
-          salary: 85000,
-          status: "active",
-          address: "123 Main St, New York, NY 10001",
-          emergency_contact: "John Johnson - +1 (555) 987-6543",
-          notes: "Top performer with excellent client relationship management skills. Consistently exceeds sales targets.",
-          created_at: "2022-03-15T10:00:00Z"
-        },
-        {
-          id: "emp-002",
-          full_name: "Michael Chen",
-          email: "michael.chen@company.com",
-          phone: "+1 (555) 234-5678",
-          department: "Engineering",
-          position: "Senior Software Engineer",
-          hire_date: "2021-08-20",
-          salary: 95000,
-          status: "active",
-          address: "456 Oak Ave, San Francisco, CA 94102",
-          emergency_contact: "Lisa Chen - +1 (555) 876-5432",
-          notes: "Full-stack developer with expertise in React and Node.js. Lead developer on multiple projects.",
-          created_at: "2021-08-20T09:00:00Z"
-        },
-        {
-          id: "emp-003",
-          full_name: "Emily Rodriguez",
-          email: "emily.rodriguez@company.com",
-          phone: "+1 (555) 345-6789",
-          department: "Marketing",
-          position: "Marketing Director",
-          hire_date: "2023-06-01",
-          salary: 78000,
-          status: "active",
-          address: "789 Pine St, Austin, TX 73301",
-          emergency_contact: "Carlos Rodriguez - +1 (555) 765-4321",
-          notes: "Creative marketing professional with expertise in digital campaigns and brand management.",
-          created_at: "2023-06-01T08:00:00Z"
-        },
-        {
-          id: "emp-004",
-          full_name: "David Wilson",
-          email: "david.wilson@company.com",
-          phone: "+1 (555) 456-7890",
-          department: "Finance",
-          position: "Financial Analyst",
-          hire_date: "2022-09-15",
-          salary: 68000,
-          status: "on_leave",
-          address: "321 Elm St, Chicago, IL 60601",
-          emergency_contact: "Mary Wilson - +1 (555) 654-3210",
-          notes: "Currently on paternity leave. Expected return date: March 2026.",
-          created_at: "2022-09-15T11:00:00Z"
-        },
-        {
-          id: "emp-005",
-          full_name: "Lisa Thompson",
-          email: "lisa.thompson@company.com",
-          phone: "+1 (555) 567-8901",
-          department: "HR",
-          position: "HR Business Partner",
-          hire_date: "2021-11-20",
-          salary: 75000,
-          status: "active",
-          address: "654 Maple Dr, Seattle, WA 98101",
-          emergency_contact: "Robert Thompson - +1 (555) 543-2109",
-          notes: "Experienced HR professional handling employee relations and talent acquisition.",
-          created_at: "2021-11-20T14:00:00Z"
-        },
-        {
-          id: "emp-006",
-          full_name: "James Anderson",
-          email: "james.anderson@company.com",
-          phone: "+1 (555) 678-9012",
-          department: "Operations",
-          position: "Operations Manager",
-          hire_date: "2022-07-01",
-          salary: 82000,
-          status: "active",
-          address: "987 Cedar Ln, Denver, CO 80201",
-          emergency_contact: "Jennifer Anderson - +1 (555) 432-1098",
-          notes: "Oversees daily operations and process improvements. Strong background in logistics.",
-          created_at: "2022-07-01T12:00:00Z"
-        },
-        {
-          id: "emp-007",
-          full_name: "Maria Garcia",
-          email: "maria.garcia@company.com",
-          phone: "+1 (555) 789-0123",
-          department: "Sales",
-          position: "Account Executive",
-          hire_date: "2023-09-15",
-          salary: 65000,
-          status: "active",
-          address: "147 Birch St, Miami, FL 33101",
-          emergency_contact: "Antonio Garcia - +1 (555) 321-0987",
-          notes: "Rising star in sales with excellent client relationship management skills.",
-          created_at: "2023-09-15T16:00:00Z"
-        },
-        {
-          id: "emp-008",
-          full_name: "Robert Kim",
-          email: "robert.kim@company.com",
-          phone: "+1 (555) 890-1234",
-          department: "IT",
-          position: "DevOps Engineer",
-          hire_date: "2023-04-10",
-          salary: 88000,
-          status: "active",
-          address: "258 Spruce Ave, Portland, OR 97201",
-          emergency_contact: "Susan Kim - +1 (555) 210-9876",
-          notes: "Infrastructure specialist managing cloud deployments and CI/CD pipelines.",
-          created_at: "2023-04-10T13:00:00Z"
-        }
-      ];
-      
-      // Use real employees if available, otherwise use sample data
-      const finalEmployees = realEmployees.length > 0 ? realEmployees : sampleEmployees;
-      
-      if (realEmployees.length === 0) {
-        console.log('⚠️ No real user data found, using sample employees');
-      }
-      
-      setEmployees(finalEmployees);
-      
-      console.log('✅ HR: Loaded employees:', {
-        realUsers: realEmployees.length,
-        sampleUsers: realEmployees.length === 0 ? sampleEmployees.length : 0,
-        totalEmployees: finalEmployees.length
-      });
-      
-      toast({
-        title: "Employee Data Loaded",
-        description: `Loaded ${finalEmployees.length} employees (${realEmployees.length} from database, ${realEmployees.length === 0 ? sampleEmployees.length : 0} sample)`,
-      });
-    } catch (error) {
-      console.error("🏢 HR: Error loading employees:", error);
-      toast({
-        title: "Error Loading Employee Data",
-        description: "Failed to load employee data from database. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadEmployees = async () => {setLoading(true);try{setEmployees(await apiAll('employees') as any);}catch(error){toast({title:'Unable to load records',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      const newEmployee: Employee = {
+      let newEmployee: Employee = {
         id: `emp-${Date.now()}`,
         full_name: employeeForm.full_name,
         email: employeeForm.email,
@@ -427,20 +142,21 @@ const HR = () => {
         notes: employeeForm.notes,
         created_at: new Date().toISOString()
       };
-      
+
+      newEmployee=await apiSave('employees',newEmployee) as any;
       setEmployees(prev => [newEmployee, ...prev]);
-      
+
       toast({
         title: "Employee Created",
         description: `${employeeForm.full_name} has been added to the system`,
       });
-      
+
       setShowCreateDialog(false);
       resetForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create employee",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -449,9 +165,9 @@ const HR = () => {
   const handleEditEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEmployee) return;
-    
+
     try {
-      const updatedEmployee: Employee = {
+      let updatedEmployee: Employee = {
         ...selectedEmployee,
         full_name: employeeForm.full_name,
         email: employeeForm.email,
@@ -465,23 +181,24 @@ const HR = () => {
         emergency_contact: employeeForm.emergency_contact,
         notes: employeeForm.notes,
       };
-      
-      setEmployees(prev => prev.map(emp => 
+
+      updatedEmployee=await apiSave('employees',updatedEmployee,selectedEmployee.id) as any;
+      setEmployees(prev => prev.map(emp =>
         emp.id === selectedEmployee.id ? updatedEmployee : emp
       ));
-      
+
       toast({
         title: "Employee Updated",
         description: `${employeeForm.full_name} has been updated successfully`,
       });
-      
+
       setShowEditDialog(false);
       setSelectedEmployee(null);
       resetForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update employee",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -489,21 +206,22 @@ const HR = () => {
 
   const handleDeleteEmployee = async () => {
     if (!employeeToDelete) return;
-    
+
     try {
+      await apiRemove('employees',employeeToDelete.id);
       setEmployees(prev => prev.filter(emp => emp.id !== employeeToDelete.id));
-      
+
       toast({
         title: "Employee Deleted",
         description: `${employeeToDelete.full_name} has been removed from the system`,
       });
-      
+
       setShowDeleteDialog(false);
       setEmployeeToDelete(null);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete employee",
+        description: (error as Error).message,
         variant: "destructive",
       });
     }
@@ -545,11 +263,11 @@ const HR = () => {
       const headers = Object.keys(exportData[0] || {});
       const csvContent = [
         headers.join(','),
-        ...exportData.map(row => 
+        ...exportData.map(row =>
           headers.map(header => {
             const value = row[header as keyof typeof row];
-            return typeof value === 'string' && (value.includes(',') || value.includes('"')) 
-              ? `"${value.replace(/"/g, '""')}"` 
+            return typeof value === 'string' && (value.includes(',') || value.includes('"'))
+              ? `"${value.replace(/"/g, '""')}"`
               : value;
           }).join(',')
         )
@@ -580,15 +298,15 @@ const HR = () => {
 
   // Filter employees
   const filteredEmployees = employees.filter((employee) => {
-    const matchesSearch = 
+    const matchesSearch =
       employee.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.department?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter;
     const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
-    
+
     return matchesSearch && matchesDepartment && matchesStatus;
   });
 
@@ -597,18 +315,18 @@ const HR = () => {
   const activeEmployees = employees.filter(emp => emp.status === 'active').length;
   const departments = [...new Set(employees.map(emp => emp.department).filter(Boolean))];
   const avgSalary = employees.reduce((sum, emp) => sum + (emp.salary || 0), 0) / employees.length || 0;
-  
+
   // Calculate performance metrics
   const totalDealsCreated = employees.reduce((sum, emp) => {
     const match = emp.notes?.match(/Created (\d+) deals/);
     return sum + (match ? parseInt(match[1]) : 0);
   }, 0);
-  
+
   const totalDealsWon = employees.reduce((sum, emp) => {
     const match = emp.notes?.match(/won (\d+) deals/);
     return sum + (match ? parseInt(match[1]) : 0);
   }, 0);
-  
+
   const totalCommission = employees.reduce((sum, emp) => {
     const match = emp.notes?.match(/commission: \$([\d,]+\.\d{2})/);
     return sum + (match ? parseFloat(match[1].replace(',', '')) : 0);
@@ -700,7 +418,7 @@ const HR = () => {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button 
+          <Button
             onClick={() => setShowCreateDialog(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
@@ -894,7 +612,7 @@ const HR = () => {
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 setEmployeeToDelete(employee);
                                 setShowDeleteDialog(true);
@@ -1178,7 +896,7 @@ const HR = () => {
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={employeeForm.status} onValueChange={(value) => setEmployeeForm({...employeeForm, status: value})}>
+                <Select value={employeeForm.status} onValueChange={(value) => setEmployeeForm({...employeeForm, status: value as Employee['status']})}>
                   <SelectTrigger id="status">
                     <SelectValue />
                   </SelectTrigger>
@@ -1311,7 +1029,7 @@ const HR = () => {
               </div>
               <div>
                 <Label htmlFor="edit_status">Status</Label>
-                <Select value={employeeForm.status} onValueChange={(value) => setEmployeeForm({...employeeForm, status: value})}>
+                <Select value={employeeForm.status} onValueChange={(value) => setEmployeeForm({...employeeForm, status: value as Employee['status']})}>
                   <SelectTrigger id="edit_status">
                     <SelectValue />
                   </SelectTrigger>
@@ -1370,7 +1088,7 @@ const HR = () => {
               Delete Employee
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {employeeToDelete?.full_name}? 
+              Are you sure you want to delete {employeeToDelete?.full_name}?
               This action cannot be undone and will permanently remove the employee from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>

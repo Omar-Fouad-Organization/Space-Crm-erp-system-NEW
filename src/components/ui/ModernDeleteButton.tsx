@@ -15,6 +15,7 @@ import { Loader2, Trash2, AlertTriangle } from 'lucide-react';
 
 interface ModernDeleteButtonProps {
   onDelete: () => Promise<void>;
+  confirmationText?:string;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link' | 'text';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   title: string;
@@ -87,7 +88,7 @@ const ModernDeleteButton: React.FC<ModernDeleteButtonProps> = ({
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
         <Button
-          variant={variant}
+          variant={variant === 'text' ? 'ghost' : variant}
           size={size}
           className={className}
           disabled={isDeleting}

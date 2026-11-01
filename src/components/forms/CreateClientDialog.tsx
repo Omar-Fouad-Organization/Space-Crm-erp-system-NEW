@@ -43,7 +43,7 @@ const CLIENT_TYPES = [
 ];
 
 const INDUSTRIES = [
-  'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail', 
+  'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail',
   'Education', 'Hospitality', 'Real Estate', 'Automotive', 'Energy',
   'Food & Beverage', 'Beauty & Wellness', 'Home & Design', 'Green Manufacturing',
   'Entertainment', 'Media', 'Telecommunications', 'Transportation', 'Agriculture'
@@ -76,7 +76,7 @@ export const CreateClientDialog: React.FC<CreateClientDialogProps> = ({
   const [activeTab, setActiveTab] = useState('basic');
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [countries, setCountries] = useState<{id: string, name: string, code: string}[]>([]);
-  
+
   const [formData, setFormData] = useState({
     // Basic Information
     name: '',
@@ -86,17 +86,17 @@ export const CreateClientDialog: React.FC<CreateClientDialogProps> = ({
     email: '',
     phone: '',
     website: '',
-    
+
     // Business Details
     industry: '',
     company_size: '',
-    
+
     // Location
     address: '',
     city: '',
     country: '',
     postal_code: '',
-    
+
     // Additional
     status: 'Active',
     notes: ''
@@ -114,7 +114,7 @@ export const CreateClientDialog: React.FC<CreateClientDialogProps> = ({
       // Load exhibitions
       const exhibitionsData = await expoService.getAll();
       setExhibitions(exhibitionsData || []);
-      
+
       // Load all countries in the world
       setCountries([
         { id: 'af', name: 'Afghanistan', code: 'AF' },
@@ -393,18 +393,18 @@ export const CreateClientDialog: React.FC<CreateClientDialogProps> = ({
 
   const validateForm = () => {
     const errors: string[] = [];
-    
+
     if (!formData.name.trim()) errors.push('Client name is required');
     if (!formData.contact_person.trim()) errors.push('Contact person is required');
     if (!formData.email.trim()) errors.push('Email is required');
     if (!/\S+@\S+\.\S+/.test(formData.email)) errors.push('Email is invalid');
-    
+
     return errors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const errors = validateForm();
     if (errors.length > 0) {
       toast({
@@ -416,7 +416,7 @@ export const CreateClientDialog: React.FC<CreateClientDialogProps> = ({
     }
 
     setLoading(true);
-    
+
     try {
       const clientData: Partial<Client> = {
         name: formData.name.trim(),

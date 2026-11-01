@@ -35,10 +35,10 @@ const userFormSchema = z.object({
   full_name: z.string().min(1, 'Full name is required').max(100, 'Full name too long'),
   email: z.string().email('Invalid email address'),
   role: z.enum(['super_admin', 'management', 'sales_manager', 'sales_executive', 'finance_manager', 'finance_officer', 'operations', 'support', 'client'], {
-    required_error: 'Role is required',
+    error: 'Role is required',
   }),
   status: z.enum(['active', 'inactive'], {
-    required_error: 'Status is required',
+    error: 'Status is required',
   }),
   password: z.string().optional(),
 });
@@ -46,6 +46,7 @@ const userFormSchema = z.object({
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface CreateUserDialogProps {
+  initialData?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CreateUserForm) => void;
@@ -63,7 +64,7 @@ const roles: { value: UserRole; label: string; description: string }[] = [
   { value: 'client', label: 'Client', description: 'Limited access to client portal only' }
 ];
 
-export default function CreateUserDialog({ open, onOpenChange, onSubmit }: CreateUserDialogProps) {
+export default function CreateUserDialog({ open, onOpenChange, onSubmit, initialData }: CreateUserDialogProps) {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -77,6 +78,7 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit }: Creat
 
   const [generatePassword, setGeneratePassword] = React.useState(true);
 
+  React.useEffect(()=>{if(open&&initialData)form.reset({...initialData,password:''});},[open,initialData,form]);
   const handleSubmit = (values: UserFormValues) => {
     const userData: CreateUserForm = {
       full_name: values.full_name,
