@@ -2,9 +2,9 @@ name: ERP isolated MySQL tests
 
 on:
   pull_request:
-    branches: [feat/laravel-mysql-original-ui]
+    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security]
   push:
-    branches: [codex/phase-1-erp-security]
+    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization]
   workflow_dispatch:
 
 permissions:
@@ -15,6 +15,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: node --test scripts/authorization-ui.test.mjs
+      - run: npm run build
   laravel:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

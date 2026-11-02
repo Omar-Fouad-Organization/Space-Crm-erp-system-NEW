@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\{DB, File, Hash};
 use Symfony\Component\Process\Process;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ReleaseCompatibilityTest extends TestCase
@@ -18,7 +19,13 @@ class ReleaseCompatibilityTest extends TestCase
         \Illuminate\Foundation\Testing\RefreshDatabaseState::$migrated = false;
     }
 
-    public function test_audited_previous_application_runs_against_expanded_schema(): void
+    public static function previousVersions(): array
+    {
+        return [['a5d054305c2c8c5b49b688ed4e89e17cd5c9c168'], ['76e01be60b8652e288ece4bcbfba890c53267a89']];
+    }
+
+    #[DataProvider('previousVersions')]
+    public function test_audited_previous_application_runs_against_expanded_schema(string $commit): void
     {
         $this->assertSame('127.0.0.1', config('database.connections.mysql.host'));
         $password = 'HistoricalLoginPassword!2026';
@@ -28,7 +35,7 @@ class ReleaseCompatibilityTest extends TestCase
         File::makeDirectory($directory, 0755, true);
         try {
             $archive = new Process(['git', 'archive', '--format=zip', '--output='.$directory.'/previous.zip',
-                'a5d054305c2c8c5b49b688ed4e89e17cd5c9c168', 'backend'], dirname(base_path()));
+                $commit, 'backend'], dirname(base_path()));
             $archive->mustRun();
             $zip = new \ZipArchive();
             $this->assertTrue($zip->open($directory.'/previous.zip'));
