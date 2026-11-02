@@ -207,6 +207,24 @@ class SessionRevocationTest extends TestCase
         }
     }
 
+    #[DataProvider('drivers')]
+    public function test_persisted_legacy_login_cannot_acquire_a_new_authentication_stamp(string $driver): void
+    {
+        config(['session.driver' => $driver]);
+        $user = $this->user(); $cookies = [];
+        // Test-only route reproduces the previous application's unstamped session issuance.
+        \Illuminate\Support\Facades\Route::middleware('web')->post('/test/legacy-login', function () use ($user) {
+            Auth::login($user);
+            request()->session()->regenerate();
+            return ['legacy' => true];
+        });
+        $this->browser($cookies, 'POST', '/test/legacy-login')->assertOk();
+        $this->browser($cookies, 'GET', '/api/session')->assertUnauthorized();
+        $this->browser($cookies, 'GET', '/api/metadata')->assertUnauthorized();
+        $this->login($cookies, $user);
+        $this->browser($cookies, 'GET', '/api/metadata')->assertOk();
+    }
+
     public function test_csrf_remains_required_for_login_and_revocation(): void
     {
         config(['session.driver' => 'file']);

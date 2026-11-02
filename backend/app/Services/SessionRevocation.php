@@ -19,10 +19,10 @@ class SessionRevocation
     {
         DB::table('revoked_staff_sessions')->where('expires_at', '<=', now())->delete();
         // Also rejects replayed cookie sessions and late writes from in-flight requests.
-        DB::table('revoked_staff_sessions')->updateOrInsert(
-            ['session_hash' => $this->sessionHash($request)],
-            ['expires_at' => now()->addMinutes((int) config('session.lifetime') + 1)],
-        );
+        DB::table('revoked_staff_sessions')->upsert([
+            ['session_hash' => $this->sessionHash($request),
+                'expires_at' => now()->addMinutes((int) config('session.lifetime') + 1)],
+        ], ['session_hash'], ['expires_at']);
     }
 
     public function bind(Request $request, $user): void

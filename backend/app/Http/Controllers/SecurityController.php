@@ -131,16 +131,13 @@ class SecurityController extends Controller
             "token" => "required|string",
             "password" => "required|string|min:12|max:128|confirmed",
         ]);
-        $status = Password::reset($v, function ($user, $password) {
-            DB::transaction(function () use ($user, $password) {
-            DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
-            $user
-                ->forceFill([
-                    "password" => Hash::make($password),
-                    "remember_token" => \Illuminate\Support\Str::random(60),
-                ])
-                ->save();
-            app(\App\Services\SessionRevocation::class)->revoke($user->id);
+        $status = DB::transaction(function () use ($v) {
+            // Serialize validation AND token consumption, not just the password write.
+            // Otherwise two requests can validate the same token before either deletes it.
+            DB::table('users')->where('email', $v['email'])->lockForUpdate()->first();
+            return Password::reset($v, function ($user, $password) {
+                $user->forceFill(['password' => Hash::make($password)])->save();
+                app(\App\Services\SessionRevocation::class)->revoke($user->id);
             });
         });
         abort_unless(
