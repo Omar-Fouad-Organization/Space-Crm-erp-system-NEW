@@ -5,9 +5,10 @@ class RecordAccess
 {
     public function query(string $resource, $user)
     {
-        $q = DB::table($resource);
+        $q = app(ExhibitionAccess::class)->apply(DB::table($resource), $resource, $user);
         if (
-            in_array($user->role, ["super_admin", "management"]) ||
+            $user->role === 'super_admin' ||
+            ($user->role === 'management' && !app(PermissionPolicy::class)->scoped($user)) ||
             ($user->record_scope ?? "all") === "all" ||
             in_array($resource, [
                 "users",
@@ -42,11 +43,22 @@ class RecordAccess
             $deals,
             $clients,
             $channels,
+            $user,
         ) {
             if ($resource === "deals") {
                 $q->whereIn("id", $deals);
             } elseif ($resource === "clients") {
                 $q->whereIn("id", $clients)->orWhereIn("created_by", $owners);
+                if (app(PermissionPolicy::class)->scoped($user)) {
+                    foreach (['tasks', 'meetings', 'documents', 'tickets'] as $work) {
+                        $related = app(ExhibitionAccess::class)->apply(DB::table($work), $work, $user)->whereNotNull('client_id');
+                        $related->where(function ($w) use ($work, $owners) {
+                            $w->whereIn('created_by', $owners);
+                            foreach (['assigned_user_id', 'organizer_id'] as $field) if (isset(config('crm.resources.'.$work.'.fields')[$field])) $w->orWhereIn($field, $owners);
+                        });
+                        $q->orWhereIn('id', $related->select('client_id'));
+                    }
+                }
             } elseif ($resource === "payments") {
                 $q->whereIn(
                     "payment_schedule_id",

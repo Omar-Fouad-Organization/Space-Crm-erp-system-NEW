@@ -15,11 +15,12 @@ class CrmService
 {
     public bool $approvedChange=false;
     private array $labels=[];
-    public function primeLabels(string $resource,array $rows): void {
+    public function primeLabels(string $resource,array $rows,$user=null): void {
         $ids=[];foreach($rows as $row){if($resource==='deals')$ids[]=$row->id;elseif(isset($row->deal_id))$ids[]=$row->deal_id;}if($resource==='payments')$ids=DB::table('payment_schedules')->whereIn('id',array_map(fn($row)=>$row->payment_schedule_id,$rows))->pluck('deal_id')->all();if($ids&&in_array($resource,['deals','payment_schedules','payments','invoices','commissions']))FinancialSnapshot::prime(array_values(array_unique($ids)));
         foreach(config("crm.resources.$resource.fields") as $key=>$field)if($field['type']==='relation'){
             $ids=array_values(array_unique(array_filter(array_map(fn($r)=>$r->$key??null,$rows))));
-            foreach(DB::table($field['resource'])->whereIn('id',$ids)->pluck('name','id') as $id=>$name)$this->labels[$field['resource']][$id]=$name;
+            $q = app(PermissionPolicy::class)->enabled() && $user ? $this->visible($field['resource'], $user) : DB::table($field['resource']);
+            foreach($q->whereIn('id',$ids)->pluck('name','id') as $id=>$name)$this->labels[$field['resource']][$id]=$name;
         }
     }
     public function visible(string $resource,$user) { return app(RecordAccess::class)->query($resource,$user); }
@@ -45,10 +46,24 @@ class CrmService
     {
         $config = config('crm.resources')[$resource] ?? null;
         abort_unless($config, 404, 'Unknown module.');
+        $policy = app(PermissionPolicy::class);
+        if ($policy->enabled()) {
+            $allowed = $write
+                ? collect($resource === 'commissions' ? ['create', 'edit', 'delete', 'approve', 'pay'] : ['create', 'edit', 'delete'])->contains(fn ($action) => $policy->allows($resource.'.'.$action, $user))
+                : $policy->allows($resource.'.view', $user);
+            abort_unless($allowed, 403, 'You do not have permission for this operation.');
+            return $config;
+        }
         $admin = $user->role === 'super_admin';
         $manager = $user->role === 'management' && !in_array($resource, ['users','employees']);
         abort_unless($admin || $manager || in_array($resource, ($write ? self::WRITE : self::READ)[$user->role] ?? []), 403, 'You do not have permission for this operation.');
         return $config;
+    }
+
+    public function operation(string $resource, string $action, $user): void
+    {
+        if (app(PermissionPolicy::class)->enabled()) app(PermissionPolicy::class)->authorize($resource.'.'.$action, $user);
+        else $this->authorize($resource, $user, $action !== 'view' && $action !== 'attachments.download');
     }
 
     public function cents($value): int
@@ -74,13 +89,20 @@ class CrmService
         $attributes=json_decode($data['attributes'] ?? '{}',true) ?: [];
         unset($data['attributes']);
         $data=[...$attributes,...$data];
-        unset($data['password'], $data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter'],$data['auth_version']);
+        unset($data['password'], $data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter'],$data['auth_version'],$data['authorization_scoped'],$data['all_exhibitions']);
         if ($resource === 'users' && $user->role !== 'super_admin') return array_intersect_key($data, array_flip(['id','name','status']));
-        foreach (config("crm.resources.$resource.fields") as $key => $field) {
+        if (app(PermissionPolicy::class)->enabled() && $resource === 'employees' && !app(PermissionPolicy::class)->allows('employees.salary.view', $user)) unset($data['salary']);
+        $fields = config("crm.resources.$resource.fields");
+        if (app(PermissionPolicy::class)->enabled() && in_array($resource, config('authorization.standalone_resources'))) {
+            $fields['exhibition_id'] = ['type'=>'relation', 'resource'=>'exhibitions'];
+        }
+        foreach ($fields as $key => $field) {
             if ($field['type'] === 'relation' && !empty($data[$key])) {
                 try { $this->authorize($field['resource'],$user); }
                 catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { unset($data[$key]); continue; }
-                $data[$key.'_label'] = $this->labels[$field['resource']][$data[$key]] ?? DB::table($field['resource'])->where('id', $data[$key])->value('name');
+                $label = $this->labels[$field['resource']][$data[$key]] ?? (app(PermissionPolicy::class)->enabled() ? $this->visible($field['resource'], $user) : DB::table($field['resource']))->where('id', $data[$key])->value('name');
+                if ($label === null) { unset($data[$key], $data[$key.'_label']); continue; }
+                $data[$key.'_label'] = $label;
             }
         }
         if ($resource === 'deals') {
@@ -121,12 +143,22 @@ class CrmService
             $data['attendee_names'] = DB::table('users')->whereIn('id',$data['attendee_ids'])->pluck('name');
         }
         if ($resource === 'employees') $data['email'] = DB::table('users')->where('id',$row->user_id)->value('email');
+        if (app(PermissionPolicy::class)->enabled() && !app(PermissionPolicy::class)->allows('financial.fields.view', $user)) {
+            foreach (config("crm.resources.$resource.fields") as $key => $field) if ($field['type'] === 'money' && $key !== 'salary') unset($data[$key]);
+            foreach (SensitiveFields::FINANCIAL as $key) unset($data[$key]);
+        }
         return $data;
     }
 
     public function save(string $resource, array $input, $user, ?int $id = null): array
     {
-        $config = $this->authorize($resource, $user, true);
+        $config = $this->authorize($resource, $user, !($this->approvedChange && app(PermissionPolicy::class)->enabled()));
+        $policy = app(PermissionPolicy::class);
+        if ($policy->enabled()) foreach (['authorization_scoped','all_exhibitions','permission_overrides','exhibition_ids','permissions'] as $key) {
+            abort_if(array_key_exists($key, $input), 422, 'Use the confirmed authorization editor for security changes.');
+        }
+        $action = $resource === 'commissions' && $id && in_array($input['status'] ?? '', ['approved', 'paid']) ? (($input['status'] === 'paid') ? 'pay' : 'approve') : ($id ? 'edit' : 'create');
+        if ($policy->enabled() && !$this->approvedChange) $policy->authorize($resource.'.'.$action, $user);
         if($id) $this->checkRecord($resource,$id,$user);
         if($resource==='deals' && !$this->approvedChange) {
             $old=$id ? DB::table('deals')->find($id):null;
@@ -136,11 +168,14 @@ class CrmService
         }
         abort_if($resource === 'commissions' && !$id, 422, 'Commissions are generated from deals.');
         $rules = [];
+        if ($policy->enabled() && in_array($resource, config('authorization.standalone_resources'), true)) {
+            $rules['exhibition_id'] = ['sometimes', 'nullable', 'integer', 'exists:exhibitions,id'];
+        }
         $rules['attributes']=['sometimes','nullable','array',function($attribute,$value,$fail) {
             if (!is_array($value)) return;
             if(strlen(json_encode($value))>100000) $fail('Additional fields are too large.');
             foreach(array_keys($value) as $key) {
-                if(!preg_match('/^[a-zA-Z][a-zA-Z0-9_]{0,80}$/',$key) || preg_match('/(?:password|token|permission|created_by|user_id|client_id|deal_id|booth_id|exhibition_id|salesperson_id|package_id|schedule_id|manager_id|organizer_id|channel_id)$/i',$key)) $fail('Relationship and security fields cannot be stored as additional fields.');
+                if(!preg_match('/^[a-zA-Z][a-zA-Z0-9_]{0,80}$/',$key) || preg_match('/(?:password|token|permission|permissions|auth_version|authorization_scoped|all_exhibitions|exhibition_ids|confirm_code|created_by|user_id|client_id|deal_id|booth_id|exhibition_id|salesperson_id|package_id|schedule_id|manager_id|organizer_id|channel_id)$/i',$key)) $fail('Relationship and security fields cannot be stored as additional fields.');
             }
         }];
         foreach ($config['fields'] as $key => $field) {
@@ -178,6 +213,17 @@ class CrmService
             $rules['attendee_ids'] = 'sometimes|array|max:100';
             $rules['attendee_ids.*'] = 'integer|distinct|exists:users,id';
         }
+        if ($policy->enabled()) {
+            $references = array_filter($config['fields'], fn ($field) => $field['type'] === 'relation');
+            if (isset($rules['exhibition_id'])) $references['exhibition_id'] = ['resource' => 'exhibitions'];
+            foreach ($references as $field => $reference) {
+                $value = $input[$field] ?? null;
+                if ((is_int($value) || is_string($value)) && ctype_digit((string) $value) && (int) $value > 0) {
+                    $this->authorize($reference['resource'], $user);
+                    $this->checkRecord($reference['resource'], (int) $value, $user);
+                }
+            }
+        }
         $validated = Validator::make($input, $rules)->validate();
         foreach ($config['fields'] as $key=>$field) {
             if ($field['type']==='relation' && !empty($validated[$key])) { $this->authorize($field['resource'],$user); $this->checkRecord($field['resource'],(int)$validated[$key],$user); }
@@ -187,6 +233,28 @@ class CrmService
             abort_if($id && !$before, 404, 'Record not found.');
             if ($resource==='messages' && $before && $before->created_by!==$user->id && !in_array($user->role,['super_admin','management'])) abort(403,'Only the author or an administrator can edit this message.');
             $data = $validated;
+            if (app(PermissionPolicy::class)->enabled() && $resource === 'commissions' && $before) {
+                foreach ($data as $key => $value) {
+                    $changed = match ($key) {
+                        'amount' => $this->cents($value) !== $this->cents($before->$key),
+                        'attributes' => count(array_filter($value ?? [], fn ($v, $k) => $v != ((json_decode($before->attributes ?? '{}', true) ?: [])[$k] ?? null), ARRAY_FILTER_USE_BOTH)) > 0,
+                        default => (string) $value !== (string) ($before->$key ?? ''),
+                    };
+                    if ($key !== 'status' && $changed) app(PermissionPolicy::class)->authorize('commissions.edit', $user);
+                }
+            }
+            app(ExhibitionAccess::class)->validateWrite($resource, $data, $before, $user);
+            if (app(PermissionPolicy::class)->enabled()) {
+                if ($resource === 'deals' && $before && !$this->approvedChange) {
+                    foreach (['amount', 'base_price', 'discount_percentage', 'tax_percentage', 'commission_percentage'] as $field) {
+                        if (array_key_exists($field, $data) && (($data[$field] === null || $before->$field === null)
+                            ? $data[$field] !== $before->$field : $this->cents($data[$field]) !== $this->cents($before->$field))) app(PermissionPolicy::class)->authorize('deals.pricing.edit', $user);
+                    }
+                }
+                if ($resource === 'employees' && array_key_exists('salary', $data) && (!$before || $this->cents($data['salary']) !== $this->cents($before->salary))) app(PermissionPolicy::class)->authorize('employees.salary.edit', $user);
+                if ($resource === 'commissions' && $before && $data['status'] !== $before->status) app(PermissionPolicy::class)->authorize('commissions.'.($data['status'] === 'paid' ? 'pay' : 'approve'), $user);
+                if ($resource === 'users' && !$before) $data['authorization_scoped'] = true;
+            }
             if(isset($data['attributes'])) $data['attributes']=json_encode([...(json_decode($before->attributes ?? '{}',true) ?: []),...$data['attributes']]);
             $installments = $data['installments'] ?? null; unset($data['installments']);
             $attendees = $data['attendee_ids'] ?? null; unset($data['attendee_ids']);
@@ -344,6 +412,7 @@ class CrmService
     public function delete(string $resource,int $id,$user): void
     {
         $this->authorize($resource,$user,true);
+        if (app(PermissionPolicy::class)->enabled()) app(PermissionPolicy::class)->authorize($resource.'.delete', $user);
         $this->checkRecord($resource,$id,$user);
         abort_if(in_array($resource,['payments','commissions','invoices']),422,'Financial records cannot be deleted. Correct them through a reviewed accounting adjustment.');
         abort_if($resource==='users' && $id===$user->id,422,'You cannot delete your own account.');

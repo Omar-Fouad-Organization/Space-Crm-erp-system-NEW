@@ -90,8 +90,9 @@ class ImportController extends Controller
                         ])
                         ->exists()
                 ) {
-                    $errors[] =
-                        "An existing client matches this email or company name.";
+                    $errors[] = app(\App\Services\PermissionPolicy::class)->enabled()
+                        ? 'This row requires administrator review before import.'
+                        : 'An existing client matches this email or company name.';
                 }
             }
             $rows[] = ["line" => $line, "data" => $data, "errors" => $errors];

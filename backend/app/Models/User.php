@@ -31,7 +31,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
-        'remember_token', 'mfa_secret', 'mfa_last_counter', 'auth_version',
+        'remember_token', 'mfa_secret', 'mfa_last_counter', 'auth_version', 'authorization_scoped', 'all_exhibitions',
     ];
 
     /**
@@ -45,6 +45,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'auth_version' => 'integer',
+            'authorization_scoped' => 'boolean',
+            'all_exhibitions' => 'boolean',
         ];
     }
 }

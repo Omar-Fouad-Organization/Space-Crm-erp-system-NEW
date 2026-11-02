@@ -9,7 +9,14 @@ Route::prefix('api')->group(function () {
     Route::get('session',[SessionController::class,'show']);
     Route::post('login',[SessionController::class,'login'])->middleware('throttle:5,1');
     Route::post('logout',[SessionController::class,'logout'])->middleware(CrmAuthenticated::class);
-    Route::middleware([CrmAuthenticated::class,'throttle:300,1,crm-api'])->group(function () {
+    Route::middleware([CrmAuthenticated::class,\App\Http\Middleware\AuthorizeOperation::class,'throttle:300,1,crm-api'])->group(function () {
+        $authorization=\App\Http\Controllers\AuthorizationController::class;
+        Route::get('authorization/me',[$authorization,'me']);
+        Route::get('authorization/registry',[$authorization,'catalog']);
+        Route::get('authorization/users/{id}',[$authorization,'show']);
+        Route::put('authorization/users/{id}',[$authorization,'update'])->middleware('throttle:10,1,authorization-change');
+        Route::post('exports/records/{resource}',[\App\Http\Controllers\ExportController::class,'records'])->middleware('throttle:10,1,crm-export');
+        Route::post('exports/report',[\App\Http\Controllers\ExportController::class,'report'])->middleware('throttle:10,1,crm-export');
         $workspace=\App\Http\Controllers\WorkspaceController::class;
         Route::get('workspace/search',[$workspace,'search']);
         Route::get('workspace/cash-movements',[$workspace,'cashMovements']);Route::get('workspace/backup-status',[$workspace,'backupStatus']);Route::post('workspace/backup',[$workspace,'backup'])->middleware('throttle:2,1,crm-backup');
