@@ -6,6 +6,13 @@ export interface Metadata { resources: Record<string, Resource>; settings: Setti
 export type Row = Record<string, unknown> & { id: number; name?: string };
 export interface Detail { data: Row; relations: Record<string, Row[]> }
 let csrf = '';
+const timestampKeys=new Set(['created_at','updated_at','reviewed_at','send_at','delivered_at','read_at','won_at','reservation_expires_at','mfa_confirmed_at','at']);
+function normalizeDates(value:unknown,key=''):unknown {
+  if(typeof value==='string' && timestampKeys.has(key) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) return value.replace(' ','T')+'Z';
+  if(Array.isArray(value))return value.map(v=>normalizeDates(v));
+  if(value && typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,normalizeDates(v,k)]));
+  return value;
+}
 export class ApiError extends Error {
   constructor(message: string, public status: number, public errors: Record<string, string[]> = {}) { super(message); }
 }
@@ -17,7 +24,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     ...(body === undefined ? {} : { body: form ? body : JSON.stringify(body) }),
   });
   if (response.status === 204) return undefined as T;
-  const data = await response.json().catch(() => ({ message: 'The server returned an unexpected response.' }));
+  const raw = await response.json().catch(() => ({ message: 'The server returned an unexpected response.' }));
+  const data = normalizeDates(raw) as typeof raw;
   if (!response.ok) {
     if (response.status === 401) window.dispatchEvent(new Event('crm-signed-out'));
     throw new ApiError(data.message || 'Request failed.', response.status, data.errors);
@@ -27,8 +35,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
 }
 export const label = (value: unknown) => String(value ?? '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
 export const money = (value: unknown, currency: unknown = 'EGP') => new Intl.NumberFormat('en-US', { style: 'currency', currency: String(currency) }).format(Number(value ?? 0));
-export function exportCsv(name: string, rows: Row[], columns: string[]) {
+export function exportCsv<T extends object>(name: string, rows: T[], columns: string[]) {
   const cell = (v: unknown) => { const s = String(v ?? ''); return `"${(/^[=+@\-\t\r]/.test(s) ? "'" : '') + s.replaceAll('"', '""')}"`; };
-  const url = URL.createObjectURL(new Blob(['\ufeff' + [columns.map(label), ...rows.map(row => columns.map(key => row[`${key}_label`] ?? row[key]))].map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  const url = URL.createObjectURL(new Blob(['\ufeff' + [columns.map(label), ...rows.map(row => columns.map(key => (row as Record<string,unknown>)[`${key}_label`] ?? (row as Record<string,unknown>)[key]))].map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a'); a.href = url; a.download = `${name}.csv`; a.click(); URL.revokeObjectURL(url);
 }

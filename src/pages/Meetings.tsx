@@ -1,3 +1,5 @@
+import {MeetingCalendar} from '@/components/workspace/MeetingCalendar';
+import {exportCsv} from '@/crm/api';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -306,7 +308,7 @@ const Meetings = () => {
 
   const handleCompleteMeeting = async (meetingId:string)=>{try{const record=await apiSave('meetings',{status:'Completed'},meetingId);setMeetings(prev=>prev.map(m=>m.id===meetingId?record as any:m));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
 
-  const handleSendReminder = (_id?:string)=>toast({title:'Email not configured',description:'No reminder has been sent. Configure a mail provider before sending reminders.',variant:'destructive'});
+  const handleSendReminder = (id?:string)=>{window.location.hash='/workspace?section=reminders&resource=meetings'+(id?'&record='+id:'');};
 
   const resetForm = () => {
     setMeetingForm({
@@ -517,7 +519,7 @@ const Meetings = () => {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={()=>exportCsv('meetings',meetings,['title','date','time','organizer','client','deal','status'])}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -955,21 +957,10 @@ const Meetings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Meeting Calendar</CardTitle>
-              <CardDescription>Calendar view of all scheduled meetings (Coming Soon)</CardDescription>
+              <CardDescription>Browse saved meetings by month and open their details.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg">
-                <div className="text-center">
-                  <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Calendar integration coming soon
-                  </p>
-                  <Button variant="outline" className="mt-2">
-                    <Link className="h-4 w-4 mr-2" />
-                    Connect Calendar
-                  </Button>
-                </div>
-              </div>
+              <MeetingCalendar meetings={meetings} onOpen={meeting=>{setSelectedMeeting(meeting);setShowDetailsDialog(true);}}/>
             </CardContent>
           </Card>
         </TabsContent>

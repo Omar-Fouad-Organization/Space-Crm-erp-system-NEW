@@ -2,6 +2,8 @@
 
 The active application uses React + TypeScript + Vite 8, a Laravel 12 JSON API, and MySQL 8.4. The original React screens, layouts, fields, dialogs, and styling are restored from commit bc25301. Their existing service calls now use the session-authenticated Laravel API. Original ancillary fields are retained in validated MySQL JSON attributes; relationships and financial values remain explicit validated columns. No Supabase service is used.
 
+See [the audit implementation and review guide](docs/AUDIT-IMPLEMENTATION.md) for current workflows, corrections, ownership controls, recovery, and retained test data.
+
 ## Current local preview
 
 Open http://127.0.0.1:8080/ . Laravel listens on 127.0.0.1:8000 and MySQL on 127.0.0.1:3307. All services bind to loopback.
@@ -57,9 +59,9 @@ See docs/RELATIONSHIPS.md for the relationship map and business rules.
 
 ## Scope and remaining boundaries
 
-The restored core screens use persistent Laravel records, real relationship options, session permissions, private attachments, and the tested sales/receipt/commission cycle. All 26 sidebar destinations now load; see docs/SIDEBAR-REPAIR.md for tested actions and retained review data. Some legacy secondary controls remain unfinished. It does not implement bank/payment-provider execution, email delivery, verified electronic signatures, tax-compliant invoice issuance, refunds/reversals, live WebSocket chat, payroll processing, recurring meeting automation, AI features, or a full accounting ledger. Status changes record internal business states. Those features were not operational in the original checkout and are not represented as working integrations now.
+The restored core screens use persistent Laravel records, real relationship options, session permissions, private attachments, and the tested sales/receipt/commission cycle. All 26 sidebar destinations now load; see docs/SIDEBAR-REPAIR.md for tested actions and retained review data. Some legacy secondary controls remain unfinished. It does not implement bank/payment-provider execution, verified electronic signatures, tax-compliant invoice issuance, live WebSocket chat, payroll processing, recurring meeting automation, AI features, or a full accounting ledger. Email reminder/recovery code is implemented, but real SMTP delivery is not configured in the local review. Status changes record internal business states. Those features were not operational in the original checkout and are not represented as working integrations now.
 
-List pagination/search currently operate in the browser after loading a module's records; API-side pagination, bulk datasets, and concurrent-user load testing should be added before a large deployment. This is one organization's workspace with module-level roles, not a multi-tenant SaaS or ownership-scoped access system.
+The API provides capped server pagination, filtering, bounded search, and batched financial/relationship reads. Clients and Deals use server pages; remaining legacy lists and pickers still traverse API pages through the compatibility loader. Large-data and concurrent-user load testing remain necessary before a large deployment. This is one organization's workspace with module-level roles and configurable own/team record scopes; it is not a multi-tenant SaaS.
 
 Original Supabase-shaped service names remain as compatibility imports only and route to Laravel. No live Supabase data was read or migrated.
 

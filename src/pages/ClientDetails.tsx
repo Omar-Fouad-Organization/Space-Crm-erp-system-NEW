@@ -1,3 +1,4 @@
+import {ActivityTimeline} from './WorkflowWorkspace';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
 import React from 'react';
@@ -232,6 +233,7 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+    {id&&<ActivityTimeline resource="clients" id={id}/>}
     </div>
 
   );

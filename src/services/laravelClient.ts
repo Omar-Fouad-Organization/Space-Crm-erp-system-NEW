@@ -31,8 +31,7 @@ export function legacyRow(resource:string,row:LegacyRecord):LegacyRecord {
   return common;
 }
 export async function all(resource:string):Promise<LegacyRecord[]> {
-  const rows=(await api<{data:LegacyRecord[]}>(`records/${resource}`)).data;
-  return rows.map(row=>legacyRow(resource,row));
+  const rows:LegacyRecord[]=[];let page=1,last=1;do{const response=await api<{data:LegacyRecord[];last_page?:number}>(`records/${resource}?per_page=100&page=${page}`);rows.push(...response.data);last=response.last_page??1;page++;}while(page<=last);return rows.map(row=>legacyRow(resource,row));
 }
 async function resolve(resource:string,value:unknown):Promise<string|null>{
   if(value==null||value==='')return null;
@@ -138,3 +137,6 @@ class LaravelQuery implements PromiseLike<any> {
   then<TResult1=any,TResult2=never>(onfulfilled?:((value:any)=>TResult1|PromiseLike<TResult1>)|null,onrejected?:((reason:any)=>TResult2|PromiseLike<TResult2>)|null):PromiseLike<TResult1|TResult2>{return this.execute().then(onfulfilled,onrejected);}
 }
 export const laravelClient={from:(table:string)=>new LaravelQuery(table)};
+
+export async function loadPage(resource:string,params:Record<string,string|number>={}){const result=await api<{data:LegacyRecord[];current_page:number;last_page:number;total:number}>(`records/${resource}?`+new URLSearchParams(Object.entries(params).filter(([,v])=>String(v)!=='').map(([k,v])=>[k,String(v)])));return {...result,data:result.data.map(row=>legacyRow(resource,row))};}
+export async function relatedToClients(resource:string,ids:string[]){if(!ids.length)return [];const rows:LegacyRecord[]=[];let page=1,last=1;do{const r=await loadPage(resource,{client_ids:ids.join(','),page,per_page:100});rows.push(...r.data);last=r.last_page;page++;}while(page<=last);return rows;}

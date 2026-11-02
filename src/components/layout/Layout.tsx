@@ -40,6 +40,7 @@ export function Layout({ children }: LayoutProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+  useEffect(()=>setSidebarOpen(false),[location.pathname,location.search]);
   const { companyName, isMaintenanceMode } = useSystemSettings();
 
   useEffect(()=>{let active=true;const load=async()=>{try{const r=await api<{data:any[]}>('notifications');if(!active)return;setNotifications(r.data.map(n=>({...n,id:String(n.id),title:n.name,message:n.resource?String(n.resource).replaceAll('_',' '):'',priority:'Normal',status:n.read_at?'Read':'Unread',related_entity:({clients:'client',deals:'deal'} as Record<string,string>)[n.resource],entity_id:n.record_id})));setUnreadCount(r.data.filter(n=>!n.read_at).length);}catch(error){console.error('Notifications unavailable',error);}};void load();const updated=()=>void load();window.addEventListener('crm-record-saved',updated);window.addEventListener('crm-notifications-changed',updated);const timer=setInterval(updated,30000);return()=>{active=false;clearInterval(timer);window.removeEventListener('crm-record-saved',updated);window.removeEventListener('crm-notifications-changed',updated);};},[]);
@@ -102,6 +103,7 @@ export function Layout({ children }: LayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
+                aria-label="Open navigation" aria-expanded={sidebarOpen}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="lg:hidden p-2 hover:bg-slate-100 transition-colors"
               >
@@ -113,6 +115,7 @@ export function Layout({ children }: LayoutProps) {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   className="pl-10 pr-4 py-2.5 w-80 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-slate-400"
+                  type="search" name="workspace-search" autoComplete="off" aria-label="Search workspace"
                   placeholder="Search clients, deals, booths..."
                   onKeyDown={e=>{if(e.key==='Enter'&&e.currentTarget.value.trim())navigate('/search?q='+encodeURIComponent(e.currentTarget.value.trim()));}}
                 />

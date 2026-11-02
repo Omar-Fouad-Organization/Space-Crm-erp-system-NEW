@@ -1,3 +1,5 @@
+import WorkflowWorkspace from './pages/WorkflowWorkspace';
+import {PasswordRecovery} from './components/workspace/AccountSecurity';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,7 +45,7 @@ const App = () => (
         <Sonner />
         <HashRouter>
         <Routes>
-          <Route path="/login" element={<Index />} />
+          <Route path="/reset-password" element={<PasswordRecovery/>}/><Route path="/login" element={<Index />} />
           <Route path="/" element={<CRMLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -78,7 +80,7 @@ const App = () => (
             <Route path="modern-delete" element={<DeleteShowcasePage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="search" element={<SearchPage />} />
-            <Route path="help" element={<HelpPage />} />
+            <Route path="workspace" element={<WorkflowWorkspace/>}/><Route path="help" element={<HelpPage />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

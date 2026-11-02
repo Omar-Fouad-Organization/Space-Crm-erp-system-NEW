@@ -1,3 +1,6 @@
+import {useRef} from 'react';
+import {loadPage} from '@/services/laravelClient';
+import {PageControls} from '@/components/workspace/PageControls';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
 import React, { useState, useEffect } from 'react';
 import {all as apiAll,save as apiSave} from '@/services/laravelClient';
@@ -170,6 +173,7 @@ const Deals = () => {
   const { formatAmount } = useCurrency();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [page,setPage]=useState(1),[pageInfo,setPageInfo]=useState({total:0,last_page:1});
   const [deals, setDeals] = useState([]);
   const [clients, setClients] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -201,20 +205,24 @@ const Deals = () => {
   }, [selectedDeal]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timer=setTimeout(()=>void loadData(),250);return()=>clearTimeout(timer);
+  }, [page,searchTerm,filterStage,filterPriority]);
+  useEffect(()=>setPage(1),[searchTerm,filterStage,filterPriority]);
 
+  const loadVersion=useRef(0);
   const loadData = async () => {
+    const version=++loadVersion.current;let nextPageInfo={total:0,last_page:1};
     console.log('🔄 Loading deals data...');
     setLoading(true);
     try {
       const [dealsData, clientsData, tasksData, exposData] = await Promise.all([
-        dealService.getAll(),
+        loadPage('deals',{page,per_page:50,q:searchTerm,status:filterStage==='all'?'':({meeting_scheduled:'meeting',canceled:'cancelled'}[filterStage]||filterStage),priority:filterPriority==='all'?'':filterPriority}).then(result=>{nextPageInfo=result;return result.data;}),
         clientService.getAll(),
         taskService.getAll(),
         expoService.getAll()
       ]);
 
+      if(version!==loadVersion.current)return;if(page>nextPageInfo.last_page){setPage(nextPageInfo.last_page);return;}setPageInfo(nextPageInfo);
       // Transform deals to match pipeline stages
       const transformedDeals = (dealsData || []).map(deal => ({
         ...deal,
@@ -244,7 +252,7 @@ const Deals = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if(version===loadVersion.current)setLoading(false);
     }
   };
 
@@ -412,6 +420,7 @@ const Deals = () => {
       await dealService.delete(dealToDelete.id);
 
       setDeals(prevDeals => prevDeals.filter(deal => deal.id !== dealToDelete.id));
+      void loadData();
 
       toast({
         title: "Deal Deleted Successfully",
@@ -1279,6 +1288,7 @@ const Deals = () => {
         )}
       />
 
+<PageControls page={page} total={pageInfo.total} last={pageInfo.last_page} onPage={setPage}/>
       {/* Create Deal Dialog */}
       <CreateDealDialog
         isOpen={showCreateDialog}

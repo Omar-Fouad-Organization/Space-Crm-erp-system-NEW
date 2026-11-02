@@ -4,10 +4,25 @@ use App\Http\Controllers\SessionController;
 use App\Http\Middleware\CrmAuthenticated;
 use Illuminate\Support\Facades\Route;
 Route::prefix('api')->group(function () {
+    Route::post('password/forgot',[\App\Http\Controllers\SecurityController::class,'forgot'])->middleware('throttle:3,1,crm-recovery');
+    Route::post('password/reset',[\App\Http\Controllers\SecurityController::class,'reset'])->middleware('throttle:5,1,crm-reset');
     Route::get('session',[SessionController::class,'show']);
     Route::post('login',[SessionController::class,'login'])->middleware('throttle:5,1');
     Route::post('logout',[SessionController::class,'logout'])->middleware(CrmAuthenticated::class);
-    Route::middleware([CrmAuthenticated::class,'throttle:300,1'])->group(function () {
+    Route::middleware([CrmAuthenticated::class,'throttle:300,1,crm-api'])->group(function () {
+        $workspace=\App\Http\Controllers\WorkspaceController::class;
+        Route::get('workspace/search',[$workspace,'search']);
+        Route::get('workspace/cash-movements',[$workspace,'cashMovements']);Route::get('workspace/backup-status',[$workspace,'backupStatus']);Route::post('workspace/backup',[$workspace,'backup'])->middleware('throttle:2,1,crm-backup');
+        Route::get('workspace/floorplan',[$workspace,'floorplan']);Route::put('workspace/floorplan',[$workspace,'layout']);
+        Route::get('workspace/finance',[$workspace,'finance']);
+        Route::get('workspace/requests',[$workspace,'requests']);Route::post('workspace/requests',[$workspace,'request']);Route::post('workspace/requests/{id}/review',[$workspace,'review']);
+        Route::get('workspace/collections',[$workspace,'collections']);Route::post('workspace/collection-notes',[$workspace,'collectionNote']);
+        Route::get('workspace/timeline/{resource}/{id}',[$workspace,'timeline']);Route::get('workspace/audit',[$workspace,'audit']);
+        Route::get('workspace/expenses',[$workspace,'expenses']);Route::post('workspace/expenses',[$workspace,'expense']);Route::get('workspace/profitability',[$workspace,'profitability']);
+        Route::get('workspace/reminders',[$workspace,'reminders']);Route::post('workspace/reminders',[$workspace,'reminder']);Route::post('workspace/reminders/{id}/cancel',[$workspace,'cancelReminder']);Route::post('workspace/reminders/run',[$workspace,'runReminders']);
+        Route::post('workspace/reservations/{id}',[$workspace,'reservation']);Route::get('workspace/access',[$workspace,'accessSettings']);Route::put('workspace/access/{id}',[$workspace,'setAccess']);Route::post('workspace/teams',[$workspace,'team']);
+        Route::post('workspace/import/clients',[\App\Http\Controllers\ImportController::class,'clients']);
+        $security=\App\Http\Controllers\SecurityController::class;Route::get('security',[$security,'show']);Route::post('security/enroll',[$security,'enroll'])->middleware('throttle:5,1,security-enroll');Route::post('security/confirm',[$security,'confirm'])->middleware('throttle:5,1,security-confirm');Route::post('security/disable',[$security,'disable'])->middleware('throttle:5,1,security-disable');Route::post('security/revoke',[$security,'revoke'])->middleware('throttle:5,1,security-revoke');
         Route::get('metadata',[CrmController::class,'metadata']);
         Route::get('dashboard',[CrmController::class,'dashboard']);
         Route::get('diagnostics',[CrmController::class,'diagnostics']);

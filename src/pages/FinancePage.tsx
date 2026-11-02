@@ -1,5 +1,7 @@
+import {FinanceChart} from '@/components/workspace/FinanceChart';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
-import {api} from '@/crm/api';
+import {api,exportCsv} from '@/crm/api';
+import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,6 +121,7 @@ const Finance = () => {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
+  const [movements,setMovements]=useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<FinancialMetrics>({
@@ -146,9 +149,9 @@ const Finance = () => {
     loadData();
   }, [selectedTimeframe]);
 
-  const loadData = async()=>{setLoading(true);try{const [deals,clients,schedules,receipts,commissions]=await Promise.all([apiAll('deals'),apiAll('clients'),apiAll('payment_schedules'),apiAll('payments'),apiAll('commissions')]);const currency=(await apiMetadata()).settings.currency;const dealIds=new Set(deals.filter(d=>d.currency===currency).map(d=>d.id));const payments:any[]=schedules.filter(p=>dealIds.has(p.deal_id)).map(p=>({...p,deal_title:p.deal_id_label,amount:Number(p.amount),status:p.status,paid_date:p.status==='paid'?p.paid_date:undefined,client_id:deals.find(d=>d.id===p.deal_id)?.client_id,client_name:deals.find(d=>d.id===p.deal_id)?.client_name||'',payment_type:schedules.filter(s=>s.deal_id===p.deal_id).length>1?(schedules.filter(s=>s.deal_id===p.deal_id).sort((a,b)=>a.due_date.localeCompare(b.due_date)).findIndex(s=>s.id===p.id)===0?'initial':'final'):'full',installment_number:schedules.filter(s=>s.deal_id===p.deal_id).sort((a,b)=>a.due_date.localeCompare(b.due_date)).findIndex(s=>s.id===p.id)+1,total_installments:schedules.filter(s=>s.deal_id===p.deal_id).length}));const commissionRecords:any[]=commissions.filter(c=>dealIds.has(c.deal_id)).map(c=>({...c,user_id:c.sales_person_id,user_name:c.sales_person_name,percentage:Number(c.commission_percentage||0),amount:Number(c.commission_amount),trigger_event:'deal_closed'}));const collected=receipts.filter(p=>p.currency===currency).reduce((n,p)=>n+Number(p.amount),0),total=payments.reduce((n,p)=>n+p.amount,0);setDeals(deals);setClients(clients);setPayments(payments as any);setCommissions(commissionRecords as any);setMetrics({total_revenue:deals.filter(d=>dealIds.has(d.id)&&d.stage==='closed_won').reduce((n,d)=>n+Number(d.deal_value),0),monthly_revenue:receipts.filter(p=>p.currency===currency&&String(p.paid_date).slice(0,7)===new Date().toISOString().slice(0,7)).reduce((n,p)=>n+Number(p.amount),0),revenue_growth:0,payments_collected:collected,payments_pending:Math.max(0,total-collected),payments_overdue:payments.filter(p=>p.status==='overdue').reduce((n,p)=>n+Number(p.remaining_amount),0),commission_pending:commissionRecords.filter(c=>c.status!=='paid').reduce((n,c)=>n+c.amount,0),commission_paid:commissionRecords.filter(c=>c.status==='paid').reduce((n,c)=>n+c.amount,0),collection_rate:total?collected/total*100:0,avg_payment_time:0});}catch(error){toast({title:'Finance unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
+  const loadData = async()=>{setLoading(true);try{const [deals,clients,schedules,receipts,commissions]=await Promise.all([apiAll('deals'),apiAll('clients'),apiAll('payment_schedules'),apiAll('payments'),apiAll('commissions')]);const currency=(await apiMetadata()).settings.currency;const movementRows=(await api<any>('workspace/cash-movements')).data;setMovements(movementRows.filter((m:any)=>m.currency===currency));const report=await api<any>('workspace/finance?currency='+currency+'&days='+({ '7d':7,'30d':30,'90d':90,'1y':365 }[selectedTimeframe]||30));const dealIds=new Set(deals.filter(d=>d.currency===currency).map(d=>d.id));const payments:any[]=schedules.filter(p=>dealIds.has(p.deal_id)).map(p=>({...p,deal_title:p.deal_id_label,amount:Number(p.amount),status:p.status,paid_date:p.status==='paid'?p.paid_date:undefined,client_id:deals.find(d=>d.id===p.deal_id)?.client_id,client_name:deals.find(d=>d.id===p.deal_id)?.client_name||'',payment_type:schedules.filter(s=>s.deal_id===p.deal_id).length>1?(schedules.filter(s=>s.deal_id===p.deal_id).sort((a,b)=>a.due_date.localeCompare(b.due_date)).findIndex(s=>s.id===p.id)===0?'initial':'final'):'full',installment_number:schedules.filter(s=>s.deal_id===p.deal_id).sort((a,b)=>a.due_date.localeCompare(b.due_date)).findIndex(s=>s.id===p.id)+1,total_installments:schedules.filter(s=>s.deal_id===p.deal_id).length}));const commissionRecords:any[]=commissions.filter(c=>dealIds.has(c.deal_id)).map(c=>({...c,user_id:c.sales_person_id,user_name:c.sales_person_name,percentage:Number(c.commission_percentage||0),amount:Number(c.commission_amount),trigger_event:'deal_closed'}));const collected=receipts.filter(p=>p.currency===currency).reduce((n,p)=>n+Number(p.amount),0),total=payments.reduce((n,p)=>n+p.amount,0);setDeals(deals);setClients(clients);setPayments(payments as any);setCommissions(commissionRecords as any);setMetrics(Object.fromEntries(Object.entries(report.metrics).map(([key,value])=>[key,value===null?null:Number(value)])) as unknown as FinancialMetrics);}catch(error){toast({title:'Finance unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
-  const sendPaymentReminder = async (_paymentId:string)=>{toast({title:'Reminder not sent',description:'Email delivery is not configured. No message has been sent.'});};
+  const sendPaymentReminder = async (_paymentId:string)=>{window.location.hash='/workspace?section=reminders&resource=payment_schedules&record='+_paymentId;};
 
   const approveCommission = async (commissionId: string) => {
     try {
@@ -252,9 +255,9 @@ const Finance = () => {
 
   const getPaymentTypeLabel = (type: string) => {
     switch (type) {
-      case 'initial': return 'Initial (30%)';
-      case 'progress': return 'Progress (40%)';
-      case 'final': return 'Final (30%)';
+      case 'initial': return 'Initial Installment';
+      case 'progress': return 'Progress Installment';
+      case 'final': return 'Final Installment';
       case 'full': return 'Full Payment';
       default: return type;
     }
@@ -319,7 +322,7 @@ const Finance = () => {
               <SelectItem value="1y">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={()=>exportCsv('finance-'+selectedTimeframe,[{id:1,...metrics}],Object.keys(metrics))}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -331,6 +334,7 @@ const Finance = () => {
 
       </div>
 
+      <WorkflowLinks sections={['collections','approvals','profitability']}/><p className="text-sm text-muted-foreground">Period filters apply to won sales and cash movements. Outstanding balances and commissions are current totals. Cash includes approved refunds and reversals; sales are not cash receipts. Outstanding totals include won deals only; the register also shows planned installments on open deals.</p>
       {/* Financial Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="overflow-hidden">
@@ -341,7 +345,7 @@ const Finance = () => {
                 <DollarSign className="h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Total Revenue
+                    Won Deal Value (Period)
                   </p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(metrics.total_revenue)}
@@ -358,14 +362,14 @@ const Finance = () => {
             <div className="px-6 pb-4">
               <div className="flex items-center text-xs text-green-600">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
-                +{formatPercentage(metrics.revenue_growth)} growth
+                {metrics.revenue_growth===null?'No prior-period cash baseline':formatPercentage(metrics.revenue_growth)+' cash growth'}
               </div>
             </div>
 
             <div className="px-6 pb-6 border-t border-gray-100">
 
               <div className="flex items-center justify-between text-sm pt-4">
-                <span className="text-muted-foreground">This Month</span>
+                <span className="text-muted-foreground">Net Cash (Period)</span>
                 <span className="font-medium">
                   {formatCurrency(metrics.monthly_revenue)}
                 </span>
@@ -383,7 +387,7 @@ const Finance = () => {
                 <CheckCircle className="h-4 w-4 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Payments Collected
+                    Net Cash (Period)
                   </p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(metrics.payments_collected)}
@@ -400,12 +404,12 @@ const Finance = () => {
             <div className="px-6 pb-4">
               <div className="flex items-center text-xs text-blue-600">
                 <Target className="h-3 w-3 mr-1" />
-                {formatPercentage(metrics.collection_rate)} collection rate
+                {metrics.collection_rate===null?'No won deal balance':formatPercentage(metrics.collection_rate)+' overall collection rate'}
               </div>
             </div>
 
             <div className="px-6 pb-6 border-t border-gray-100 pt-4 text-xs text-muted-foreground">
-              Avg payment time: {metrics.avg_payment_time} days
+              Avg days after won: {metrics.avg_payment_time===null?'No period receipts':metrics.avg_payment_time}
             </div>
 
           </CardContent>
@@ -418,7 +422,7 @@ const Finance = () => {
                 <Clock className="h-4 w-4 text-orange-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Pending Payments
+                    Outstanding (Current)
                   </p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(metrics.payments_pending)}
@@ -746,14 +750,7 @@ const Finance = () => {
                 <CardDescription>Monthly revenue performance</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg">
-                  <div className="text-center">
-                    <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Revenue analytics chart will be displayed here
-                    </p>
-                  </div>
-                </div>
+                <FinanceChart movements={movements} days={({'7d':7,'30d':30,'90d':90,'1y':365}[selectedTimeframe]||30)}/>
               </CardContent>
             </Card>
             <Card>
@@ -762,14 +759,7 @@ const Finance = () => {
                 <CardDescription>Payment status breakdown</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg">
-                  <div className="text-center">
-                    <PieChart className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Payment distribution chart will be displayed here
-                    </p>
-                  </div>
-                </div>
+                <FinanceChart payments={payments}/>
               </CardContent>
             </Card>
           </div>
@@ -781,8 +771,8 @@ const Finance = () => {
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Financial Reports</h3>
               <p className="text-muted-foreground mb-4">
-                Financial reports and export functionality will be available here
-              </p>
+                Export the current period summary or the current installment and commission registers.
+              </p><Button variant="outline" onClick={()=>exportCsv('finance-summary-'+selectedTimeframe,[{id:1,...metrics}],Object.keys(metrics))}>Export Summary</Button><Button variant="outline" onClick={()=>exportCsv('installment-register',payments,['deal_title','client_name','amount','paid_amount','credit_amount','remaining_amount','due_date','status'])}>Export Installments</Button><Button variant="outline" onClick={()=>exportCsv('commission-register',commissions,['deal_title','user_name','amount','recovered_amount','status'])}>Export Commissions</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -867,7 +857,7 @@ const Finance = () => {
                 }}
               >
                 <Send className="h-4 w-4 mr-2" />
-                Send Reminder
+                Schedule Reminder
               </Button>
             )}
           </DialogFooter>

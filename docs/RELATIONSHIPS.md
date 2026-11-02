@@ -37,9 +37,9 @@ erDiagram
     USERS ||--o{ MESSAGES : authors
 ```
 
-Most parent deletes use MySQL RESTRICT. A parent cannot be deleted while referenced by another business record. Deleting a meeting removes its attendee pivot rows. Documents with attachments cannot be deleted until those files are removed. Receipts, invoices, and commissions cannot be deleted through normal CRUD; an accounting reversal workflow is deliberately required before supporting financial reversals.
+Most parent deletes use MySQL RESTRICT. A parent cannot be deleted while referenced by another business record. Deleting a meeting removes its attendee pivot rows. Documents with attachments cannot be deleted until those files are removed. Receipts, invoices, and commissions cannot be deleted through normal CRUD; reviewed workflow requests now record refunds, receipt reversals, installment credits, and commission recoveries without deleting the original records.
 
-Every business record has a server-assigned creator. Audit history stores actor, action, record ID, and before/after values with password hashes removed. Audit record IDs and notification targets are historical references, not cascading business relationships.
+Every business record has a server-assigned creator. Audit history stores actor, action, record ID, and before/after values with password hashes and MFA secrets removed. Audit record IDs and notification targets are historical references, not cascading business relationships.
 
 Booth reservation/sale status is derived from live deals. Only one deal that is not lost/cancelled can reserve a booth. The backend locks the booth while checking this rule. Cancelling an unpaid deal releases its booth and zeroes a pending commission.
 
@@ -47,4 +47,6 @@ Deal creation with installments and commission generation is transactional. Inst
 
 Currencies are kept separate; no exchange-rate conversion is implied. Money uses MySQL DECIMAL(15,2) and exact server-side decimal arithmetic.
 
-Roles are scoped by module, not by salesperson ownership. The installation represents one organization. The permissions matrix is defined in `backend/app/Services/CrmService.php` and verified for every role/module pair. Only the administrator manages accounts. Management cannot access HR records or account/HR audit payloads.
+Module permissions are combined with administrator-configurable organization, own, or team record scopes. The installation represents one organization. The permissions matrix is defined in `backend/app/Services/CrmService.php` and verified for every role/module pair. Only the administrator manages accounts. Management cannot access HR records or account/HR audit payloads.
+
+See [AUDIT-IMPLEMENTATION.md](AUDIT-IMPLEMENTATION.md) for adjustment allocation, approvals, reminders, team visibility, recovery, and the retained corrected cycle. Approved credits reduce the specific installment and deal obligation; approved refunds/reversals reduce net received amounts. Original receipts stay immutable. Historical audit, cancelled-reminder, and notification references are not cascading business relationships.

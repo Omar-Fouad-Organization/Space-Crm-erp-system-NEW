@@ -1,3 +1,4 @@
+import {ActivityTimeline} from './WorkflowWorkspace';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
@@ -1032,6 +1033,7 @@ const DealDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+    {id&&<ActivityTimeline resource="deals" id={id}/>}
     </div>
   );
 };

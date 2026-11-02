@@ -88,7 +88,7 @@ export default function Dashboard() {
   const [raw,setRaw]=useState<any>(null),[expos,setExpos]=useState<any[]>([]);
   const [kpiData,setKpis]=useState<DashboardKPI[]>([]);
   const [revenueData,setRevenue]=useState<any[]>([]),[dealStatusData,setPipeline]=useState<any[]>([]),[topDeals,setTopDeals]=useState<any[]>([]),[upcomingTasks,setUpcomingTasks]=useState<any[]>([]);
-  React.useEffect(()=>{let active=true;apiMetadata().then(async meta=>{const read=(name:string)=>meta.resources[name]?apiAll(name):Promise.resolve([]);const [deals,clients,tasks,payments,exhibitions]=await Promise.all(['deals','clients','tasks','payments','exhibitions'].map(read));if(active){setRaw({deals,clients,tasks,payments,meta});setExpos(exhibitions);}}).catch(error=>toast({title:'Dashboard unavailable',description:error.message,variant:'destructive'}));return()=>{active=false;};},[]);
+  React.useEffect(()=>{let active=true;apiMetadata().then(async meta=>{const read=(name:string)=>meta.resources[name]?(name==='payments'?api<any>('workspace/cash-movements').then(r=>r.data):apiAll(name)):Promise.resolve([]);const [deals,clients,tasks,payments,exhibitions]=await Promise.all(['deals','clients','tasks','payments','exhibitions'].map(read));if(active){setRaw({deals,clients,tasks,payments,meta});setExpos(exhibitions);}}).catch(error=>toast({title:'Dashboard unavailable',description:error.message,variant:'destructive'}));return()=>{active=false;};},[]);
   React.useEffect(()=>{
     if(!raw)return;
     const start=new Date();start.setMonth(start.getMonth()-({ '1m':1,'3m':3,'6m':6,'1y':12 }[dateRange]||6));const cutoff=start.toISOString().slice(0,10);

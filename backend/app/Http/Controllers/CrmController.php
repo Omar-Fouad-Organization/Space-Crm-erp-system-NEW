@@ -28,17 +28,25 @@ class CrmController extends Controller
         }
         return ['resources'=>$resources,'settings'=>DB::table('settings')->first(),'user'=>$r->user()];
     }
-    public function index(Request $r,string $resource) { return ['data'=>$this->crm->rows($resource,$r->user())]; }
+    public function index(Request $r,string $resource) {
+        return DB::transaction(function()use($r,$resource){
+        $config=$this->crm->authorize($resource,$r->user());$v=$r->validate(['page'=>'nullable|integer|min:1','per_page'=>'nullable|integer|min:1|max:100','q'=>'nullable|string|max:200','status'=>'nullable|string|max:80','type'=>'nullable|string|max:80','priority'=>'nullable|string|max:80','ids'=>['nullable','regex:/^\d+(,\d+){0,99}$/'],'client_ids'=>['nullable','regex:/^\d+(,\d+){0,99}$/']]);
+        $q=$this->crm->visible($resource,$r->user());if(!empty($v['ids']))$q->whereIn('id',explode(',',$v['ids']));if(!empty($v['client_ids'])&&isset($config['fields']['client_id']))$q->whereIn('client_id',explode(',',$v['client_ids']));
+        if(!empty($v['type'])&&isset($config['fields']['type']))$q->where('type',$v['type']);if($resource==='deals'&&!empty($v['priority']))$q->where(function($q)use($v){$q->where('attributes->priority',$v['priority']);if($v['priority']==='Medium')$q->orWhereNull('attributes->priority');});
+        if(!empty($v['q']))$q->where(function($q)use($resource,$v){$term='%'.addcslashes($v['q'],'%_').'%';$q->where('name','like',$term);if($resource==='clients')$q->orWhere('email','like',$term)->orWhere('contact_person','like',$term);if($resource==='deals')$q->orWhere('notes','like',$term)->orWhereIn('client_id',DB::table('clients')->where('name','like',$term)->pluck('id'));});if(!empty($v['status'])&&isset($config['fields']['status']))$q->where('status',$v['status']);
+        $page=$q->orderByDesc('id')->paginate($v['per_page']??100);$this->crm->primeLabels($resource,$page->items());$page->setCollection($page->getCollection()->map(fn($row)=>$this->crm->present($resource,$row,$r->user())));return $page;
+        });
+    }
     public function show(Request $r,string $resource,int $id)
     {
         $this->crm->authorize($resource,$r->user());
-        $row=DB::table($resource)->find($id); abort_unless($row,404,'Record not found.');
+        $this->crm->checkRecord($resource,$id,$r->user()); $row=DB::table($resource)->find($id); abort_unless($row,404,'Record not found.');
         $relations=[];
         foreach (config('crm.resources') as $other=>$config) {
             try { $this->crm->authorize($other,$r->user()); }
             catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { continue; }
             foreach ($config['fields'] as $key=>$field) if ($field['type']==='relation' && $field['resource']===$resource) {
-                $relations[$other]=DB::table($other)->where($key,$id)->get()->map(fn($row)=>$this->crm->present($other,$row,$r->user()));
+                $relations[$other]=$this->crm->visible($other,$r->user())->where($key,$id)->get()->map(fn($row)=>$this->crm->present($other,$row,$r->user()));
             }
         }
         return ['data'=>$this->crm->present($resource,$row,$r->user()),'relations'=>$relations];
@@ -50,28 +58,28 @@ class CrmController extends Controller
     {
         $financial=in_array($r->user()->role,['super_admin','management','finance','sales']); $totals=[];
         if ($financial) foreach (DB::table('deals')->select('currency')->distinct()->pluck('currency') as $currency) {
-            $deals=DB::table('deals')->where('currency',$currency); $ids=(clone $deals)->pluck('id');
+            $deals=$this->crm->visible('deals',$r->user())->where('currency',$currency); $ids=(clone $deals)->pluck('id');
             $schedules=DB::table('payment_schedules')->whereIn('deal_id',$ids)->pluck('id');
             $totals[]=['currency'=>$currency,'pipeline'=>(clone $deals)->whereNotIn('status',['closed_lost','cancelled'])->sum('amount'),'won'=>(clone $deals)->where('status','closed_won')->sum('amount'),'received'=>DB::table('payments')->whereIn('payment_schedule_id',$schedules)->sum('amount'),'commission'=>DB::table('commissions')->whereIn('deal_id',$ids)->sum('amount')];
         }
         $counts=[];
         foreach (config('crm.resources') as $resource=>$config) {
-            try { $this->crm->authorize($resource,$r->user()); $counts[$resource]=DB::table($resource)->count(); }
+            try { $this->crm->authorize($resource,$r->user()); $counts[$resource]=$this->crm->visible($resource,$r->user())->count(); }
             catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { continue; }
         }
-        return ['totals'=>$totals,'counts'=>$counts,'pipeline'=>$financial ? DB::table('deals')->selectRaw('status,COUNT(*) as count')->groupBy('status')->get() : [],'activity'=>in_array($r->user()->role,['super_admin','management']) ? DB::table('audit_logs')->orderByDesc('id')->limit(15)->get(['id','resource','record_id','action','created_at']) : []];
+        return ['totals'=>$totals,'counts'=>$counts,'pipeline'=>$financial ? $this->crm->visible('deals',$r->user())->selectRaw('status,COUNT(*) as count')->groupBy('status')->get() : [],'activity'=>in_array($r->user()->role,['super_admin','management']) ? DB::table('audit_logs')->orderByDesc('id')->limit(15)->get(['id','resource','record_id','action','created_at']) : []];
     }
     public function exhibitors(Request $r)
     {
         $this->crm->authorize('deals',$r->user());
-        return ['data'=>DB::table('deals')->join('clients','clients.id','=','deals.client_id')->join('exhibitions','exhibitions.id','=','deals.exhibition_id')->leftJoin('booths','booths.id','=','deals.booth_id')->where('deals.status','closed_won')->select('deals.id','clients.name','clients.contact_person','exhibitions.name as exhibition','booths.name as booth','deals.type','deals.amount','deals.currency')->get()];
+        return ['data'=>DB::table('deals')->join('clients','clients.id','=','deals.client_id')->join('exhibitions','exhibitions.id','=','deals.exhibition_id')->leftJoin('booths','booths.id','=','deals.booth_id')->whereIn('deals.id',$this->crm->visible('deals',$r->user())->pluck('id'))->where('deals.status','closed_won')->select('deals.id','clients.name','clients.contact_person','exhibitions.name as exhibition','booths.name as booth','deals.type','deals.amount','deals.currency')->get()];
     }
     public function diagnostics(Request $r)
     {
         abort_unless($r->user()->role==='super_admin',403);
         DB::select('SELECT 1');
         $counts=[]; $orphans=[];
-        foreach (array_keys(config('crm.resources')) as $resource) $counts[$resource]=DB::table($resource)->count();
+        foreach (array_merge(array_keys(config('crm.resources')),['workflow_requests','expenses','collection_notes','reminders','teams','booth_layouts']) as $resource) $counts[$resource]=DB::table($resource)->count();
         // Inspect the actual MySQL constraints, including creator, audit, notification,
         // attachment, and meeting attendee relationships outside the form metadata.
         $keys=DB::table('information_schema.KEY_COLUMN_USAGE')
@@ -114,7 +122,7 @@ class CrmController extends Controller
     {
         $this->crm->authorize('documents',$r->user(),true); abort_unless(DB::table('documents')->where('id',$document)->exists(),404);
         $r->validate(['file'=>'required|file|max:10240|mimes:pdf,txt,csv,png,jpg,jpeg,docx,xlsx']);
-        $file=$r->file('file'); $path=$file->store('documents','local');
+        $this->crm->checkRecord('documents',$document,$r->user()); $file=$r->file('file'); $path=$file->store('documents','local');
         try { $id=DB::transaction(function () use ($file,$path,$document,$r) {
             $id=DB::table('attachments')->insertGetId(['document_id'=>$document,'name'=>$file->getClientOriginalName(),'mime'=>$file->getMimeType(),'size'=>$file->getSize(),'path'=>$path,'created_by'=>$r->user()->id,'created_at'=>now(),'updated_at'=>now()]);
             $this->crm->audit('attachments',$id,'upload',$r->user()->id,null,['name'=>$file->getClientOriginalName(),'document_id'=>$document]); return $id;
@@ -123,7 +131,7 @@ class CrmController extends Controller
     }
     public function download(Request $r,int $id)
     {
-        $this->crm->authorize('documents',$r->user()); $file=DB::table('attachments')->find($id); abort_unless($file,404);
+        $this->crm->authorize('documents',$r->user()); $file=DB::table('attachments')->find($id); abort_unless($file,404); $this->crm->checkRecord('documents',$file->document_id,$r->user());
         return Storage::disk('local')->download($file->path,$file->name,['X-Content-Type-Options'=>'nosniff']);
     }
     public function deleteAttachment(Request $r,int $id)

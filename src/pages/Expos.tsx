@@ -1,3 +1,4 @@
+import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -703,7 +704,7 @@ const Expos = () => {
           <h1 className="text-3xl font-bold tracking-tight">
             <Building2 className="inline-block h-8 w-8 mr-3 text-blue-600" />
             Exhibitions Management
-          </h1>
+          </h1><WorkflowLinks sections={["profitability"]}/>
 
           <p className="text-muted-foreground mt-2">
             Manage exhibitions, exhibitors, and event logistics

@@ -1,3 +1,5 @@
+Current additions and superseding limitations are documented in [AUDIT-IMPLEMENTATION.md](AUDIT-IMPLEMENTATION.md). The restoration results below describe the earlier restoration milestone.
+
 # Original interface restoration
 
 The frontend is restored from `bc25301`, with Laravel/MySQL replacing the old data services. `node scripts/verify-original-design.mjs` compares the original JSX class attributes and Input, Textarea, Select, Dialog, Tabs, and FormField counts across 105 files. It reports no differences. This checks source structure, not pixel equivalence at every viewport. The existing layouts can still overflow narrow screens.

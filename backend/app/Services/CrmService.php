@@ -13,7 +13,20 @@ use Illuminate\Validation\ValidationException;
 
 class CrmService
 {
+    public bool $approvedChange=false;
+    private array $labels=[];
+    public function primeLabels(string $resource,array $rows): void {
+        $ids=[];foreach($rows as $row){if($resource==='deals')$ids[]=$row->id;elseif(isset($row->deal_id))$ids[]=$row->deal_id;}if($resource==='payments')$ids=DB::table('payment_schedules')->whereIn('id',array_map(fn($row)=>$row->payment_schedule_id,$rows))->pluck('deal_id')->all();if($ids&&in_array($resource,['deals','payment_schedules','payments','invoices','commissions']))FinancialSnapshot::prime(array_values(array_unique($ids)));
+        foreach(config("crm.resources.$resource.fields") as $key=>$field)if($field['type']==='relation'){
+            $ids=array_values(array_unique(array_filter(array_map(fn($r)=>$r->$key??null,$rows))));
+            foreach(DB::table($field['resource'])->whereIn('id',$ids)->pluck('name','id') as $id=>$name)$this->labels[$field['resource']][$id]=$name;
+        }
+    }
+    public function visible(string $resource,$user) { return app(RecordAccess::class)->query($resource,$user); }
+    public function checkRecord(string $resource,int $id,$user): void {app(RecordAccess::class)->check($resource,$id,$user);}
+
     public const READ = [
+        'management'=>['users'],
         'sales' => ['clients','exhibitions','booths','sponsorship_packages','deals','payment_schedules','proposals','tasks','meetings','documents','channels','messages','users'],
         'finance' => ['clients','exhibitions','deals','payment_schedules','payments','invoices','commissions','tasks','meetings','documents','users'],
         'operations' => ['clients','exhibitions','booths','sponsorship_packages','deals','tasks','meetings','documents','channels','messages','users'],
@@ -51,7 +64,7 @@ class CrmService
     public function rows(string $resource, $user)
     {
         $this->authorize($resource, $user);
-        $rows = DB::table($resource)->orderByDesc('id')->get();
+        $rows = $this->visible($resource,$user)->orderByDesc('id')->get();
         return $rows->map(fn ($row) => $this->present($resource, $row, $user));
     }
 
@@ -61,37 +74,39 @@ class CrmService
         $attributes=json_decode($data['attributes'] ?? '{}',true) ?: [];
         unset($data['attributes']);
         $data=[...$attributes,...$data];
-        unset($data['password'], $data['remember_token']);
+        unset($data['password'], $data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter']);
         if ($resource === 'users' && $user->role !== 'super_admin') return array_intersect_key($data, array_flip(['id','name','status']));
         foreach (config("crm.resources.$resource.fields") as $key => $field) {
             if ($field['type'] === 'relation' && !empty($data[$key])) {
                 try { $this->authorize($field['resource'],$user); }
                 catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { unset($data[$key]); continue; }
-                $data[$key.'_label'] = DB::table($field['resource'])->where('id', $data[$key])->value('name');
+                $data[$key.'_label'] = $this->labels[$field['resource']][$data[$key]] ?? DB::table($field['resource'])->where('id', $data[$key])->value('name');
             }
         }
         if ($resource === 'deals') {
-            $schedules = DB::table('payment_schedules')->where('deal_id', $row->id)->pluck('id');
-            $data['paid_amount'] = DB::table('payments')->whereIn('payment_schedule_id', $schedules)->sum('amount');
-            $data['remaining_amount'] = $this->decimal($this->cents($row->amount) - $this->cents($data['paid_amount']));
+
+            $data['paid_amount'] = $this->decimal(app(WorkflowService::class)->received($row->id));
+            $data['credit_amount']=$this->decimal(app(WorkflowService::class)->credit($row->id));
+            $data['remaining_amount'] = $this->decimal($this->cents($row->amount) - $this->cents($data['credit_amount']??0) - $this->cents($data['paid_amount']));
         }
         if ($resource === 'payment_schedules') {
-            $data['paid_amount'] = DB::table('payments')->where('payment_schedule_id', $row->id)->sum('amount');
-            $data['remaining_amount'] = $this->decimal($this->cents($row->amount) - $this->cents($data['paid_amount']));
+            $data['paid_amount'] = $this->decimal(app(WorkflowService::class)->scheduleReceived($row->id));$data['credit_amount']=$this->decimal(app(WorkflowService::class)->scheduleCredit($row->id));
+            $data['remaining_amount'] = $this->decimal($this->cents($row->amount) - $this->cents($data['credit_amount']??0) - $this->cents($data['paid_amount']));
             $data['status'] = $this->cents($data['remaining_amount']) === 0 ? 'paid' : ($row->due_date < date('Y-m-d') ? 'overdue' : 'pending');
-            $data['currency'] = DB::table('deals')->where('id', $row->deal_id)->value('currency');
-            $latest = DB::table('payments')->where('payment_schedule_id',$row->id)->orderByDesc('paid_date')->orderByDesc('id')->first();
+            $relatedDeal=FinancialSnapshot::get()['deals'][$row->deal_id]??DB::table('deals')->find($row->deal_id);$data['currency']=$relatedDeal->currency;if($relatedDeal->status!=='closed_won')$data['status']='pending';
+            $cache=FinancialSnapshot::get();$latest=isset($cache['schedules'][$row->id])?($cache['latest'][$row->id]??null):DB::table('payments')->where('payment_schedule_id',$row->id)->orderByDesc('paid_date')->orderByDesc('id')->first();
             $data['paid_date'] = $latest?->paid_date;
             $data['payment_method'] = $latest?->method;
         }
         if ($resource === 'payments') {
-            $schedule = DB::table('payment_schedules')->find($row->payment_schedule_id);
+            $schedule = FinancialSnapshot::get()['schedules'][$row->payment_schedule_id]??DB::table('payment_schedules')->find($row->payment_schedule_id);
             $data['deal_id'] = $schedule->deal_id;
-            $data['currency'] = DB::table('deals')->where('id', $schedule->deal_id)->value('currency');
+            $data['currency'] = FinancialSnapshot::get()['deals'][$schedule->deal_id]->currency??DB::table('deals')->where('id', $schedule->deal_id)->value('currency');
         }
         if ($resource === 'invoices' || $resource === 'commissions') {
-            $deal = DB::table('deals')->find($row->deal_id);
+            $deal = FinancialSnapshot::get()['deals'][$row->deal_id]??DB::table('deals')->find($row->deal_id);
             $data['currency'] = $deal->currency;
+            if($resource==='commissions') $data['recovered_amount']=$this->decimal(app(WorkflowService::class)->approved('commission_recovery',$row->deal_id));
             if ($resource === 'invoices') {
                 $dealData = $this->present('deals', $deal, $user);
                 $data['amount'] = $deal->amount;
@@ -112,6 +127,13 @@ class CrmService
     public function save(string $resource, array $input, $user, ?int $id = null): array
     {
         $config = $this->authorize($resource, $user, true);
+        if($id) $this->checkRecord($resource,$id,$user);
+        if($resource==='deals' && !$this->approvedChange) {
+            $old=$id ? DB::table('deals')->find($id):null;
+            if((float)($input['discount_percentage']??0)>20 && (!$old || (float)$old->discount_percentage!==(float)$input['discount_percentage'])) $this->invalid('discount_percentage','Discounts above 20% require a workflow approval. Create the deal at the standard price, then request approval.');
+            if((float)($input['commission_percentage']??0)>10 && (!$old || (float)$old->commission_percentage!==(float)$input['commission_percentage'])) $this->invalid('commission_percentage','Commission rates above 10% require a workflow approval.');
+
+        }
         abort_if($resource === 'commissions' && !$id, 422, 'Commissions are generated from deals.');
         $rules = [];
         $rules['attributes']=['sometimes','nullable','array',function($attribute,$value,$fail) {
@@ -158,7 +180,7 @@ class CrmService
         }
         $validated = Validator::make($input, $rules)->validate();
         foreach ($config['fields'] as $key=>$field) {
-            if ($field['type']==='relation' && !empty($validated[$key])) $this->authorize($field['resource'],$user);
+            if ($field['type']==='relation' && !empty($validated[$key])) { $this->authorize($field['resource'],$user); $this->checkRecord($field['resource'],(int)$validated[$key],$user); }
         }
         return DB::transaction(function () use ($resource, $validated, $id, $user) {
             $before = $id ? DB::table($resource)->where('id', $id)->lockForUpdate()->first() : null;
@@ -169,6 +191,7 @@ class CrmService
             $installments = $data['installments'] ?? null; unset($data['installments']);
             $attendees = $data['attendee_ids'] ?? null; unset($data['attendee_ids']);
             if ($resource === 'users') {
+                if ($id && !empty($data['password'])) DB::table('sessions')->where('user_id',$id)->delete();
                 if (empty($data['password'])) unset($data['password']);
                 else $data['password'] = Hash::make($data['password']);
                 if ($id === $user->id && ($data['status'] !== 'active' || $data['role'] !== 'super_admin')) $this->invalid('role', 'You cannot disable or demote your own administrator account.');
@@ -192,13 +215,14 @@ class CrmService
             }
             if ($resource === 'deals') $this->validateDeal($data, $before, $installments);
             if ($resource === 'payment_schedules') {
+                if(!$this->approvedChange && (!$before || $before->due_date!==$data['due_date'])) { $expoId=DB::table('deals')->where('id',$data['deal_id'])->value('exhibition_id');$end=DB::table('exhibitions')->where('id',$expoId)->value('end_date');if($end && $data['due_date']>\Carbon\Carbon::parse($end)->addDays(30)->toDateString())$this->invalid('due_date','Installments beyond 30 days after the exhibition require payment terms approval.'); }
                 $deal = DB::table('deals')->where('id',$data['deal_id'])->lockForUpdate()->first();
         if ($this->cents($data['amount']) <= 0) $this->invalid('amount','Installment must be greater than zero.');
                 $allocated = DB::table('payment_schedules')->where('deal_id',$deal->id)->when($id,fn($q)=>$q->where('id','!=',$id))->sum('amount');
                 if ($this->cents($allocated)+$this->cents($data['amount']) > $this->cents($deal->amount)) $this->invalid('amount','Installments cannot exceed the deal amount.');
                 if ($id) {
                     if ($data['deal_id'] != $before->deal_id) $this->invalid('deal_id','An installment cannot be moved to another deal.');
-                    $paid = DB::table('payments')->where('payment_schedule_id',$id)->sum('amount');
+                    $paid = $this->decimal(app(WorkflowService::class)->scheduleReceived($id));
                     if ($this->cents($data['amount']) < $this->cents($paid)) $this->invalid('amount','Amount cannot be less than received payments.');
                 }
             }
@@ -207,9 +231,11 @@ class CrmService
                 $deal = DB::table('deals')->where('id',$schedule->deal_id)->lockForUpdate()->first();
                 if ($deal->status !== 'closed_won') $this->invalid('payment_schedule_id','Close the deal as won before receiving payment.');
                 if ($id && $before->payment_schedule_id != $data['payment_schedule_id']) $this->invalid('payment_schedule_id','A payment cannot be moved to another installment.');
-                $paid = DB::table('payments')->where('payment_schedule_id',$schedule->id)->when($id,fn($q)=>$q->where('id','!=',$id))->sum('amount');
-                if ($this->cents($data['amount']) <= 0 || $this->cents($paid)+$this->cents($data['amount']) > $this->cents($schedule->amount)) $this->invalid('amount','Payment must be positive and cannot exceed the installment balance.');
-                if (DB::table('commissions')->where('deal_id',$deal->id)->whereIn('status',['approved','paid'])->exists()) $this->invalid('amount','Payments are locked after commission approval.');
+                $paid = $this->decimal(app(WorkflowService::class)->scheduleReceived($schedule->id));
+                if($id) $this->invalid('amount','Receipts are immutable. Request a reversal and record a corrected receipt.');
+                if(app(WorkflowService::class)->received($deal->id)+$this->cents($data['amount'])>$this->cents($deal->amount)-app(WorkflowService::class)->credit($deal->id)) $this->invalid('amount','Payment exceeds the net deal balance after credit notes.');
+                if ($this->cents($data['amount']) <= 0 || $this->cents($paid)+$this->cents($data['amount']) > $this->cents($schedule->amount)-app(WorkflowService::class)->scheduleCredit($schedule->id)) $this->invalid('amount','Payment must be positive and cannot exceed the installment balance.');
+
             }
             if ($resource === 'commissions') {
                 if ($data['deal_id'] != $before->deal_id || $data['salesperson_id'] != $before->salesperson_id || $this->cents($data['amount']) !== $this->cents($before->amount)) $this->invalid('amount','Commission amounts and relationships are calculated from the deal.');
@@ -218,10 +244,11 @@ class CrmService
                 if ($data['status'] !== 'pending') {
                     $deal = DB::table('deals')->find($data['deal_id']);
                     $ids = DB::table('payment_schedules')->where('deal_id',$deal->id)->pluck('id');
-                    $received = DB::table('payments')->whereIn('payment_schedule_id',$ids)->sum('amount');
-                    if ($deal->status !== 'closed_won' || $this->cents($received) !== $this->cents($deal->amount)) $this->invalid('status','The deal must be won and fully paid before commission approval.');
+                    $received = $this->decimal(app(WorkflowService::class)->received($deal->id));
+                    if ($deal->status !== 'closed_won' || $this->cents($received) !== $this->cents($deal->amount)-app(WorkflowService::class)->credit($deal->id)) $this->invalid('status','The deal must be won and fully paid before commission approval.');
                 }
             }
+            if($resource==='deals' && $data['status']==='closed_won' && $before?->status!=='closed_won') $data['won_at']=now();
             $data['updated_at'] = now();
             if ($id) DB::table($resource)->where('id',$id)->update($data);
             else {
@@ -313,12 +340,14 @@ class CrmService
     public function delete(string $resource,int $id,$user): void
     {
         $this->authorize($resource,$user,true);
+        $this->checkRecord($resource,$id,$user);
         abort_if(in_array($resource,['payments','commissions','invoices']),422,'Financial records cannot be deleted. Correct them through a reviewed accounting adjustment.');
         abort_if($resource==='users' && $id===$user->id,422,'You cannot delete your own account.');
         try {
             DB::transaction(function () use ($resource,$id,$user) {
                 $before=DB::table($resource)->where('id',$id)->lockForUpdate()->first();
                 abort_unless($before,404,'Record not found.');
+                if(DB::table('reminders')->where('resource',$resource)->where('record_id',$id)->whereIn('status',['pending','failed'])->exists())$this->invalid('id','Cancel active reminders before deleting this record.');
                 if ($resource==='messages' && $before->created_by!==$user->id && !in_array($user->role,['super_admin','management'])) abort(403,'Only the author or an administrator can delete this message.');
                 if ($resource==='documents' && DB::table('attachments')->where('document_id',$id)->exists()) $this->invalid('id','Remove document attachments before deleting the document.');
                 DB::table($resource)->where('id',$id)->delete();
@@ -333,7 +362,7 @@ class CrmService
 
     public function audit(string $resource,int $id,string $action,int $actor,$before,$after): void
     {
-        $redact = function ($data) { $data=(array)$data; unset($data['password'],$data['remember_token']); return $data; };
+        $redact = function ($data) { $data=(array)$data; unset($data['password'],$data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter']); return $data; };
         DB::table('audit_logs')->insert(['user_id'=>$actor,'resource'=>$resource,'record_id'=>$id,'action'=>$action,'before'=>$before ? json_encode($redact($before)) : null,'after'=>$after ? json_encode($redact($after)) : null,'created_at'=>now(),'updated_at'=>now()]);
         DB::table('notifications')->insert(['user_id'=>$actor,'name'=>ucfirst($action).' '.str_replace('_',' ',$resource).' #'.$id,'resource'=>$resource,'record_id'=>$id,'created_at'=>now(),'updated_at'=>now()]);
     }

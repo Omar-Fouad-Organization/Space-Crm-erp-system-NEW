@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
-import { spawn } from 'node:child_process';
+import { spawn,execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tools = path.resolve(root, '../tools');
@@ -28,3 +28,8 @@ for (const service of services) {
   console.log(`${service.name}: starting on ${service.port}`);
 }
 console.log('Open http://127.0.0.1:8080/ . Data is preserved; this launcher never resets or seeds the database.');
+
+// Keep the local Laravel scheduler alive without changing the review database.
+const schedulerPidFile=path.join(logs,'scheduler.pid');let schedulerRunning=false;try{const seen=execFileSync(php,['artisan','crm:scheduler-status'],{cwd:path.join(root,'backend'),encoding:'utf8',windowsHide:true}).trim();schedulerRunning=Date.now()-Date.parse(seen)<90000;}catch{}
+try{const pid=Number(fs.readFileSync(schedulerPidFile,'utf8'));if(Number.isInteger(pid)&&pid>0){process.kill(pid,0);if(Date.now()-fs.statSync(schedulerPidFile).mtimeMs<75000)schedulerRunning=true;}}catch{}
+if(!schedulerRunning){const out=fs.openSync(path.join(logs,'scheduler.out.log'),'a'),err=fs.openSync(path.join(logs,'scheduler.err.log'),'a');const child=spawn(php,['artisan','schedule:work'],{cwd:path.join(root,'backend'),detached:true,windowsHide:true,stdio:['ignore',out,err]});fs.writeFileSync(schedulerPidFile,String(child.pid));child.unref();fs.closeSync(out);fs.closeSync(err);console.log('scheduler: started local reminder, reservation and backup jobs');}else console.log('scheduler: already running');

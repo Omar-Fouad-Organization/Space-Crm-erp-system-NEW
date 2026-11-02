@@ -1,3 +1,4 @@
+import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -305,7 +306,7 @@ const Booths = () => {
             <h1 className="text-3xl font-bold text-gray-900">
               <Building2 className="inline-block h-8 w-8 mr-3 text-blue-600" />
               Booth Management
-            </h1>
+            </h1><WorkflowLinks sections={["floorplan"]}/>
 
             <p className="text-gray-600 mt-1">
               Manage exhibition booths, assignments, and availability

@@ -1,3 +1,4 @@
+import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
@@ -179,7 +180,7 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-crm-primary-text">Tasks & Tickets</h1>
+          <h1 className="text-3xl font-semibold text-crm-primary-text">Tasks & Tickets</h1><WorkflowLinks sections={["reminders"]}/>
           <p className="text-crm-secondary-text">Manage internal tasks and client support tickets</p>
         </div>
         <div className="flex items-center space-x-3">

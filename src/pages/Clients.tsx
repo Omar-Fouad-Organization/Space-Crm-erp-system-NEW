@@ -1,3 +1,7 @@
+import {useRef} from 'react';
+import {loadPage,relatedToClients} from '@/services/laravelClient';
+import {PageControls} from '@/components/workspace/PageControls';
+import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
@@ -88,6 +92,7 @@ import ModernDeleteButton from '@/components/ui/ModernDeleteButton';
 
 const Clients = () => {
   const { toast } = useToast();
+  const [page,setPage]=useState(1),[pageInfo,setPageInfo]=useState({total:0,last_page:1});
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,22 +112,26 @@ const Clients = () => {
   const [clientDocuments, setClientDocuments] = useState<Record<string, ClientDocument[]>>({});
 
   useEffect(() => {
-    loadClients();
-  }, []);
+    const timer=setTimeout(()=>void loadClients(),250);return()=>clearTimeout(timer);
+  }, [page,searchTerm,typeFilter,statusFilter]);
+  useEffect(()=>setPage(1),[searchTerm,typeFilter,statusFilter]);
 
   useEffect(() => {
     filterClients();
   }, [clients, searchTerm, typeFilter, statusFilter]);
 
+  const loadVersion=useRef(0);
   const loadClients = async () => {
+    const version=++loadVersion.current;
     try {
       setLoading(true);
-      const data = await clientService.getAll();
+      const result=await loadPage('clients',{page,per_page:50,q:searchTerm,type:typeFilter==='all'?'':typeFilter.toLowerCase().replaceAll(' ','_'),status:statusFilter==='all'?'':statusFilter.toLowerCase().replaceAll(' ','_')});const data=result.data as unknown as Client[];if(version!==loadVersion.current)return;if(page>result.last_page){setPage(result.last_page);return;}setPageInfo(result);
       setClients(data);
 
-      const [deals,tasks,docs]=await Promise.all([apiAll('deals'),apiAll('tasks'),apiAll('documents')]);
+      const [deals,tasks,docs]=await apiMetadata().then(meta=>Promise.all(['deals','tasks','documents'].map(r=>meta.resources[r]?relatedToClients(r,data.map(c=>c.id)):Promise.resolve([]))));
       const metrics:any={},activities:any={},documents:any={};
       for(const client of data){const linked=deals.filter(d=>d.client_id===client.id),won=linked.filter(d=>d.stage==='closed_won');const sum=(rows:any[])=>rows.reduce((n,r)=>n+Number(r.deal_value),0);metrics[client.id]={total_deals:linked.length,active_deals:linked.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.stage)).length,won_deals:won.length,total_value:sum(linked),won_value:sum(won),avg_deal_size:linked.length?sum(linked)/linked.length:0,conversion_rate:linked.length?won.length/linked.length*100:0,lifetime_value:sum(won),open_tasks:tasks.filter(t=>t.client_id===client.id&&t.status!=='completed').length,overdue_payments:0,last_activity:client.updated_at||client.created_at,engagement_score:0,satisfaction_score:0,growth_trend:'stable'};activities[client.id]=linked.map(d=>({id:d.id,type:'deal',title:d.title,description:d.description||'',timestamp:d.updated_at,status:d.status,user:d.assigned_to_name}));documents[client.id]=docs.filter(d=>d.client_id===client.id).map(d=>({...d,name:d.title,uploaded_at:d.created_at,uploaded_by:d.created_by_name,category:d.document_type,size:(d.attachments||[]).reduce((n:any,a:any)=>n+a.size,0)}));}
+      if(version!==loadVersion.current)return;
       setClientMetrics(metrics);
       setClientActivities(activities);
       setClientDocuments(documents);
@@ -134,7 +143,7 @@ const Clients = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if(version===loadVersion.current)setLoading(false);
     }
   };
 
@@ -836,7 +845,7 @@ const Clients = () => {
 
           <h1 className="text-3xl font-bold text-gray-900">
             Clients
-          </h1>
+          </h1><WorkflowLinks sections={["imports"]}/>
 
           <p className="text-gray-600 mt-1">
             Manage your client relationships and track engagement
@@ -1177,6 +1186,7 @@ const Clients = () => {
         </Card>
       )}
 
+<PageControls page={page} total={pageInfo.total} last={pageInfo.last_page} onPage={setPage}/>
       {/* Dialogs */}
       <CreateClientDialog
         isOpen={showCreateDialog}
