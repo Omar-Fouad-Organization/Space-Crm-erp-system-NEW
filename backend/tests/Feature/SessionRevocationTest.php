@@ -244,6 +244,27 @@ class SessionRevocationTest extends TestCase
         $this->browser($cookies, 'GET', '/api/session')->assertOk()->assertJsonPath('user.id', $user->id);
     }
 
+    public function test_late_session_write_cannot_revive_logout_after_the_advisory_expiry(): void
+    {
+        config(['session.driver' => 'file']);
+        $user = $this->user(); $cookies = [];
+        $this->login($cookies, $user);
+        $original = $cookies;
+        $session = $this->app['session']->driver();
+        $id = $session->getId(); $data = $session->all();
+        $this->browser($cookies, 'POST', '/api/logout')->assertOk();
+        DB::table('revoked_staff_sessions')->update(['expires_at' => now()->subMinute()]);
+
+        // Reproduce a request that loaded authenticated state before logout and
+        // finishes writing that state much later; use only the isolated file store.
+        $late = new \Illuminate\Session\Store('late', new \Illuminate\Session\FileSessionHandler(
+            new \Illuminate\Filesystem\Filesystem(), $this->sessionDirectory, 120,
+        ));
+        $late->setId($id); $late->replace($data); $late->save();
+        $this->browser($original, 'GET', '/api/metadata')->assertUnauthorized();
+        $this->assertSame(1, DB::table('revoked_staff_sessions')->count());
+    }
+
     public function test_failed_administrator_change_rolls_back_revocation(): void
     {
         $admin = $this->user('super_admin');

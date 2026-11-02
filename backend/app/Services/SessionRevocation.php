@@ -17,8 +17,8 @@ class SessionRevocation
 
     public function revokeCurrent(Request $request): void
     {
-        DB::table('revoked_staff_sessions')->where('expires_at', '<=', now())->delete();
-        // Also rejects replayed cookie sessions and late writes from in-flight requests.
+        // Retain the marker: a late request can rewrite storage after the idle
+        // lifetime. expires_at is advisory, not proof that replay is impossible.
         DB::table('revoked_staff_sessions')->upsert([
             ['session_hash' => $this->sessionHash($request),
                 'expires_at' => now()->addMinutes((int) config('session.lifetime') + 1)],

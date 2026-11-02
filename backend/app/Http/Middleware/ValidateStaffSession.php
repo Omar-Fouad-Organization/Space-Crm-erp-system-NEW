@@ -22,7 +22,7 @@ class ValidateStaffSession
                 || ($stamp['version'] ?? null) !== (int) $user->auth_version
                 || DB::table('revoked_staff_sessions')
                     ->where('session_hash', app(SessionRevocation::class)->sessionHash($request))
-                    ->where('expires_at', '>', now())->exists()) {
+                    ->exists()) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
