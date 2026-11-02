@@ -27,6 +27,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import SupabaseService, { settingsService } from '@/services/supabaseService';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CommissionSchedule {
   sales_person_name?:string;
@@ -72,6 +73,7 @@ export default function Commissions() {
   const [periodFilter, setPeriodFilter] = useState('current');
   const [activeTab, setActiveTab] = useState('commissions');
   const { formatAmount } = useCurrency();
+  const { can } = useAuth();
 
   // Load commission data
   const loadCommissionData = async () => {
@@ -521,7 +523,7 @@ export default function Commissions() {
                           </div>
 
                           <div className="flex items-center space-x-2">
-                            {commission.status === 'pending' && (
+                            {commission.status === 'pending' && can('commissions.approve') && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -532,7 +534,7 @@ export default function Commissions() {
                                 Approve
                               </Button>
                             )}
-                            {commission.status === 'approved' && (
+                            {commission.status === 'approved' && can('commissions.pay') && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -543,7 +545,7 @@ export default function Commissions() {
                                 Mark Paid
                               </Button>
                             )}
-                            {commission.status !== 'paid' && commission.status !== 'cancelled' && (
+                            {commission.status !== 'paid' && commission.status !== 'cancelled' && can('commissions.edit') && (
                               <Button
                                 variant="outline"
                                 size="sm"

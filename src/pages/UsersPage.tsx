@@ -50,6 +50,8 @@ import {
 import { User as UserType, UserRole, AuditLog } from '@/types';
 import CreateUserDialog from '@/components/users/CreateUserDialog';
 import { format } from 'date-fns';
+import {AuthorizationPanel} from '@/components/users/AuthorizationPanel';
+import {usePrivilegeConfirmation} from '@/components/users/usePrivilegeConfirmation';
 
 // Mock data
 
@@ -99,6 +101,8 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function UsersPage() {
+  const [tab,setTab]=useState('users'),[permissionsUser,setPermissionsUser]=useState<string>();
+  const confirmation=usePrivilegeConfirmation();
   const [editingUser,setEditingUser]=useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [auditLogs,setAuditLogs] = useState<any[]>([]);
@@ -108,8 +112,8 @@ export default function UsersPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   React.useEffect(()=>{apiAll('users').then(setUsers).catch(error=>toast({title:'Load failed',description:error.message,variant:'destructive'}));api<any>('audit').then(r=>setAuditLogs(r.data.map((a:any)=>({...a,id:String(a.id),user:{full_name:a.user_name},timestamp:a.created_at,entity_type:a.resource,entity_id:String(a.record_id),details:a.action})))).catch(()=>{});},[]);
-  const userStatus=async(user:any,status:string)=>{try{const row=await apiSave('users',{status},user.id);setUsers(prev=>prev.map(u=>u.id===row.id?row:u));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
-  const deleteUser=async(user:any)=>{try{await apiRemove('users',user.id);setUsers(prev=>prev.filter(u=>u.id!==user.id));}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});}};
+  const userStatus=async(user:any,status:string)=>{try{const credentials=await confirmation.confirm();if(!credentials)return;const row=await apiSave('users',{status,...credentials},user.id);setUsers(prev=>prev.map(u=>u.id===row.id?row:u));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
+  const deleteUser=async(user:any)=>{try{const credentials=await confirmation.confirm();if(!credentials)return;await apiRemove('users',user.id,credentials);setUsers(prev=>prev.filter(u=>u.id!==user.id));}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});}};
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -119,7 +123,7 @@ export default function UsersPage() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleCreateUser = async(userData:any)=>{try{const row=await apiSave('users',userData,editingUser?.id);setUsers(prev=>editingUser?prev.map(u=>u.id===row.id?row:u):[...prev,row]);setEditingUser(null);setShowCreateDialog(false);return true;}catch(error){toast({title:'User not saved',description:(error as Error).message,variant:'destructive'});return false;}};
+  const handleCreateUser = async(userData:any)=>{try{const credentials=await confirmation.confirm();if(!credentials)return false;const row=await apiSave('users',{...userData,...credentials},editingUser?.id);setUsers(prev=>editingUser?prev.map(u=>u.id===row.id?row:u):[...prev,row]);setEditingUser(null);setShowCreateDialog(false);return true;}catch(error){toast({title:'User not saved',description:(error as Error).message,variant:'destructive'});return false;}};
 
   // Calculate user stats
   const userStats = {
@@ -140,7 +144,7 @@ export default function UsersPage() {
     { value: 'finance_officer', label: 'Finance Officer' },
     { value: 'operations', label: 'Operations' },
     { value: 'support', label: 'Support' },
-    { value: 'client', label: 'Client' }
+    { value: 'hr', label: 'Human Resources' }
   ];
 
   return (
@@ -197,7 +201,7 @@ export default function UsersPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="users">Users ({userStats.total})</TabsTrigger>
           <TabsTrigger value="audit">Audit Logs</TabsTrigger>
@@ -330,7 +334,7 @@ export default function UsersPage() {
                             <DropdownMenuItem onClick={()=>{setEditingUser(user);setShowCreateDialog(true);}}><Edit className="mr-2 h-4 w-4" />
                               Edit User
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={()=>{setEditingUser(user);setShowCreateDialog(true);}}><Settings className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={()=>{setPermissionsUser(user.id);setTab('permissions');}}><Settings className="mr-2 h-4 w-4" />
                               Manage Permissions
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -408,41 +412,7 @@ export default function UsersPage() {
         </TabsContent>
 
         <TabsContent value="permissions" className="space-y-6">
-          <Card className="crm-card">
-            <CardHeader>
-              <CardTitle>Role-Based Permissions</CardTitle>
-              <CardDescription>
-                Configure permissions for different user roles
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {roles.map((role) => (
-                  <div key={role.value} className="border border-crm-border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        {getRoleIcon(role.value)}
-                        <h3 className="font-medium text-crm-primary-text">{role.label}</h3>
-                        <Badge className={getRoleColor(role.value)}>
-                          {users.filter(u => u.role === role.value).length} users
-                        </Badge>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Configure
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                      <div className="text-crm-secondary-text">• View Dashboard</div>
-                      <div className="text-crm-secondary-text">• Manage Clients</div>
-                      <div className="text-crm-secondary-text">• Create Deals</div>
-                      <div className="text-crm-secondary-text">• View Reports</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <AuthorizationPanel initialUserId={permissionsUser}/>
         </TabsContent>
       </Tabs>
 
@@ -454,6 +424,7 @@ export default function UsersPage() {
         onOpenChange={setShowCreateDialog}
         onSubmit={handleCreateUser}
       />
+      {confirmation.dialog}
     </div>
   );
 }

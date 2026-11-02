@@ -1,4 +1,5 @@
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {authorizeExport} from '@/crm/api';
 import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -243,8 +244,9 @@ const HR = () => {
     });
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
+      await authorizeExport('employees',filteredEmployees.map(row=>row.id));
       const exportData = filteredEmployees.map(employee => ({
         'Full Name': employee.full_name,
         'Email': employee.email,

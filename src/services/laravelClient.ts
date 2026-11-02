@@ -101,7 +101,8 @@ export async function save(resource:string,input:LegacyRecord,id?:string):Promis
   }
   // Preserve the original ancillary form fields; canonical relationships remain explicit foreign keys.
   const blocked=/(?:password|token|permission|created_by|user_id|client_id|deal_id|booth_id|exhibition_id|salesperson_id|package_id|schedule_id|manager_id|organizer_id|channel_id)$/i;
-  data.attributes=Object.fromEntries(Object.entries(input).filter(([k,v])=>!fields[k]&&!blocked.test(k)&&k!=='id'&&k!=='attributes'&&k!=='attachments'&&k!=='installments'&&v!==undefined));
+  data.attributes=Object.fromEntries(Object.entries(input).filter(([k,v])=>!fields[k]&&!blocked.test(k)&&!k.startsWith('confirm_')&&k!=='id'&&k!=='attributes'&&k!=='attachments'&&k!=='installments'&&v!==undefined));
+  if(resource==='users'){data.confirm_password=input.confirm_password;data.confirm_code=input.confirm_code;}
   if(resource==='users')data.attributes.original_role=input.role;
   if(resource==='meetings'){
     const names=input.attendees;
@@ -111,7 +112,7 @@ export async function save(resource:string,input:LegacyRecord,id?:string):Promis
   window.dispatchEvent(new CustomEvent('crm-record-saved',{detail:{resource,id:result.data.id}}));
   return legacyRow(resource,result.data);
 }
-export const remove=async(resource:string,id:string)=>{await api(`records/${resource}/${id}`,'DELETE');window.dispatchEvent(new CustomEvent('crm-record-saved',{detail:{resource,id}}));};
+export const remove=async(resource:string,id:string,confirmation?:Record<string,string>)=>{await api(`records/${resource}/${id}`,'DELETE',confirmation);window.dispatchEvent(new CustomEvent('crm-record-saved',{detail:{resource,id}}));};
 
 class LaravelQuery implements PromiseLike<any> {
   private resource:string; private filters:[string,unknown][]=[];private operation='read';private payload:any;private one=false;private options:any;private max=Infinity;

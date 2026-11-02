@@ -1,4 +1,5 @@
 import {MeetingCalendar} from '@/components/workspace/MeetingCalendar';
+import {useExhibitionField} from '@/components/forms/useExhibitionField';
 import {exportCsv} from '@/crm/api';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
@@ -87,6 +88,7 @@ import {
 } from "lucide-react";
 
 interface Meeting {
+  exhibition_id?: string;
   id: string;
   title: string;
   type: 'Client Meeting' | 'Planning Meeting' | 'Internal Meeting' | 'Presentation' | 'Follow-up' | 'Demo' | 'Training';
@@ -145,6 +147,8 @@ const Meetings = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const createExhibition=useExhibitionField(showCreateDialog,'meeting-create-exhibition');
+  const editExhibition=useExhibitionField(showEditDialog,'meeting-edit-exhibition',selectedMeeting||undefined);
   const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
   const [meetingForm, setMeetingForm] = useState<MeetingForm>({
     title: '',
@@ -199,7 +203,7 @@ const Meetings = () => {
         updated_at: new Date().toISOString()
       };
 
-      newMeeting=await apiSave('meetings',{...newMeeting,organizer_id:(await apiMetadata()).user.id,meeting_type:meetingForm.type}) as any;
+      newMeeting=await apiSave('meetings',{...newMeeting,...createExhibition.payload,organizer_id:(await apiMetadata()).user.id,meeting_type:meetingForm.type}) as any;
       setMeetings(prev => [newMeeting, ...prev]);
 
       toast({
@@ -244,7 +248,7 @@ const Meetings = () => {
         updated_at: new Date().toISOString()
       };
 
-      updatedMeeting=await apiSave('meetings',{...updatedMeeting,meeting_type:meetingForm.type},selectedMeeting.id) as any;
+      updatedMeeting=await apiSave('meetings',{...updatedMeeting,...editExhibition.payload,meeting_type:meetingForm.type},selectedMeeting.id) as any;
       setMeetings(prev => prev.map(m => m.id === selectedMeeting.id ? updatedMeeting : m));
 
       toast({
@@ -1253,6 +1257,7 @@ const Meetings = () => {
               )}
             </div>
 
+            {createExhibition.field}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
                 Cancel
@@ -1406,6 +1411,7 @@ const Meetings = () => {
               </div>
             </div>
 
+            {editExhibition.field}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
                 Cancel

@@ -1,4 +1,5 @@
 import {useRecordOptions} from '@/hooks/useRecordOptions';
+import {useExhibitionField} from '@/components/forms/useExhibitionField';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -67,6 +68,7 @@ const mockDeals = [
 ];
 
 export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initialData }: CreateTicketDialogProps) {
+  const exhibition=useExhibitionField(open,'ticket-exhibition',initialData);
   const mockClients=useRecordOptions('clients',open);
   const mockDeals=useRecordOptions('deals',open);
   const form = useForm<TicketFormValues>({
@@ -93,7 +95,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
       priority: values.priority,
     };
 
-    if(await onSubmit(ticketData)===false)return;
+    if(await onSubmit({...ticketData,...exhibition.payload})===false)return;
     form.reset();
   };
 
@@ -268,6 +270,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
               />
             </div>
 
+            {exhibition.field}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel

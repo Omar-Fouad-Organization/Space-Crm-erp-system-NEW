@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, exportCsv, money, label } from "@/crm/api";
 import { all, metadata } from "@/services/laravelClient";
 import { useAuth } from "@/contexts/AuthContext";
+import {AuthorizationPanel} from '@/components/users/AuthorizationPanel';
 import {
   Card,
   CardHeader,
@@ -211,10 +212,10 @@ const text = (
 export default function WorkflowWorkspace() {
   const [params] = useSearchParams(),
     section = params.get("section") || "collections";
-  const { user } = useAuth();
+  const { user,can,authorization } = useAuth();
   const role = user?.role;
-  const finance = ["super_admin", "management", "finance"].includes(role || ""),
-    manager = ["super_admin", "management"].includes(role || "");
+  const finance = can('finance.view') || ['refund','receipt_reversal','credit_note','commission_recovery'].some(kind=>can('workflow.'+kind+'.request')),
+    manager = ['refund','receipt_reversal','credit_note','commission_recovery','discount','payment_terms','commission_rate'].some(kind=>can('workflow.'+kind+'.approve'));
   const [records, setRecords] = useState<Record<string, any[]>>({}),
     [rows, setRows] = useState<any[]>([]),
     [extra, setExtra] = useState<any>({}),
@@ -231,7 +232,7 @@ export default function WorkflowWorkspace() {
     }),
     [reviewNote, setReviewNote] = useState("");
   const allowed = Object.keys(workflowNames).filter((k) =>
-    canUseWorkflow(k, role || ""),
+    canUseWorkflow(k, role || "",can),
   );
   const generation = useRef(0);
   const load = useCallback(async () => {
@@ -319,26 +320,8 @@ export default function WorkflowWorkspace() {
     window.dispatchEvent(new Event("crm-record-saved"));
   };
   const list = (key: string) => records[key] || [];
-  useEffect(() => {
-    if (
-      role === "sales" &&
-      !["discount", "payment_terms", "commission_rate"].includes(kind)
-    )
-      setKind("discount");
-  }, [role, kind]);
-  const kinds = finance
-    ? role === "finance"
-      ? ["refund", "receipt_reversal", "credit_note", "commission_recovery"]
-      : [
-          "refund",
-          "receipt_reversal",
-          "credit_note",
-          "commission_recovery",
-          "discount",
-          "payment_terms",
-          "commission_rate",
-        ]
-    : ["discount", "payment_terms", "commission_rate"];
+  const kinds = ['refund','receipt_reversal','credit_note','commission_recovery','discount','payment_terms','commission_rate'].filter(kind=>can('workflow.'+kind+'.request'));
+  useEffect(()=>{if(kinds.length&&!kinds.includes(kind))setKind(kinds[0]);},[kind,kinds.join('|')]);
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -460,7 +443,7 @@ export default function WorkflowWorkspace() {
                         .filter(
                           (r) =>
                             r.status === "pending" &&
-                            String(r.requested_by) !== user?.id,
+                            String(r.requested_by) !== user?.id && can('workflow.'+r.kind+'.approve'),
                         )
                         .map((r) => (
                           <div key={r.id} className="flex gap-2 items-center">
@@ -494,7 +477,7 @@ export default function WorkflowWorkspace() {
                   )}
                 </CardContent>
               </Card>
-              <Card>
+              {kinds.length>0&&<><Card>
                 <CardContent className="pt-6">
                   <Label>Request Type</Label>
                   <Select
@@ -584,6 +567,7 @@ export default function WorkflowWorkspace() {
                   await save("requests", { ...v, kind: effective, payload });
                 }}
               />
+              </>}
             </>
           )}
           {section === "profitability" && (
@@ -966,7 +950,8 @@ export default function WorkflowWorkspace() {
               />
             </>
           )}
-          {section === "access" && (
+          {section === "access" && authorization?.enabled && <AuthorizationPanel/>}
+          {section === "access" && !authorization?.enabled && (
             <>
               <Card>
                 <CardHeader>

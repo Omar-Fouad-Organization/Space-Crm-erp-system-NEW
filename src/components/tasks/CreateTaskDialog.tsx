@@ -1,4 +1,5 @@
 import {useRecordOptions} from '@/hooks/useRecordOptions';
+import {useExhibitionField} from '@/components/forms/useExhibitionField';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -79,6 +80,7 @@ const mockClients = [
 ];
 
 export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initialData }: CreateTaskDialogProps) {
+  const exhibition=useExhibitionField(open,'task-exhibition',initialData);
   const mockUsers=useRecordOptions('users',open);
   const mockClients=useRecordOptions('clients',open);
   const mockDeals=useRecordOptions('deals',open);
@@ -108,7 +110,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
       priority: values.priority,
     };
 
-    if(await onSubmit(taskData)===false)return;
+    if(await onSubmit({...taskData,...exhibition.payload})===false)return;
     form.reset();
   };
 
@@ -327,6 +329,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
               )}
             />
 
+            {exhibition.field}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel

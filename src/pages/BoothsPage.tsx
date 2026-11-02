@@ -1,4 +1,5 @@
 import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
+import {authorizeExport} from '@/crm/api';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -179,8 +180,9 @@ const Booths = () => {
     setActionsDialogOpen(true);
   };
 
-  const exportBooths = () => {
+  const exportBooths = async () => {
     try {
+      await authorizeExport('booths',filteredBooths.map(row=>row.id));
       const csvContent = [
         // CSV Header
         ['Booth Number', 'Booth Code', 'Exhibition', 'Hall', 'Zone', 'Size (sqm)', 'Type', 'Status', 'Total Price', 'Assigned Company'].join(','),

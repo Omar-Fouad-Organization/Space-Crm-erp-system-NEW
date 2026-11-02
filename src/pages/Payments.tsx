@@ -1,4 +1,5 @@
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {authorizeExport} from '@/crm/api';
 import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -273,9 +274,10 @@ const Payments = () => {
     });
   };
 
-  const handleExportPayments = () => {
+  const handleExportPayments = async () => {
     try {
       const dataToExport = viewMode === 'schedules' ? paymentSchedules : payments;
+      await authorizeExport(viewMode==='schedules'?'payment_schedules':'payments',dataToExport.map(row=>row.id));
 
       if (!dataToExport || dataToExport.length === 0) {
         toast({

@@ -167,7 +167,7 @@ export const commissionService={async createFromDeal(dealId:string,..._args:any[
 export const settingsService={
  async getAllCommissionSchedules():Promise<any[]>{const [rows,deals]=await Promise.all([all('commissions'),all('deals')]);return rows.map(row=>({...row,client_name:deals.find(d=>d.id===row.deal_id)?.client_name||'',deal_amount:deals.find(d=>d.id===row.deal_id)?.deal_value||0,commission_percentage:Number(deals.find(d=>d.id===row.deal_id)?.commission_percentage||0)}));},
  async getCommissionSummary():Promise<any[]>{const rows=await this.getAllCommissionSchedules();return [...new Set(rows.map(r=>r.sales_person_id))].map(id=>{const data=rows.filter(r=>r.sales_person_id===id);const sum=(status?:string)=>data.filter(r=>!status||r.status===status).reduce((s,r)=>s+Number(r.commission_amount),0);return {sales_person_id:id,sales_person_name:data[0].sales_person_name,total_deals:data.length,total_commission_amount:sum(),paid_commission_amount:sum('paid'),pending_commission_amount:sum('pending'),approved_commission_amount:sum('approved'),disputed_commission_amount:sum('disputed')};});},
- async updateCommissionStatus(id:string,status:string,paidAmount?:number,method?:string,notes?:string){await save('commissions',{status,paid_amount:paidAmount,payment_method:method,notes},id);return true;}
+ async updateCommissionStatus(id:string,status:string,_paidAmount?:number,_method?:string,_notes?:string){await save('commissions',{status},id);return true;}
 };
 export type Payment = LegacyRecord;
 export type PaymentSchedule = LegacyRecord;

@@ -1,4 +1,6 @@
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {authorizeExport} from '@/crm/api';
+import {useExhibitionField} from '@/components/forms/useExhibitionField';
 import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +105,7 @@ interface FileAttachment {
 }
 
 interface Document {
+  exhibition_id?: string;
   id: string;
   document_number: string;
   title: string;
@@ -145,6 +148,8 @@ const Documents = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const createExhibition=useExhibitionField(createDialogOpen,'document-create-exhibition');
+  const editExhibition=useExhibitionField(editDialogOpen,'document-edit-exhibition',selectedDocument||undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -197,7 +202,7 @@ const Documents = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      newDocument=await apiSave('documents',newDocument) as any;
+      newDocument=await apiSave('documents',{...newDocument,...createExhibition.payload}) as any;
       for(const file of selectedFiles){const data=new FormData();data.append('file',file);await api(`documents/${newDocument.id}/attachments`,'POST',data);}
       await loadDocuments();
       setCreateDialogOpen(false);
@@ -219,7 +224,7 @@ const Documents = () => {
   const handleUpdateDocument = async () => {
     if (!selectedDocument) return;
     try {
-      const updatedDocument = {
+      let updatedDocument = {
         ...selectedDocument,
         title: formData.title,
         description: formData.description,
@@ -235,6 +240,7 @@ const Documents = () => {
         tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
         updated_at: new Date().toISOString()
       };
+      updatedDocument=await apiSave('documents',{...updatedDocument,...editExhibition.payload},selectedDocument.id) as any;
       setDocuments(prev => prev.map(doc =>
         doc.id === selectedDocument.id ? updatedDocument : doc
       ));
@@ -317,7 +323,9 @@ const Documents = () => {
     setEditDialogOpen(true);
   };
 
-  const exportDocuments = () => {
+  const exportDocuments = async () => {
+    try { await authorizeExport('documents',filteredDocuments.map(row=>row.id)); }
+    catch(error){toast({title:'Export unavailable',description:(error as Error).message,variant:'destructive'});return;}
     const csvContent = [
       ['Document Number', 'Title', 'Type', 'Status', 'Client', 'Contract Value', 'Signature Deadline', 'Created Date'].join(','),
       ...filteredDocuments.map(doc => [
@@ -1207,6 +1215,7 @@ const Documents = () => {
           </div>
 
           {/* Fixed Footer */}
+          {createExhibition.field}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               Cancel
@@ -1352,6 +1361,7 @@ const Documents = () => {
               </div>
             </div>
           </div>
+          {editExhibition.field}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
