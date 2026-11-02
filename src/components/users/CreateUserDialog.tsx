@@ -49,7 +49,7 @@ interface CreateUserDialogProps {
   initialData?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateUserForm) => void;
+  onSubmit: (data: CreateUserForm) => Promise<boolean | void> | boolean | void;
 }
 
 const roles: { value: UserRole; label: string; description: string }[] = [
@@ -78,17 +78,19 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
 
   const [generatePassword, setGeneratePassword] = React.useState(true);
 
-  React.useEffect(()=>{if(open&&initialData)form.reset({...initialData,password:''});},[open,initialData,form]);
-  const handleSubmit = (values: UserFormValues) => {
+  const randomPassword=()=>Array.from(crypto.getRandomValues(new Uint8Array(18)),n=>n.toString(16).padStart(2,'0')).join('')+'Aa!';
+  React.useEffect(()=>{if(!open)return;if(initialData){form.reset({...initialData,password:''});setGeneratePassword(false);}else{form.reset({full_name:'',email:'',role:'sales_executive',status:'active',password:randomPassword()});setGeneratePassword(true);}},[open,initialData,form]);
+  const handleSubmit = async (values: UserFormValues) => {
+    if((!initialData||values.password)&&String(values.password||'').length<12){form.setError('password',{message:'Use at least 12 characters.'});return;}
     const userData: CreateUserForm = {
       full_name: values.full_name,
       email: values.email,
       role: values.role,
       status: values.status,
-      password: generatePassword ? undefined : values.password,
+      password: values.password || undefined,
     };
 
-    onSubmit(userData);
+    if(await onSubmit(userData)===false)return;
     form.reset();
     setGeneratePassword(true);
   };
@@ -103,7 +105,7 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle>{initialData?'Edit User':'Create New User'}</DialogTitle>
           <DialogDescription>
             Add a new user to the system with appropriate role and permissions.
           </DialogDescription>
@@ -153,7 +155,7 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select role" />
@@ -184,7 +186,7 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -220,27 +222,28 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
                   <Switch
                     id="generate-password"
                     checked={generatePassword}
-                    onCheckedChange={setGeneratePassword}
+                    onCheckedChange={value=>{setGeneratePassword(value);form.setValue('password',value?randomPassword():'');}}
                   />
                 </div>
               </div>
 
-              {!generatePassword && (
+              {(
                 <FormField
                   control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password *</FormLabel>
+                      <FormLabel>{initialData?'Password (leave blank to keep)':'Password *'}</FormLabel>
                       <FormControl>
                         <Input
-                          type="password"
+                          type={generatePassword?'text':'password'}
+                          readOnly={generatePassword}
                           placeholder="Enter password"
                           {...field}
                         />
                       </FormControl>
                       <FormDescription>
-                        Minimum 8 characters with letters and numbers
+                        Minimum 12 characters
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -251,8 +254,7 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
               {generatePassword && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    A secure password will be automatically generated and sent to the user's email address.
-                    The user will be prompted to change it on first login.
+                    Copy the generated password before saving. Email delivery is not configured.
                   </p>
                 </div>
               )}
@@ -263,7 +265,7 @@ export default function CreateUserDialog({ open, onOpenChange, onSubmit, initial
                 Cancel
               </Button>
               <Button type="submit" className="crm-button-primary">
-                Create User
+                {initialData?'Save User':'Create User'}
               </Button>
             </DialogFooter>
           </form>

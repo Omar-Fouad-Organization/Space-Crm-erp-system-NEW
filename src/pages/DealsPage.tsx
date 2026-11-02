@@ -1,3 +1,4 @@
+import {useQuickCreate} from '@/hooks/useQuickCreate';
 import React, { useState, useEffect } from 'react';
 import {all as apiAll,save as apiSave} from '@/services/laravelClient';
 import { useNavigate } from 'react-router-dom';
@@ -188,6 +189,7 @@ const Deals = () => {
   const [dealToDelete, setDealToDelete] = useState(null);
   const [expos, setExpos] = useState([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  useQuickCreate(()=>setShowCreateDialog(true));
 
   useEffect(() => {
     if (!selectedDeal) return;

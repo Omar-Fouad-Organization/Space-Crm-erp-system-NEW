@@ -1,5 +1,7 @@
+import {useNavigate} from 'react-router-dom';
+import {toast} from '@/hooks/use-toast';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
-import {api} from '@/crm/api';
+import {api,exportCsv} from '@/crm/api';
 import React, { useState } from 'react';
 import {
   TrendingUp,
@@ -81,12 +83,26 @@ const getPriorityColor = (priority: 'low' | 'medium' | 'high' | 'urgent') => {
 };
 
 export default function Dashboard() {
- const [kpiData,setKpis]=React.useState<DashboardKPI[]>([{label:'Total Revenue',value:'0',change:0,trend:'up',format:'currency'},{label:'Active Deals',value:'0',change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:'0%',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:'0',change:0,trend:'up',format:'number'}]);
- const [revenueData,setRevenue]=React.useState<any[]>([]),[dealStatusData,setPipeline]=React.useState<any[]>([]),[topDeals,setTopDeals]=React.useState<any[]>([]),[upcomingTasks,setUpcomingTasks]=React.useState<any[]>([]);
- React.useEffect(()=>{Promise.all([apiAll('deals'),apiAll('clients'),apiAll('tasks'),apiAll('payments'),apiMetadata()]).then(([deals,clients,tasks,payments,meta])=>{const won=deals.filter(d=>d.stage==='closed_won'),revenue=won.filter(d=>d.currency===meta.settings.currency).reduce((n,d)=>n+Number(d.deal_value),0);setKpis([{label:'Total Revenue',value:new Intl.NumberFormat('en-US',{style:'currency',currency:meta.settings.currency}).format(revenue),change:0,trend:'up',format:'currency'},{label:'Active Deals',value:String(deals.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.stage)).length),change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:(deals.length?won.length/deals.length*100:0).toFixed(1)+'%',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:String(clients.filter(c=>c.status==='Active').length),change:0,trend:'up',format:'number'}]);setPipeline([...new Set(deals.map(d=>d.stage))].map(stage=>({name:String(stage).replaceAll('_',' '),value:deals.filter(d=>d.stage===stage).length,color:stage==='closed_won'?'#059669':'#2BB0E6'})));setTopDeals([...deals].sort((a,b)=>b.deal_value-a.deal_value).slice(0,3).map(d=>({...d,name:d.title,client:d.client_name,value:d.deal_value,status:d.stage})));setUpcomingTasks(tasks.filter(t=>t.status!=='completed').slice(0,3).map(t=>({...t,deal:t.deal_id_label||''})));const grouped:any={};for(const p of payments.filter(p=>p.currency===meta.settings.currency)){const month=String(p.paid_date).slice(0,7);grouped[month]=(grouped[month]||0)+Number(p.amount);}setRevenue(Object.entries(grouped).map(([month,revenue])=>({month,revenue,deals:deals.length})));}).catch(error=>console.error('Dashboard load failed',error));},[]);
-
-  const [selectedExpo, setSelectedExpo] = useState('all');
-  const [dateRange, setDateRange] = useState('6m');
+  const navigate=useNavigate();
+  const [selectedExpo,setSelectedExpo]=useState('all'),[dateRange,setDateRange]=useState('6m');
+  const [raw,setRaw]=useState<any>(null),[expos,setExpos]=useState<any[]>([]);
+  const [kpiData,setKpis]=useState<DashboardKPI[]>([]);
+  const [revenueData,setRevenue]=useState<any[]>([]),[dealStatusData,setPipeline]=useState<any[]>([]),[topDeals,setTopDeals]=useState<any[]>([]),[upcomingTasks,setUpcomingTasks]=useState<any[]>([]);
+  React.useEffect(()=>{let active=true;apiMetadata().then(async meta=>{const read=(name:string)=>meta.resources[name]?apiAll(name):Promise.resolve([]);const [deals,clients,tasks,payments,exhibitions]=await Promise.all(['deals','clients','tasks','payments','exhibitions'].map(read));if(active){setRaw({deals,clients,tasks,payments,meta});setExpos(exhibitions);}}).catch(error=>toast({title:'Dashboard unavailable',description:error.message,variant:'destructive'}));return()=>{active=false;};},[]);
+  React.useEffect(()=>{
+    if(!raw)return;
+    const start=new Date();start.setMonth(start.getMonth()-({ '1m':1,'3m':3,'6m':6,'1y':12 }[dateRange]||6));const cutoff=start.toISOString().slice(0,10);
+    const deals=raw.deals.filter(d=>(selectedExpo==='all'||d.exhibition_id===selectedExpo)&&String(d.created_at).slice(0,10)>=cutoff),ids=new Set(deals.map(d=>d.id));
+    const won=deals.filter(d=>d.stage==='closed_won'),open=deals.filter(d=>!['closed_won','closed_lost','canceled'].includes(d.stage));
+    const revenue=won.filter(d=>d.currency===raw.meta.settings.currency).reduce((n,d)=>n+Number(d.deal_value),0);
+    const clients=raw.clients.filter(c=>c.status==='Active'&&(selectedExpo==='all'||deals.some(d=>d.client_id===c.id)));
+    setKpis([{label:'Total Revenue',value:raw.meta.resources.deals?new Intl.NumberFormat('en-US',{style:'currency',currency:raw.meta.settings.currency}).format(revenue):'—',change:0,trend:'up',format:'currency'},{label:'Active Deals',value:raw.meta.resources.deals?String(open.length):'—',change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:raw.meta.resources.deals?(deals.length?won.length/deals.length*100:0).toFixed(1)+'%':'—',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:raw.meta.resources.clients?String(clients.length):'—',change:0,trend:'up',format:'number'}]);
+    setPipeline([...new Set(deals.map(d=>d.stage))].map(stage=>({name:String(stage).replaceAll('_',' '),value:deals.filter(d=>d.stage===stage).length,color:stage==='closed_won'?'#059669':'#2BB0E6'})));
+    setTopDeals([...open].sort((a,b)=>b.deal_value-a.deal_value).slice(0,3).map(d=>({...d,name:d.title,client:d.client_name,value:d.deal_value,status:d.stage})));
+    setUpcomingTasks(raw.tasks.filter(t=>!['completed','cancelled'].includes(t.status)&&(selectedExpo==='all'||ids.has(t.deal_id))).sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date))).slice(0,3).map(t=>({...t,deal:t.deal_id_label||''})));
+    const grouped:any={};for(const payment of raw.payments.filter(p=>p.currency===raw.meta.settings.currency&&String(p.paid_date)>=cutoff&&(selectedExpo==='all'||ids.has(p.deal_id)))){const month=String(payment.paid_date).slice(0,7);grouped[month]=(grouped[month]||0)+Number(payment.amount);}
+    setRevenue(Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([month,revenue])=>({month,revenue,deals:deals.filter(d=>String(d.created_at).slice(0,7)===month).length})));
+  },[raw,selectedExpo,dateRange]);
 
   return (
     <div className="space-y-6">
@@ -103,9 +119,7 @@ export default function Dashboard() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Expos</SelectItem>
-              <SelectItem value="tech-expo-2024">Tech Expo 2024</SelectItem>
-              <SelectItem value="healthcare-summit">Healthcare Summit</SelectItem>
-              <SelectItem value="green-energy-expo">Green Energy Expo</SelectItem>
+              {expos.map(expo=><SelectItem key={expo.id} value={expo.id}>{expo.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={dateRange} onValueChange={setDateRange}>
@@ -119,7 +133,7 @@ export default function Dashboard() {
               <SelectItem value="1y">1 Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={()=>exportCsv('dashboard',kpiData.map((kpi,id)=>({id,name:kpi.label,value:kpi.value})),['name','value'])}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -235,7 +249,7 @@ export default function Dashboard() {
               <CardTitle>Top Deals</CardTitle>
               <CardDescription>Highest value deals in pipeline</CardDescription>
             </div>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={()=>navigate('/deals')}>
               <Eye className="h-4 w-4 mr-2" />
               View All
             </Button>
@@ -275,7 +289,7 @@ export default function Dashboard() {
               <CardTitle>Upcoming Tasks</CardTitle>
               <CardDescription>Tasks due in the next few days</CardDescription>
             </div>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={()=>navigate('/tasks?create=1')}>
               <Plus className="h-4 w-4 mr-2" />
               Add Task
             </Button>

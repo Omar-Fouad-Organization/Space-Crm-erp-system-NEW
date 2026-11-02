@@ -1,3 +1,5 @@
+import {api} from '@/crm/api';
+import {toast} from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -40,65 +42,9 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { companyName, isMaintenanceMode } = useSystemSettings();
 
-  // Load notifications from localStorage and set up real-time updates
-  useEffect(() => {
-    const loadNotifications = () => {
-      try {
-        const storedNotifications = localStorage.getItem('notifications');
-        if (storedNotifications) {
-          const parsedNotifications = JSON.parse(storedNotifications);
-          setNotifications(parsedNotifications);
-          const unread = parsedNotifications.filter((n: any) => n.status === 'Unread').length;
-          setUnreadCount(unread);
-        }
-      } catch (error) {
-        console.error('Error loading notifications:', error);
-      }
-    };
-
-    // Load initially
-    loadNotifications();
-
-    // Set up interval to check for updates
-    const interval = setInterval(loadNotifications, 5000); // Check every 5 seconds
-
-    // Listen for storage changes (when notifications are updated from other tabs/components)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'notifications') {
-        loadNotifications();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  const markAsRead = (notificationId: string) => {
-    const updatedNotifications = notifications.map((notification: any) =>
-      notification.id === notificationId
-        ? { ...notification, status: 'Read', read_at: new Date().toISOString() }
-        : notification
-    );
-    setNotifications(updatedNotifications);
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  const markAllAsRead = () => {
-    const now = new Date().toISOString();
-    const updatedNotifications = notifications.map((notification: any) => ({
-      ...notification,
-      status: 'Read',
-      read_at: notification.read_at || now
-    }));
-    setNotifications(updatedNotifications);
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setUnreadCount(0);
-  };
+  useEffect(()=>{let active=true;const load=async()=>{try{const r=await api<{data:any[]}>('notifications');if(!active)return;setNotifications(r.data.map(n=>({...n,id:String(n.id),title:n.name,message:n.resource?String(n.resource).replaceAll('_',' '):'',priority:'Normal',status:n.read_at?'Read':'Unread',related_entity:({clients:'client',deals:'deal'} as Record<string,string>)[n.resource],entity_id:n.record_id})));setUnreadCount(r.data.filter(n=>!n.read_at).length);}catch(error){console.error('Notifications unavailable',error);}};void load();const updated=()=>void load();window.addEventListener('crm-record-saved',updated);window.addEventListener('crm-notifications-changed',updated);const timer=setInterval(updated,30000);return()=>{active=false;clearInterval(timer);window.removeEventListener('crm-record-saved',updated);window.removeEventListener('crm-notifications-changed',updated);};},[]);
+  const markAsRead=async(id:string)=>{try{await api('notifications/'+id,'PATCH');setNotifications(rows=>rows.map(n=>n.id===id?{...n,status:'Read'}:n));setUnreadCount(count=>Math.max(0,count-(notifications.find(n=>n.id===id)?.status==='Unread'?1:0)));window.dispatchEvent(new Event('crm-notifications-changed'));}catch(error){toast({title:'Notification not updated',description:(error as Error).message,variant:'destructive'});}};
+  const markAllAsRead=async()=>{try{await api('notifications/read-all','PATCH');window.dispatchEvent(new Event('crm-notifications-changed'));}catch(error){toast({title:'Notifications not updated',description:(error as Error).message,variant:'destructive'});}};
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -168,6 +114,7 @@ export function Layout({ children }: LayoutProps) {
                 <input
                   className="pl-10 pr-4 py-2.5 w-80 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm placeholder-slate-400"
                   placeholder="Search clients, deals, booths..."
+                  onKeyDown={e=>{if(e.key==='Enter'&&e.currentTarget.value.trim())navigate('/search?q='+encodeURIComponent(e.currentTarget.value.trim()));}}
                 />
               </div>
             </div>
@@ -186,16 +133,16 @@ export function Layout({ children }: LayoutProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/clients')}>
+                  <DropdownMenuItem onClick={() => navigate('/clients?create=1')}>
                     New Client
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/deals')}>
+                  <DropdownMenuItem onClick={() => navigate('/deals?create=1')}>
                     New Deal
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/booths')}>
+                  <DropdownMenuItem onClick={() => navigate('/booths?create=1')}>
                     New Booth
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/tasks')}>
+                  <DropdownMenuItem onClick={() => navigate('/tasks?create=1')}>
                     New Task
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -203,6 +150,8 @@ export function Layout({ children }: LayoutProps) {
 
               {/* Action buttons */}
               <Button
+                aria-label="Help"
+                onClick={()=>navigate('/help')}
                 variant="ghost"
                 size="sm"
                 className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
@@ -213,6 +162,7 @@ export function Layout({ children }: LayoutProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
+                    aria-label="Notifications"
                     variant="ghost"
                     size="sm"
                     className="relative p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
@@ -359,6 +309,7 @@ export function Layout({ children }: LayoutProps) {
                 size="sm"
                 className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
                 onClick={() => navigate('/settings')}
+                aria-label="System settings"
               >
                 <Settings className="h-4 w-4" />
               </Button>

@@ -26,6 +26,8 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
   });
 
   useEffect(() => {
+    const loaded=(event:Event)=>setSettings(previous=>({...previous,companyName:(event as CustomEvent).detail.company_name}));
+    window.addEventListener('crm-settings-loaded',loaded);
     // Load settings from localStorage
     const savedSettings = localStorage.getItem('systemSettings');
     if (savedSettings) {
@@ -36,6 +38,7 @@ export function SystemSettingsProvider({ children }: { children: React.ReactNode
         console.error('Error loading system settings:', error);
       }
     }
+    return ()=>window.removeEventListener('crm-settings-loaded',loaded);
   }, []);
 
   const updateSettings = (newSettings: Partial<SystemSettings>) => {

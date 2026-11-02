@@ -60,6 +60,29 @@ class CrmTest extends TestCase
         $this->postJson('/api/login',['email'=>$this->admin->email,'password'=>'wrong'])->assertUnprocessable();
         $this->postJson('/api/login',['email'=>$this->admin->email,'password'=>'TestPassword!2026'])->assertOk()->assertJsonPath('user.role','super_admin')->assertJsonMissingPath('user.password');
     }
+    public function test_admin_sidebar_diagnostics_are_read_only_and_check_relationships(): void
+    {
+        $f=$this->fixture();
+        $before=DB::table('audit_logs')->count();
+        $result=$this->getJson('/api/diagnostics')->assertOk()->assertJsonPath('database','MySQL')->assertJsonPath('counts.clients',1)->json();
+        $this->assertGreaterThan(20,count($result['orphans']));
+        foreach($result['orphans'] as $check)$this->assertSame(0,$check['count'],$check['field']);
+        $this->assertSame($before,DB::table('audit_logs')->count());
+        $this->actingAs(User::factory()->create(['role'=>'sales','status'=>'active']));
+        $this->getJson('/api/diagnostics')->assertForbidden();
+    }
+    public function test_mark_all_notifications_read_is_scoped_to_the_signed_in_user(): void
+    {
+        $this->fixture();
+        $other=User::factory()->create(['role'=>'sales','status'=>'active']);
+        $this->actingAs($other);
+        $this->createRecord('channels',['name'=>'Other account channel']);
+        $this->actingAs($this->admin);
+        $this->patchJson('/api/notifications/read-all')->assertOk()->assertJsonPath('updated',3);
+        $this->assertSame(0,DB::table('notifications')->where('user_id',$this->admin->id)->whereNull('read_at')->count());
+        $this->assertSame(1,DB::table('notifications')->where('user_id',$other->id)->whereNull('read_at')->count());
+        $this->patchJson('/api/notifications/read-all')->assertOk()->assertJsonPath('updated',0);
+    }
     public function test_inactive_account_is_denied(): void
     {
         $this->admin->forceFill(['status'=>'inactive'])->save();

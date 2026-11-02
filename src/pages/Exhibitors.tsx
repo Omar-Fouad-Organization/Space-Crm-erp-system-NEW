@@ -201,7 +201,7 @@ export default function Exhibitors() {
   };
 
   const getSizeConfig = (size: string) => {
-    return companySizes.find(s => s.value === size) || companySizes[0];
+    return companySizes.find(s => s.value === size) || {value:'',label:'Not specified',color:'bg-gray-100 text-gray-800'};
   };
 
   const renderStars = (rating: number) => {

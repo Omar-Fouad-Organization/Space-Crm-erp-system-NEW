@@ -119,7 +119,7 @@ export default function UsersPage() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleCreateUser = async(userData:any)=>{try{const row=await apiSave('users',userData,editingUser?.id);setUsers(prev=>editingUser?prev.map(u=>u.id===row.id?row:u):[...prev,row]);setEditingUser(null);setShowCreateDialog(false);}catch(error){toast({title:'User not saved',description:(error as Error).message,variant:'destructive'});}};
+  const handleCreateUser = async(userData:any)=>{try{const row=await apiSave('users',userData,editingUser?.id);setUsers(prev=>editingUser?prev.map(u=>u.id===row.id?row:u):[...prev,row]);setEditingUser(null);setShowCreateDialog(false);return true;}catch(error){toast({title:'User not saved',description:(error as Error).message,variant:'destructive'});return false;}};
 
   // Calculate user stats
   const userStats = {
@@ -151,7 +151,7 @@ export default function UsersPage() {
           <h1 className="text-3xl font-semibold text-crm-primary-text">User Management</h1>
           <p className="text-crm-secondary-text">Manage system users, roles, and permissions</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="crm-button-primary">
+        <Button onClick={() => {setEditingUser(null);setShowCreateDialog(true);}} className="crm-button-primary">
           <Plus className="h-4 w-4 mr-2" />
           Create User
         </Button>
@@ -448,6 +448,8 @@ export default function UsersPage() {
 
       {/* Create User Dialog */}
       <CreateUserDialog
+        key={editingUser?.id||'new-user'}
+        initialData={editingUser}
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSubmit={handleCreateUser}

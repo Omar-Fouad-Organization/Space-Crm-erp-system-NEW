@@ -57,8 +57,9 @@ See docs/RELATIONSHIPS.md for the relationship map and business rules.
 
 ## Scope and remaining boundaries
 
-The restored core screens use persistent Laravel records, real relationship options, session permissions, private attachments, and the tested sales/receipt/commission cycle. The original checkout also contains unfinished controls and missing pages; these are not evidence of implemented functionality. It does not implement bank/payment-provider execution, email delivery, verified electronic signatures, tax-compliant invoice issuance, refunds/reversals, live WebSocket chat, payroll processing, recurring meeting automation, AI features, or a full accounting ledger. Status changes record internal business states. Those features were not operational in the original checkout and are not represented as working integrations now.
+The restored core screens use persistent Laravel records, real relationship options, session permissions, private attachments, and the tested sales/receipt/commission cycle. All 26 sidebar destinations now load; see docs/SIDEBAR-REPAIR.md for tested actions and retained review data. Some legacy secondary controls remain unfinished. It does not implement bank/payment-provider execution, email delivery, verified electronic signatures, tax-compliant invoice issuance, refunds/reversals, live WebSocket chat, payroll processing, recurring meeting automation, AI features, or a full accounting ledger. Status changes record internal business states. Those features were not operational in the original checkout and are not represented as working integrations now.
 
 List pagination/search currently operate in the browser after loading a module's records; API-side pagination, bulk datasets, and concurrent-user load testing should be added before a large deployment. This is one organization's workspace with module-level roles, not a multi-tenant SaaS or ownership-scoped access system.
 
 Original Supabase-shaped service names remain as compatibility imports only and route to Laravel. No live Supabase data was read or migrated.
+

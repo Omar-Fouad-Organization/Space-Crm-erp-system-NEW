@@ -51,7 +51,7 @@ interface CreateTicketDialogProps {
   initialData?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateTicketForm) => void;
+  onSubmit: (data: CreateTicketForm) => Promise<boolean | void> | boolean | void;
 }
 
 // Mock data
@@ -83,7 +83,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
 
   React.useEffect(()=>{if(open&&initialData)form.reset({...initialData,...(initialData.due_date?{due_date:new Date(initialData.due_date+'T12:00:00')}: {})});},[open,initialData,form]);
 
-  const handleSubmit = (values: TicketFormValues) => {
+  const handleSubmit = async (values: TicketFormValues) => {
     const ticketData: CreateTicketForm = {
       title: values.title,
       description: values.description,
@@ -93,7 +93,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
       priority: values.priority,
     };
 
-    onSubmit(ticketData);
+    if(await onSubmit(ticketData)===false)return;
     form.reset();
   };
 
@@ -106,7 +106,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create Support Ticket</DialogTitle>
+          <DialogTitle>{initialData?'Edit Ticket':'Create Support Ticket'}</DialogTitle>
           <DialogDescription>
             Create a new support ticket for client issues or requests.
           </DialogDescription>
@@ -159,7 +159,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select client" />
@@ -184,7 +184,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Related Deal</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select deal (optional)" />
@@ -219,7 +219,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Issue Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select issue type" />
@@ -246,7 +246,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Priority *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select priority" />
@@ -273,7 +273,7 @@ export default function CreateTicketDialog({ open, onOpenChange, onSubmit, initi
                 Cancel
               </Button>
               <Button type="submit" className="crm-button-primary">
-                Create Ticket
+                {initialData?'Save Ticket':'Create Ticket'}
               </Button>
             </DialogFooter>
           </form>

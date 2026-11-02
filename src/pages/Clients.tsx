@@ -1,3 +1,4 @@
+import {useQuickCreate} from '@/hooks/useQuickCreate';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
 import React, { useState, useEffect } from 'react';
@@ -96,6 +97,7 @@ const Clients = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  useQuickCreate(()=>setShowCreateDialog(true));
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showClientDetails, setShowClientDetails] = useState(false);
 

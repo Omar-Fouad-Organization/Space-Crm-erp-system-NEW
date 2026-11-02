@@ -57,7 +57,7 @@ interface CreateTaskDialogProps {
   initialData?: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateTaskForm) => void;
+  onSubmit: (data: CreateTaskForm) => Promise<boolean | void> | boolean | void;
 }
 
 // Mock data
@@ -97,7 +97,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
 
   React.useEffect(()=>{if(open&&initialData)form.reset({...initialData,...(initialData.due_date?{due_date:new Date(initialData.due_date+'T12:00:00')}: {})});},[open,initialData,form]);
 
-  const handleSubmit = (values: TaskFormValues) => {
+  const handleSubmit = async (values: TaskFormValues) => {
     const taskData: CreateTaskForm = {
       title: values.title,
       description: values.description,
@@ -108,7 +108,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
       priority: values.priority,
     };
 
-    onSubmit(taskData);
+    if(await onSubmit(taskData)===false)return;
     form.reset();
   };
 
@@ -121,7 +121,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>{initialData?'Edit Task':'Create New Task'}</DialogTitle>
           <DialogDescription>
             Create a new task and assign it to a team member.
           </DialogDescription>
@@ -173,7 +173,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Assign To *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select user" />
@@ -201,7 +201,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Priority *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select priority" />
@@ -228,7 +228,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Related Deal</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select deal (optional)" />
@@ -260,7 +260,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Related Client</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select client (optional)" />
@@ -332,7 +332,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
                 Cancel
               </Button>
               <Button type="submit" className="crm-button-primary">
-                Create Task
+                {initialData?'Save Task':'Create Task'}
               </Button>
             </DialogFooter>
           </form>

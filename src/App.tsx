@@ -29,6 +29,7 @@ import HR from "./pages/HR";
 import Documents from "./pages/Documents";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import {ChatPage, AnalyticsPage, AdvancedPage, NotificationsPage, SettingsPage, DiagnosticsPage, DesignPage, DeleteShowcasePage, ProfilePage, SearchPage, HelpPage} from './pages/WorkspacePages';
 
 const queryClient = new QueryClient();
 
@@ -57,7 +58,7 @@ const App = () => (
             <Route path="finance" element={<FinancePage />} />
             <Route path="commissions" element={<CommissionsPage />} />
             <Route path="tasks" element={<TasksPage />} />
-            <Route path="tickets" element={<TasksPage initialTab="tickets" />} />
+            <Route path="tickets" element={<TasksPage key="tickets" initialTab="tickets" />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="sponsorship" element={<Sponsorship />} />
             <Route path="exhibitors" element={<Exhibitors />} />
@@ -66,6 +67,18 @@ const App = () => (
             <Route path="meetings" element={<Meetings />} />
             <Route path="hr" element={<HR />} />
             <Route path="contracts" element={<Documents />} />
+            <Route path="chat" element={<ChatPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="advanced" element={<AdvancedPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="user-testing" element={<DiagnosticsPage />} />
+            <Route path="performance" element={<DiagnosticsPage performance />} />
+            <Route path="design" element={<DesignPage />} />
+            <Route path="modern-delete" element={<DeleteShowcasePage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="help" element={<HelpPage />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

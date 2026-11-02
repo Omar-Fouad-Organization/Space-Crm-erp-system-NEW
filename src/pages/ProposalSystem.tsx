@@ -1,6 +1,9 @@
 import {all as apiAll,remove as apiRemove} from '@/services/laravelClient';
 import {toast} from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
+import {ProposalEditor,ProposalFilters,downloadProposal} from '@/components/forms/ProposalEditor';
+import ModernDeleteButton from '@/components/ui/ModernDeleteButton';
+import {exportCsv} from '@/crm/api';
 import {
   FileText,
   Plus,
@@ -37,8 +40,10 @@ const ProposalSystem = () => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [proposals,setProposals]=useState<any[]>([]);
-  useEffect(()=>{Promise.all([apiAll('proposals'),apiAll('deals')]).then(([proposals,deals])=>setProposals(proposals.map(p=>{const d=deals.find(d=>d.id===p.deal_id);return {...p,client:d?.client_name||'',value:d?.deal_value||0,currency:d?.currency||'EGP'};}))).catch(error=>toast({title:'Proposals unavailable',description:error.message,variant:'destructive'}));},[]);
-  const unavailable=()=>toast({title:'Not available in the original interface',description:'This original control has no implemented dialog or delivery integration.'});
+  const [editor,setEditor]=useState(false),[selected,setSelected]=useState<any>(null),[view,setView]=useState(false);
+  const [filtersOpen,setFiltersOpen]=useState(false),[expiryBefore,setExpiryBefore]=useState('');
+  const load=()=>{Promise.all([apiAll('proposals'),apiAll('deals')]).then(([proposals,deals])=>setProposals(proposals.map(p=>{const d=deals.find(d=>d.id===p.deal_id);return {...p,client:d?.client_name||'',value:d?.deal_value||0,currency:d?.currency||'EGP'};}))).catch(error=>toast({title:'Proposals unavailable',description:error.message,variant:'destructive'}));};
+  useEffect(load,[]);
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { variant: 'secondary' as const, label: 'Draft' },
@@ -55,7 +60,7 @@ const ProposalSystem = () => {
     const matchesSearch = proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          proposal.client.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || proposal.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && (!expiryBefore||(proposal.expiryDate&&proposal.expiryDate<=expiryBefore));
   });
 
   return (
@@ -67,7 +72,7 @@ const ProposalSystem = () => {
             Create, manage, and track your business proposals
           </p>
         </div>
-        <Button>
+        <Button onClick={()=>{setSelected(null);setView(false);setEditor(true);}}>
           <Plus className="mr-2 h-4 w-4" />
           New Proposal
         </Button>
@@ -104,7 +109,7 @@ const ProposalSystem = () => {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
+            <Button variant="outline" onClick={()=>setFiltersOpen(true)}>
               <Filter className="mr-2 h-4 w-4" />
               More Filters
             </Button>
@@ -143,18 +148,18 @@ const ProposalSystem = () => {
                       <TableCell>{proposal.expiryDate}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label={`View ${proposal.title}`} onClick={()=>{setSelected(proposal);setView(true);setEditor(true);}}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${proposal.title}`} onClick={()=>{setSelected(proposal);setView(false);setEditor(true);}}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" aria-label={`Download ${proposal.title}`} onClick={()=>downloadProposal(proposal)}>
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <ModernDeleteButton variant="ghost" size="sm" title="Delete Proposal" itemName={proposal.title} onDelete={async()=>{try{await apiRemove('proposals',proposal.id);load();}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});throw error;}}}>
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </ModernDeleteButton>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -207,6 +212,8 @@ const ProposalSystem = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      <ProposalEditor open={editor} onClose={()=>setEditor(false)} record={selected} view={view} onSaved={load}/>
+      <ProposalFilters open={filtersOpen} onClose={()=>setFiltersOpen(false)} value={expiryBefore} onChange={setExpiryBefore}/>
     </div>
   );
 };

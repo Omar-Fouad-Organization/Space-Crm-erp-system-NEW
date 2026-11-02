@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface CurrencyContextType {
   currency: string;
@@ -14,6 +14,7 @@ interface CurrencyProviderProps {
 
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {
   const [currency, setCurrency] = useState('EGP'); // Default to Egyptian Pound
+  useEffect(()=>{const loaded=(event:Event)=>setCurrency((event as CustomEvent).detail.currency);window.addEventListener('crm-settings-loaded',loaded);return()=>window.removeEventListener('crm-settings-loaded',loaded);},[]);
 
   const formatAmount = (amount: number): string => {
     if (typeof amount !== 'number' || isNaN(amount)) {

@@ -66,12 +66,35 @@ class CrmController extends Controller
         $this->crm->authorize('deals',$r->user());
         return ['data'=>DB::table('deals')->join('clients','clients.id','=','deals.client_id')->join('exhibitions','exhibitions.id','=','deals.exhibition_id')->leftJoin('booths','booths.id','=','deals.booth_id')->where('deals.status','closed_won')->select('deals.id','clients.name','clients.contact_person','exhibitions.name as exhibition','booths.name as booth','deals.type','deals.amount','deals.currency')->get()];
     }
+    public function diagnostics(Request $r)
+    {
+        abort_unless($r->user()->role==='super_admin',403);
+        DB::select('SELECT 1');
+        $counts=[]; $orphans=[];
+        foreach (array_keys(config('crm.resources')) as $resource) $counts[$resource]=DB::table($resource)->count();
+        // Inspect the actual MySQL constraints, including creator, audit, notification,
+        // attachment, and meeting attendee relationships outside the form metadata.
+        $keys=DB::table('information_schema.KEY_COLUMN_USAGE')
+            ->where('CONSTRAINT_SCHEMA',DB::connection()->getDatabaseName())
+            ->whereNotNull('REFERENCED_TABLE_NAME')
+            ->get(['TABLE_NAME as child_table','COLUMN_NAME as child_column','REFERENCED_TABLE_NAME as parent_table','REFERENCED_COLUMN_NAME as parent_column']);
+        foreach ($keys as $key) {
+            $orphans[]=['field'=>$key->child_table.'.'.$key->child_column,'count'=>DB::table($key->child_table.' as child')
+                ->leftJoin($key->parent_table.' as parent','child.'.$key->child_column,'=','parent.'.$key->parent_column)
+                ->whereNotNull('child.'.$key->child_column)->whereNull('parent.'.$key->parent_column)->count()];
+        }
+        return ['database'=>'MySQL','counts'=>$counts,'orphans'=>$orphans,'checked_at'=>now()->toIso8601String()];
+    }
     public function audit(Request $r)
     {
         abort_unless(in_array($r->user()->role,['super_admin','management']),403);
         return ['data'=>DB::table('audit_logs')->join('users','users.id','=','audit_logs.user_id')->when($r->user()->role!=='super_admin',fn($q)=>$q->whereNotIn('resource',['users','employees']))->orderByDesc('audit_logs.id')->limit(500)->get(['audit_logs.*','users.name as user_name'])];
     }
     public function notifications(Request $r) { return ['data'=>DB::table('notifications')->where('user_id',$r->user()->id)->orderByDesc('id')->limit(200)->get()]; }
+    public function readAllNotifications(Request $r)
+    {
+        return ['updated'=>DB::table('notifications')->where('user_id',$r->user()->id)->whereNull('read_at')->update(['read_at'=>now(),'updated_at'=>now()])];
+    }
     public function readNotification(Request $r,int $id)
     {
         abort_unless(DB::table('notifications')->where('id',$id)->where('user_id',$r->user()->id)->exists(),404);

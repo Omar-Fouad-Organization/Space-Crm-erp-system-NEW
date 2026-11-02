@@ -10,9 +10,11 @@ Route::prefix('api')->group(function () {
     Route::middleware([CrmAuthenticated::class,'throttle:300,1'])->group(function () {
         Route::get('metadata',[CrmController::class,'metadata']);
         Route::get('dashboard',[CrmController::class,'dashboard']);
+        Route::get('diagnostics',[CrmController::class,'diagnostics']);
         Route::get('exhibitors',[CrmController::class,'exhibitors']);
         Route::get('audit',[CrmController::class,'audit']);
         Route::get('notifications',[CrmController::class,'notifications']);
+        Route::patch('notifications/read-all',[CrmController::class,'readAllNotifications']);
         Route::patch('notifications/{id}',[CrmController::class,'readNotification']);
         Route::put('settings',[CrmController::class,'settings']);
         Route::post('documents/{document}/attachments',[CrmController::class,'upload']);

@@ -9,7 +9,7 @@ The compatibility imports named `supabase` and `supabaseService` call Laravel on
 ## Verification
 
 - TypeScript, ESLint (with inherited type/hook warnings), Vite production build, and PHP tests pass.
-- Laravel: 29 tests, 670 assertions, using only the separate `space_crm_test` database.
+- Laravel: 31 tests, 743 assertions, using only the separate `space_crm_test` database.
 - Original form adapter: 53 retained live checks through `scripts/original-ui-cycle.mjs`.
 - Browser: original client create dialog, deal create/edit dialogs, closing a deal, marking its installment paid, commission approval and payment. Reload confirmed persistence. Original exhibition and management pages were smoke-tested for rendering.
 - Production npm dependency audit: zero reported vulnerabilities at the time of verification.
@@ -28,12 +28,11 @@ Sponsorship deals 2 and 4 remain in proposal stage for further manual review. Su
 
 ## Remaining original limitations
 
-Restoring the interface does not turn its unfinished controls into working features. The original checkout has no implemented pages for Chat, Analytics, Advanced Features, Notifications, System settings, and several QA menu destinations. The support menu now opens the original Tickets tab. Chat records, notifications, and settings have tested backend endpoints, but their missing original pages were not replaced with newly designed screens.
-
-The original proposal page now displays saved proposals. Its New/View/Edit/Download composition controls had no original dialogs or document-generation implementation; they report that limitation. Some original export, bulk processing, search, detail-tab, calendar, and reporting controls remain placeholders. This is not a claim that every visible button has passed a functional test.
+The missing sidebar pages and proposal controls were subsequently repaired. See [SIDEBAR-REPAIR.md](SIDEBAR-REPAIR.md) for current coverage, retained QA data, and verification results.
 
 Email/SMS reminders, verified e-signatures, client-portal access, refund/accounting reversals, commission disputes, payroll processing, and external payment execution are not implemented. Invalid financial status changes are rejected: receipts cannot be reversed by changing a badge, paid commissions cannot be undone here, and booth allocation follows its deal. These safeguards preserve MySQL consistency even where the original interface offers conflicting controls.
 
 Original sales-manager/executive roles map to the backend sales role; finance-manager/officer roles map to finance. The original labels are retained, but these pairs do not provide different backend permission levels. Review finer role scopes before production.
 
 Large-dataset pagination, concurrent-user load testing, responsive layout improvements, and bundle splitting remain future work. The production JavaScript bundle is approximately 1.86 MB before compression. TypeScript retains the original relaxed compiler settings and dynamic record boundary; passing compilation does not mean all original type debt was eliminated.
+

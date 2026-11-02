@@ -1,3 +1,4 @@
+import {useQuickCreate} from '@/hooks/useQuickCreate';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
 import {toast} from '@/hooks/use-toast';
@@ -128,6 +129,7 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
+  useQuickCreate(()=>setShowCreateTaskDialog(true));
   const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
 
   React.useEffect(()=>{Promise.all([apiAll('tasks'),apiAll('tickets')]).then(([tasks,tickets])=>{setTasks(tasks);setTickets(tickets);}).catch(error=>toast({title:'Unable to load tasks',description:error.message,variant:'destructive'}));},[]);
@@ -151,9 +153,9 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const handleCreateTask = async(taskData:any)=>{try{const row=await apiSave('tasks',{...taskData,status:editingTask?.status||'pending'},editingTask?.id);setTasks(prev=>editingTask?prev.map(t=>t.id===row.id?row:t):[...prev,row]);setEditingTask(null);setShowCreateTaskDialog(false);}catch(error){toast({title:'Task not saved',description:(error as Error).message,variant:'destructive'});}};
+  const handleCreateTask = async(taskData:any)=>{try{const row=await apiSave('tasks',{...taskData,status:editingTask?.status||'pending'},editingTask?.id);setTasks(prev=>editingTask?prev.map(t=>t.id===row.id?row:t):[...prev,row]);setEditingTask(null);setShowCreateTaskDialog(false);return true;}catch(error){toast({title:'Task not saved',description:(error as Error).message,variant:'destructive'});return false;}};
 
-  const handleCreateTicket = async(ticketData:any)=>{try{const row=await apiSave('tickets',{...ticketData,status:editingTicket?.status||'open'},editingTicket?.id);setTickets(prev=>editingTicket?prev.map(t=>t.id===row.id?row:t):[...prev,row]);setEditingTicket(null);setShowCreateTicketDialog(false);}catch(error){toast({title:'Ticket not saved',description:(error as Error).message,variant:'destructive'});}};
+  const handleCreateTicket = async(ticketData:any)=>{try{const row=await apiSave('tickets',{...ticketData,status:editingTicket?.status||'open'},editingTicket?.id);setTickets(prev=>editingTicket?prev.map(t=>t.id===row.id?row:t):[...prev,row]);setEditingTicket(null);setShowCreateTicketDialog(false);return true;}catch(error){toast({title:'Ticket not saved',description:(error as Error).message,variant:'destructive'});return false;}};
 
   // Calculate stats
   const taskStats = {
@@ -181,11 +183,11 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
           <p className="text-crm-secondary-text">Manage internal tasks and client support tickets</p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button onClick={() => setShowCreateTaskDialog(true)} variant="outline">
+          <Button onClick={() => {setEditingTask(null);setShowCreateTaskDialog(true);}} variant="outline">
             <Plus className="h-4 w-4 mr-2" />
             Create Task
           </Button>
-          <Button onClick={() => setShowCreateTicketDialog(true)} className="crm-button-primary">
+          <Button onClick={() => {setEditingTicket(null);setShowCreateTicketDialog(true);}} className="crm-button-primary">
             <Plus className="h-4 w-4 mr-2" />
             Create Ticket
           </Button>
@@ -551,12 +553,16 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
 
       {/* Create Dialogs */}
       <CreateTaskDialog
+        key={editingTask?.id||'new-task'}
+        initialData={editingTask}
         open={showCreateTaskDialog}
         onOpenChange={setShowCreateTaskDialog}
         onSubmit={handleCreateTask}
       />
 
       <CreateTicketDialog
+        key={editingTicket?.id||'new-ticket'}
+        initialData={editingTicket}
         open={showCreateTicketDialog}
         onOpenChange={setShowCreateTicketDialog}
         onSubmit={handleCreateTicket}

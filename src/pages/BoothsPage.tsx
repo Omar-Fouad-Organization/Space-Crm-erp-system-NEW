@@ -1,3 +1,4 @@
+import {useQuickCreate} from '@/hooks/useQuickCreate';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,7 @@ const Booths = () => {
   const [booths, setBooths] = useState<Booth[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  useQuickCreate(()=>setCreateDialogOpen(true));
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [actionsDialogOpen, setActionsDialogOpen] = useState(false);
   const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null);
@@ -832,11 +834,7 @@ const Booths = () => {
         )}
 
         {/* Dialogs */}
-        <CreateBoothDialog
-          isOpen={createDialogOpen}
-          onClose={() => setCreateDialogOpen(false)}
-          onSuccess={loadBooths}
-        />
+
 
         <EditBoothDialog
           isOpen={editDialogOpen}
