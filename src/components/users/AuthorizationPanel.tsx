@@ -13,7 +13,7 @@ interface Entry {group: string; label: string; roles: string[]; protected: boole
 interface Staff {id: number; name: string; role: string; status: string}
 interface Catalog {enabled: boolean; registry: Record<string,Entry>; users: Staff[]; exhibitions: {id:number;name:string}[]; teams:{id:number;name:string}[]}
 interface Configuration {authorization_scoped:boolean;all_exhibitions:boolean;record_scope:string;team_id:number|null;exhibition_ids:number[];overrides:Record<string,boolean>}
-interface Profile {user: Staff;version:number;configuration:Configuration;effective:AuthorizationContract;history:{id:number;user_id:number;created_at:string;action:string;after:string|null}[]}
+interface Profile {user: Staff;version:number;configuration:Configuration;effective:AuthorizationContract;history:{id:number;user_id:number;created_at:string;action:string;before:string|null;after:string|null}[]}
 const selectClass='w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
 export function AuthorizationPanel({initialUserId}: {initialUserId?: string}) {
@@ -75,7 +75,7 @@ export function AuthorizationPanel({initialUserId}: {initialUserId?: string}) {
         try{
           const result=await api<Profile>('authorization/users/'+selected,'PUT',{...draft,version:profile.version,
             overrides:Object.entries(draft.overrides).map(([permission,allowed])=>({permission,effect:allowed?'allow':'deny'})),password,code:code||null,reason});
-          setProfile(result);setDraft(structuredClone(result.configuration));setNotice('Access saved. The employee’s previous sessions have been revoked.');setReason('');
+          setProfile(result);setDraft(structuredClone(result.configuration));setNotice(result.version===profile.version?'No access settings changed. Existing sessions were retained.':'Access saved. The employee’s previous sessions have been revoked.');setReason('');
         }catch(error){setError((error as Error).message);}finally{setBusy(false);setPassword('');setCode('');}
       }}>
         <div><Label htmlFor="authorization-reason">Reason for change</Label><Textarea id="authorization-reason" required minLength={8} maxLength={1000} value={reason} onChange={e=>setReason(e.target.value)}/></div>
@@ -86,8 +86,19 @@ export function AuthorizationPanel({initialUserId}: {initialUserId?: string}) {
     {error&&<p role="alert" className="text-destructive">{error} <Button variant="outline" size="sm" onClick={()=>{setCatalog(null);void api<Catalog>('authorization/registry').then(setCatalog).catch(e=>setError(e.message));}}>Reload</Button></p>}
     {notice&&<p role="status">{notice}</p>}
     {profile&&<Card className="crm-card"><CardHeader><CardTitle>Access Change History</CardTitle></CardHeader><CardContent className="space-y-3">{!profile.history.length&&<p className="text-sm text-muted-foreground">No access changes have been recorded for this employee.</p>}{profile.history.map(entry=>{
-      let detail:{reason?:string}={};try{detail=JSON.parse(entry.after||'{}');}catch{}
-      return <div key={entry.id} className="rounded border p-3 text-sm"><p>{label(entry.action)} · {catalog.users.find(u=>u.id===entry.user_id)?.name||'Administrator'} · {new Date(entry.created_at).toLocaleString()}</p>{detail.reason&&<p className="mt-1 text-muted-foreground">{detail.reason}</p>}</div>;
+      let before:Partial<Configuration>={},detail:Partial<Configuration>&{reason?:string}={};try{before=JSON.parse(entry.before||'{}');detail=JSON.parse(entry.after||'{}');}catch{}
+      const changes:string[]=[];
+      for(const [key,title] of [['authorization_scoped','Assigned-exhibition restriction'],['all_exhibitions','All exhibitions']] as const) if(before[key]!==detail[key]) changes.push(`${title}: ${before[key]?'Yes':'No'} → ${detail[key]?'Yes':'No'}`);
+      if(before.record_scope!==detail.record_scope) changes.push(`Record visibility: ${label(before.record_scope)} → ${label(detail.record_scope)}`);
+      const teamName=(id:number|null|undefined)=>catalog.teams.find(team=>team.id===id)?.name||(id?'Previous team':'No team');
+      if(before.team_id!==detail.team_id) changes.push(`Team: ${teamName(before.team_id)} → ${teamName(detail.team_id)}`);
+      const events=(ids:number[]|undefined)=>(ids||[]).map(id=>catalog.exhibitions.find(event=>event.id===id)?.name||'Previous exhibition').join(', ')||'None';
+      if(JSON.stringify(before.exhibition_ids)!==JSON.stringify(detail.exhibition_ids)) changes.push(`Assigned exhibitions: ${events(before.exhibition_ids)} → ${events(detail.exhibition_ids)}`);
+      const effect=(value:boolean|undefined)=>value===undefined?'Inherit role':value?'Granted':'Denied';
+      for(const key of new Set([...Object.keys(before.overrides||{}),...Object.keys(detail.overrides||{})])) if(before.overrides?.[key]!==detail.overrides?.[key]) {
+        const permission=catalog.registry[key];changes.push(`${permission?permission.group+' — '+permission.label:key}: ${effect(before.overrides?.[key])} → ${effect(detail.overrides?.[key])}`);
+      }
+      return <div key={entry.id} className="rounded border p-3 text-sm"><p>{label(entry.action)} · {catalog.users.find(u=>u.id===entry.user_id)?.name||'Administrator'} · {new Date(entry.created_at).toLocaleString()}</p>{detail.reason&&<p className="mt-1 text-muted-foreground">{detail.reason}</p>}{changes.length>0&&<details className="mt-2"><summary className="cursor-pointer">View access changes</summary><ul className="mt-2 list-disc space-y-1 pl-5">{changes.map((change,index)=><li key={index}>{change}</li>)}</ul></details>}</div>;
     })}</CardContent></Card>}
   </div>;
 }
