@@ -44,7 +44,6 @@ jobs:
       DB_CONNECTION: mysql
       DB_URL: ''
       DB_HOST: 127.0.0.1
-      DB_PORT: ${{ job.services.mysql.ports[3306] }}
       DB_DATABASE: space_crm_test
       DB_USERNAME: erp_ci
       DB_PASSWORD: disposable_test_only
@@ -64,6 +63,10 @@ jobs:
           extensions: pdo_mysql, mbstring, dom, xml, zip, fileinfo
           coverage: none
           tools: composer:v2
+      - name: Select this job's disposable MySQL port
+        env:
+          MYSQL_TEST_PORT: ${{ job.services.mysql.ports[3306] }}
+        run: echo "DB_PORT=$MYSQL_TEST_PORT" >> "$GITHUB_ENV"
       - name: Install locked PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Check disposable database boundary
