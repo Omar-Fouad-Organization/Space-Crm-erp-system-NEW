@@ -1,0 +1,74 @@
+name: ERP isolated MySQL tests
+
+on:
+  pull_request:
+    branches: [feat/laravel-mysql-original-ui]
+  push:
+    branches: [codex/phase-1-erp-security]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erp-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  laravel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          # Public disposable CI credentials. Never repository/environment secrets.
+          MYSQL_ROOT_PASSWORD: disposable_root_only
+          MYSQL_DATABASE: space_crm_test
+          MYSQL_USER: erp_ci
+          MYSQL_PASSWORD: disposable_test_only
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_URL: ''
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ job.services.mysql.ports[3306] }}
+      DB_DATABASE: space_crm_test
+      DB_USERNAME: erp_ci
+      DB_PASSWORD: disposable_test_only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      BCRYPT_ROUNDS: '4'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: shivammathur/setup-php@d52fc211a0436f8839a587b3b5b8efddab4744ea # v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, dom, xml, zip, fileinfo
+          coverage: none
+          tools: composer:v2
+      - name: Install locked PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Check disposable database boundary
+        run: |
+          php -r '$p = new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"), getenv("DB_USERNAME"), getenv("DB_PASSWORD")); if (getenv("APP_ENV") !== "testing" || getenv("DB_HOST") !== "127.0.0.1" || $p->query("SELECT DATABASE()")->fetchColumn() !== "space_crm_test") { exit(1); } echo "Disposable loopback database verified.\n";'
+      - name: Run one sequential Laravel suite with synthetic fixtures
+        # No --parallel, matrix, operational .env, seed command, or deployment step.
+        run: php artisan test --compact --log-junit=storage/test-results.xml
