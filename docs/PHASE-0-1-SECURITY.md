@@ -85,3 +85,68 @@ Revocation prevents subsequent authenticated requests; it cannot cancel a busine
 ## Phase 2 boundary
 
 This phase does not add action-level/exhibition-level grants or address website HTML/publication/intake concerns from the architecture audit. Those remain separate work. Phase 2 can be designed on these reviewed security foundations, but production readiness still requires the inventory, backup/restore, migration, deployment, and browser checks above. Do not begin Phase 2 without authorization.
+
+## Final independent verification of draft PR #1
+
+Reviewed starting head: `c61ad9e6390293461a1988c75fd9492dd6487c6f`, against audited base `a5d054305c2c8c5b49b688ed4e89e17cd5c9c168`. All original 17 changed files were examined. The review concerns code behavior, not a claim of production execution or third-party sign-off.
+
+| Original file | Review conclusion |
+| --- | --- |
+| `backend/app/Http/Controllers/CrmController.php` | Parent-document authorization precedes attachment deletion, audit, and private-file mutation; existing 403/404/204 conventions retained. |
+| `backend/app/Http/Controllers/SecurityController.php` | Revocation/reset/MFA changes only; reset token consumption needed the additional concurrency correction below. |
+| `backend/app/Http/Controllers/SessionController.php` | Locked password/status/MFA validation, explicit stamp issuance, and current-session logout only. |
+| `backend/app/Http/Controllers/WorkspaceController.php` | Only atomic access-setting mutations and revocation; existing administrator restrictions retained. |
+| `backend/app/Http/Middleware/ValidateStaffSession.php` | Active status, fresh identity/version, legacy-session rejection, and logout denylist checked server-side. |
+| `backend/app/Models/User.php` | Only hidden authentication metadata and integer cast. |
+| `backend/app/Services/CrmService.php` | User-security revocation/redaction and booth locking read only; financial formulas and eligibility conditions unchanged. |
+| `backend/app/Services/SessionRevocation.php` | Locked version increments prevent lost updates and reject stale keep-current requests; logout insertion needed an atomic upsert. |
+| `backend/bootstrap/app.php` | Registers the validator after session middleware in the web group, including the public session endpoint. |
+| `backend/database/migrations/2026_11_02_000006_add_auth_version_to_users.php` | Additive schema with zero-default version and separate expiring hash table; previous migration history unchanged. |
+| `backend/tests/Feature/AttachmentAuthorizationTest.php` | Own/team/module denials preserve file and row; authorized private attachment operations succeed. |
+| `backend/tests/Feature/BoothConcurrencyTest.php` | Separate committed synthetic fixtures and real competing connections; disposable migration reversal does not erase the original user. |
+| `backend/tests/Feature/SessionRevocationTest.php` | Real browser-cookie jars for file/database/cookie drivers; CSRF, MFA, reset, unrelated accounts, and replay. Review adds persisted legacy-session cases. |
+| `backend/tests/Feature/WorkflowTest.php` | Only an added assertion that reset invalidates the existing browser. Existing workflow assertions retained. |
+| `backend/tests/Support/reserve-booth.php` | Test-only worker with explicit loopback/testing/database guard and synchronized start. |
+| `backend/tests/TestCase.php` | Explicit test-only stamps for actingAs; database guard executes before refresh hooks. |
+| `docs/PHASE-0-1-SECURITY.md` | Baseline, limitations, safety evidence, and release runbook only. |
+
+### Necessary review corrections and new tests
+
+1. The initial reset implementation locked the password write, but Laravel's broker checked the reset token before that transaction and consumed it afterward. The user-row lock now covers broker validation, password write, version increment, and token deletion in one transaction. A competing reset must observe the consumed token and cannot change the password a second time.
+2. Logout's read-then-insert operation is now a single database upsert, preventing duplicate-key failures for simultaneous logout of the same session.
+3. `SecurityConcurrencyTest.php` / `security-race.php` synchronize two independent processes for keep-current revocation, revoke-all, same-session logout, and same-token reset. Expected results are respectively one winner/one stale request, two serialized increments, two successful logouts/one tombstone, and one reset/one invalid token.
+4. `ReleaseCompatibilityTest.php` / `previous-application.php` archive the actual audited application from Git, load its original application classes with unchanged installed framework dependencies, and run it against the expanded disposable schema. They verify old-code login, client creation, new-user zero defaults, and preservation of the existing synthetic user's columns. They do not run the old migrations or touch operational data. Full Git history and the existing ZIP extension are required.
+5. Persisted legacy-session tests reproduce the old unstamped issuance path using a test-only route across file/database/cookie drivers. Such sessions are rejected and cannot silently acquire a current stamp; fresh normal login succeeds.
+
+No unrelated application functionality, frontend source, frontend dependencies, commercial eligibility, financial calculations, receipts, or commission rules were changed during review. The original single-allocation booth invariant remains enforced by the current-read fix. Existing operational rows and private files remain subject to before/after read-only fingerprint verification.
+
+### CI isolation and results
+
+The reviewed branch initially contained no GitHub Actions workflow and no PR workflow runs. `.github/workflows/erp-tests.yml` now runs PHP 8.4 and locked Composer dependencies with a MySQL 8.4 service on a GitHub-hosted Ubuntu runner. Each job receives its own disposable `space_crm_test` instance, a database-scoped synthetic account, and a test-only encryption key. No repository secrets, operational `.env`, production credentials, self-hosted runner, deployment command, or operational database endpoint is referenced. Actions are pinned to verified commit SHAs with read-only contents permission and checkout credentials disabled.
+
+There is one sequential suite per job, without a matrix or `--parallel`. PR and push jobs may overlap on separate runners, but never share a MySQL service. Local suites are also run sequentially. Child race workers share only the current test's committed synthetic fixtures and do not execute schema refreshes.
+
+Initial workflow attempt `41505463139` failed before creating any job because the service-port expression used the unavailable job context at job-env level. The port is now resolved in a supported step context and exported through `GITHUB_ENV`. This was workflow configuration failure, not a Laravel test result. Context restrictions: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#context-availability.
+
+The next CI attempt successfully installed dependencies and verified the disposable database, then PHPUnit refused discovery because `phpunit.xml` declared `tests/Unit` but the empty directory was absent from a clean checkout. A tracked `.gitignore` now preserves that directory. No Laravel test ran in that failed attempt. This is a clean-checkout portability correction; no placeholder test or test-suite exclusion was added.
+
+Final local review suite: **92 passed, 1,418 assertions, zero failures/skips**, using the existing PHP 8.4 installation and isolated MySQL database (196.99 seconds). The focused process-level security suite passed 4 tests / 43 assertions; the historical-application compatibility test passed 1 test / 7 assertions. Local JUnit evidence is in ignored `logs/phase-1-review-results.xml`.
+
+After the final local suite, read-only fingerprints again confirmed **zero changes across all 37 operational tables and all three private files**. The authentication migration remains unapplied to the operational database. `src`, `public`, frontend manifests/build configuration, and Composer manifests/lockfile have zero diff from the audited base. GitHub Actions results are recorded separately after completion; local results do not substitute for CI or deployment smoke testing.
+
+### Exact schema-first release sequence (documentation only; not executed)
+
+1. Obtain separate production authorization and identify the real hosts, database, storage, session configuration, deployed SHA, and schema. Confirm the previous migrations are applied. Verify a backup by restoring it to a distinct recovery environment. Record operational relationship and financial baselines without publishing records.
+2. Prepare the reviewed release separately using its lockfiles. Keep the current application version available. Hold staff/API authentication and security mutations at the gateway, drain existing staff requests, and stop/restart any workers capable of changing users or authentication. This prevents old nodes from issuing unstamped sessions or changing credentials during cutover. Do not change the website or session driver.
+3. From the new release's `backend` directory, using the explicitly verified target environment, execute only `php artisan migrate --path=database/migrations/2026_11_02_000006_add_auth_version_to_users.php --force`. This is a future operator instruction, not permission for this task to run it. Validate the new unsigned BIGINT default-zero column, hash primary key, expiry index, and migration entry before exposing new code. No business-table copy, reseed, or per-user data backfill is required.
+4. MySQL DDL is not an all-or-nothing transaction. If either schema statement fails, retain the traffic gate, inspect the actual partial schema and migration history, and use an approved repair plan. Do not repeatedly rerun a partially applied migration or use rollback/reset against the operational database.
+5. Switch all web nodes to the reviewed code together; restart old workers and rebuild release-specific caches through the normal deployment procedure. Preserve existing application key, cookie settings, database, and private storage. New code on missing schema is not a supported operating state; legacy sessions deliberately require a fresh sign-in.
+6. Before reopening staff traffic, verify synthetic account login/CSRF, MFA, logout replay, two-browser revocation, scope denial, and private-file access on the actual session driver. Reconcile operational financial/relationship baselines and watch authentication errors. This task did not execute these deployment checks.
+
+The previous application was **runtime-tested for schema compatibility**, not approved as a secure mixed-version participant: it ignores authentication versions and cannot enforce the new revocation guarantee. Keep the staff gate until every node enforces the new behavior.
+
+### Rollback precautions
+
+Prefer a forward correction retaining the validator and new schema. Do not run `migrate:rollback`, drop the denylist, restore the whole ERP database, or remove version enforcement as a routine application rollback. Those actions can revive previously revoked credentials or erase unrelated business transactions.
+
+If an older non-enforcing application must be restored, keep staff traffic blocked, reconcile in-flight writes, and perform an explicitly authorized security rollback: invalidate this application's server-side sessions, invalidate remember credentials, and change to a fresh application session-cookie namespace before reopening. Cookie-backed sessions require the namespace change because a server cannot erase previously issued browser cookies. Do not flush shared Redis, rotate the encryption key casually (MFA secrets depend on it), or delete unrelated applications' sessions. Retain additive schema and security evidence for the subsequent fixed release. This is environment-specific operational work, not something performed by this PR.
