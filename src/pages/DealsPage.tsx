@@ -1,4 +1,5 @@
 import {useRef} from 'react';
+import {authorizeExport} from '@/crm/api';
 import {loadPage} from '@/services/laravelClient';
 import {PageControls} from '@/components/workspace/PageControls';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
@@ -475,8 +476,9 @@ const Deals = () => {
   };
 
   // Export functionality
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
+      await authorizeExport('deals',filteredDeals.map(row=>row.id));
       // Prepare data for export
       const exportData = filteredDeals.map(deal => ({
         'Deal Title': deal.title,

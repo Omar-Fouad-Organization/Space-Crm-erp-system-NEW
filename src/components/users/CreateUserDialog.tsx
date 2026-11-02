@@ -34,7 +34,7 @@ import { CreateUserForm, UserRole } from '@/types';
 const userFormSchema = z.object({
   full_name: z.string().min(1, 'Full name is required').max(100, 'Full name too long'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(['super_admin', 'management', 'sales_manager', 'sales_executive', 'finance_manager', 'finance_officer', 'operations', 'support', 'client'], {
+  role: z.enum(['super_admin', 'management', 'sales_manager', 'sales_executive', 'finance_manager', 'finance_officer', 'operations', 'support', 'hr'], {
     error: 'Role is required',
   }),
   status: z.enum(['active', 'inactive'], {
@@ -54,14 +54,14 @@ interface CreateUserDialogProps {
 
 const roles: { value: UserRole; label: string; description: string }[] = [
   { value: 'super_admin', label: 'Super Admin', description: 'Full system access and control' },
-  { value: 'management', label: 'Management', description: 'Executive level access to all modules' },
-  { value: 'sales_manager', label: 'Sales Manager', description: 'Manage sales team and approve deals' },
+  { value: 'management', label: 'Management', description: 'Management workflows within assigned access' },
+  { value: 'sales_manager', label: 'Sales Manager', description: 'Sales role defaults; additional approvals require a grant' },
   { value: 'sales_executive', label: 'Sales Executive', description: 'Handle deals and client relationships' },
   { value: 'finance_manager', label: 'Finance Manager', description: 'Manage financial operations and reports' },
   { value: 'finance_officer', label: 'Finance Officer', description: 'Handle payments and financial records' },
   { value: 'operations', label: 'Operations', description: 'Manage operational tasks and logistics' },
   { value: 'support', label: 'Support', description: 'Handle customer support and tickets' },
-  { value: 'client', label: 'Client', description: 'Limited access to client portal only' }
+  { value: 'hr', label: 'Human Resources', description: 'Manage employee records and authorized payroll fields' }
 ];
 
 export default function CreateUserDialog({ open, onOpenChange, onSubmit, initialData }: CreateUserDialogProps) {

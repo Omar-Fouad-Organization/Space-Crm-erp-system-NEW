@@ -7,6 +7,7 @@ use App\Services\CrmService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\{DB, Schema};
 use Symfony\Component\Process\Process;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class BoothConcurrencyTest extends TestCase
@@ -20,7 +21,10 @@ class BoothConcurrencyTest extends TestCase
         \Illuminate\Foundation\Testing\RefreshDatabaseState::$migrated = false;
     }
 
-    public function test_two_independent_processes_cannot_reserve_the_same_booth(): void
+    public static function authorizationModes(): array { return [[false], [true]]; }
+
+    #[DataProvider('authorizationModes')]
+    public function test_two_independent_processes_cannot_reserve_the_same_booth(bool $granular): void
     {
         $this->assertSame('127.0.0.1', config('database.connections.mysql.host'));
         $admin = User::factory()->create(['role' => 'super_admin', 'status' => 'active']);
@@ -31,8 +35,14 @@ class BoothConcurrencyTest extends TestCase
             'end_date' => '2027-01-02', 'location' => 'Test', 'currency' => 'EGP', 'status' => 'planning'], $admin);
         $booth = $crm->save('booths', ['name' => 'RACE-01', 'exhibition_id' => $expo['id'],
             'size_sqm' => '10', 'price' => '1000', 'currency' => 'EGP'], $admin);
+        $actor = $admin;
+        if ($granular) {
+            $actor = User::factory()->create(['role'=>'sales','status'=>'active','authorization_scoped'=>true,'record_scope'=>'own']);
+            DB::table('exhibition_user')->insert(['user_id'=>$actor->id,'exhibition_id'=>$expo['id'],'granted_by'=>$admin->id,'created_at'=>now(),'updated_at'=>now()]);
+            DB::table('clients')->where('id',$client['id'])->update(['created_by'=>$actor->id]);
+        }
         $deal = ['name' => 'Concurrent reservation', 'client_id' => $client['id'], 'exhibition_id' => $expo['id'],
-            'type' => 'booth', 'booth_id' => $booth['id'], 'salesperson_id' => $admin->id,
+            'type' => 'booth', 'booth_id' => $booth['id'], 'salesperson_id' => $actor->id,
             'amount' => '1000', 'currency' => 'EGP', 'status' => 'talking', 'commission_percentage' => '0'];
         $server = stream_socket_server('tcp://127.0.0.1:0');
         $this->assertNotFalse($server);
@@ -40,12 +50,13 @@ class BoothConcurrencyTest extends TestCase
         $db = config('database.connections.mysql');
         $environment = ['APP_ENV' => 'testing', 'DB_CONNECTION' => 'mysql', 'DB_URL' => '',
             'DB_HOST' => $db['host'], 'DB_PORT' => (string) $db['port'], 'DB_DATABASE' => 'space_crm_test',
-            'DB_USERNAME' => $db['username'], 'DB_PASSWORD' => $db['password'], 'CACHE_STORE' => 'array'];
+            'DB_USERNAME' => $db['username'], 'DB_PASSWORD' => $db['password'], 'CACHE_STORE' => 'array',
+            'GRANULAR_AUTHORIZATION_ENABLED' => $granular ? 'true' : 'false'];
         $workers = []; $connections = [];
         try {
             for ($i = 0; $i < 2; $i++) {
                 $worker = new Process([PHP_BINARY, base_path('tests/Support/reserve-booth.php')], base_path(), $environment);
-                $worker->setInput(json_encode(['barrier' => $address, 'user_id' => $admin->id, 'deal' => $deal]));
+                $worker->setInput(json_encode(['barrier' => $address, 'user_id' => $actor->id, 'deal' => $deal]));
                 $worker->setTimeout(30); $worker->start(); $workers[] = $worker;
             }
             foreach ($workers as $worker) {

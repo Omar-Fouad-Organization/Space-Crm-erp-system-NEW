@@ -1,4 +1,5 @@
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
+import {authorizeExport} from '@/crm/api';
 import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -207,8 +208,9 @@ const Sponsorship = () => {
     setShowEditDialog(true);
   };
 
-  const exportPackages = () => {
+  const exportPackages = async () => {
     try {
+      await authorizeExport('sponsorship_packages',filteredPackages.map(row=>row.id));
       const csvContent = [
         // CSV Header
         ['Package Name', 'Tier Level', 'Price (EGP)', 'Max Sponsors', 'Current Sponsors', 'Status', 'Exhibition', 'City'].join(','),

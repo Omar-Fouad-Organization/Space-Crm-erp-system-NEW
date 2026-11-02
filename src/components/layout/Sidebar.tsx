@@ -50,7 +50,7 @@ const menuSections = [
     items: [
       { name: 'Payments', path: '/payments', icon: CreditCard, description: 'Transaction tracking', page: 'payments' },
       { name: 'Finance', path: '/finance', icon: DollarSign, description: 'Financial dashboard', page: 'finance' },
-      { name: 'Commissions', path: '/commissions', icon: Percent, description: 'Sales compensation', page: 'finance' },
+      { name: 'Commissions', path: '/commissions', icon: Percent, description: 'Sales compensation', page: 'commissions' },
       { name: 'Proposals', path: '/proposals', icon: FileText, description: 'Client proposals & e-signatures', page: 'proposals' },
     ]
   },
@@ -70,7 +70,7 @@ const menuSections = [
     title: 'Intelligence',
     items: [
       { name: 'Analytics', path: '/analytics', icon: ChartColumn, description: 'Business intelligence', page: 'analytics' },
-      { name: 'Advanced Features', path: '/advanced', icon: Brain, description: 'AI-powered CRM features', page: 'analytics', roles: ['super_admin', 'management'] },
+      { name: 'Advanced Features', path: '/advanced', icon: Brain, description: 'AI-powered CRM features', page: 'advanced', roles: ['super_admin', 'management'] },
       { name: 'Notifications', path: '/notifications', icon: Bell, description: 'Smart alerts', page: 'notifications' },
       { name: 'System', path: '/settings', icon: Settings, description: 'Configuration', page: 'settings', roles: ['super_admin'] },
     ]
@@ -93,6 +93,7 @@ export function Sidebar() {
   const { hasPageAccess, hasRole, roles,logout,user } = useAuth();
 
   const canAccessMenuItem = (item: any) => {
+    if (item.page) return hasPageAccess(item.page);
     // Check if user has specific roles required for this item
     if (item.roles && item.roles.length > 0) {
       const hasRequiredRole = item.roles.some((role: string) => hasRole(role));

@@ -1,4 +1,5 @@
 import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
+import {authorizeExport} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -554,8 +555,9 @@ const Expos = () => {
     });
   };
 
-  const exportExpos = () => {
+  const exportExpos = async () => {
     try {
+      await authorizeExport('exhibitions',filteredExpos.map(row=>row.id));
       const csvContent = [
         ['Expo Number', 'Name', 'Status', 'Start Date', 'End Date', 'City', 'Country', 'Expected Visitors', 'Budget', 'Priority', 'Manager'].join(','),
         ...filteredExpos.map(expo => [

@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {workflowPermissions} from '@/auth/access';
 export const workflowNames: Record<string, string> = {
   collections: "Collections",
   approvals: "Approvals & Corrections",
@@ -12,7 +13,8 @@ export const workflowNames: Record<string, string> = {
   access: "Teams & Access",
   security: "Account Security",
 };
-export function canUseWorkflow(key: string, role: string) {
+export function canUseWorkflow(key: string, role: string, can?: (permission:string)=>boolean) {
+  if(can) return key in workflowPermissions && (workflowPermissions[key] === null || can(workflowPermissions[key]!));
   return (
     role === "super_admin" ||
     ["security", "reminders"].includes(key) ||
@@ -28,11 +30,11 @@ export function WorkflowLinks({
 }: {
   sections?: string[];
 }) {
-  const { user } = useAuth();
+  const { user,can } = useAuth();
   return (
     <div className="flex flex-wrap gap-2">
       {sections
-        .filter((key) => canUseWorkflow(key, user?.role || ""))
+        .filter((key) => canUseWorkflow(key, user?.role || "",can))
         .map((key) => (
           <Button key={key} variant="outline" size="sm" asChild>
             <Link to={"/workspace?section=" + key}>{workflowNames[key]}</Link>

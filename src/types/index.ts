@@ -22,6 +22,7 @@ export type UserRole =
   | 'finance_officer'
   | 'operations'
   | 'support'
+  | 'hr'
   | 'client';
 
 export interface Permission {

@@ -25,8 +25,9 @@ class WorkflowService
     {
         throw ValidationException::withMessages(["workflow" => $message]);
     }
-    public function financeUser($user): void
+    public function financeUser($user, string $permission = 'finance.view'): void
     {
+        if (app(PermissionPolicy::class)->enabled()) { app(PermissionPolicy::class)->authorize($permission, $user); return; }
         abort_unless(
             in_array($user->role, ["super_admin", "management", "finance"]),
             403,
@@ -107,6 +108,14 @@ class WorkflowService
     }
     public function request(array $input, $user): array
     {
+        if (app(PermissionPolicy::class)->enabled()) {
+            foreach (['deal_id' => 'deals', 'payment_id' => 'payments', 'payment_schedule_id' => 'payment_schedules', 'commission_id' => 'commissions'] as $field => $resource) {
+                $value = $input[$field] ?? null;
+                if ((is_int($value) || is_string($value)) && ctype_digit((string) $value) && (int) $value > 0) {
+                    $this->crm->authorize($resource, $user); $this->access->check($resource, (int) $value, $user);
+                }
+            }
+        }
         $v = Validator::make($input, [
             "kind" => ["required", Rule::in(self::KINDS)],
             "deal_id" => "required|integer|exists:deals,id",
@@ -121,6 +130,7 @@ class WorkflowService
         ])->validate();
         $this->crm->authorize("deals", $user);
         $this->access->check("deals", $v["deal_id"], $user);
+        if (app(PermissionPolicy::class)->enabled()) app(PermissionPolicy::class)->authorize('workflow.'.$v['kind'].'.request', $user);
         $financial = in_array($v["kind"], [
             "refund",
             "receipt_reversal",
@@ -128,12 +138,12 @@ class WorkflowService
             "commission_recovery",
         ]);
         if ($financial) {
-            $this->financeUser($user);
+            $this->financeUser($user, 'workflow.'.$v['kind'].'.request');
             if (empty($v["amount"])) {
                 $this->fail("Enter a positive adjustment amount.");
             }
         } else {
-            $this->crm->authorize("deals", $user, true);
+            if (!app(PermissionPolicy::class)->enabled()) $this->crm->authorize("deals", $user, true);
             $p = $v["payload"] ?? [];
             $rules = match ($v["kind"]) {
                 "discount" => [
@@ -216,7 +226,7 @@ class WorkflowService
     }
     public function review(int $id, array $input, $user): array
     {
-        abort_unless(in_array($user->role, ["super_admin", "management"]), 403);
+        if (!app(PermissionPolicy::class)->enabled()) abort_unless(in_array($user->role, ["super_admin", "management"]), 403);
         $v = Validator::make($input, [
             "decision" => ["required", Rule::in(["approved", "rejected"])],
             "review_note" => "required|string|min:8|max:5000",
@@ -227,6 +237,10 @@ class WorkflowService
                 ->lockForUpdate()
                 ->first();
             abort_unless($w, 404);
+            if (app(PermissionPolicy::class)->enabled()) {
+                $this->access->check('deals', $w->deal_id, $user);
+                app(PermissionPolicy::class)->authorize('workflow.'.$w->kind.'.approve', $user);
+            }
             if ($w->status !== "pending") {
                 $this->fail("This request has already been reviewed.");
             }
@@ -395,7 +409,7 @@ class WorkflowService
     }
     public function collections($user): array
     {
-        $this->financeUser($user);
+        $this->financeUser($user, 'collections.view');
         $rows = [];
         foreach (
             $this->access->query("payment_schedules", $user)->get()
@@ -477,6 +491,7 @@ class WorkflowService
                         "Recipient inactive.",
                     );
                     $this->crm->authorize($r->resource, $u);
+                    if (app(PermissionPolicy::class)->enabled()) app(PermissionPolicy::class)->authorize('reminders.view', $u);
                     $this->access->check($r->resource, $r->record_id, $u);
                     if ($r->channel === "email") {
                         if (

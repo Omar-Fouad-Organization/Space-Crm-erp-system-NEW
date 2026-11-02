@@ -310,9 +310,9 @@ class WorkspaceController extends Controller
     {
         $this->crm->authorize("deals", $r->user());
         $ids = $this->access->query("deals", $r->user())->pluck("id");
-        $q = DB::table("workflow_requests")->whereIn("deal_id", $ids);
+        $q = app(\App\Services\AuthorizedData::class)->workflows(DB::table("workflow_requests")->whereIn("deal_id", $ids), $r->user());
         if (
-            !in_array($r->user()->role, [
+            !app(\App\Services\PermissionPolicy::class)->enabled() && !in_array($r->user()->role, [
                 "super_admin",
                 "management",
                 "finance",
@@ -358,7 +358,7 @@ class WorkspaceController extends Controller
     }
     public function collectionNote(Request $r)
     {
-        $this->work->financeUser($r->user());
+        $this->work->financeUser($r->user(), 'collections.assign');
         $v = $r->validate([
             "payment_schedule_id" =>
                 "required|integer|exists:payment_schedules,id",
@@ -460,9 +460,9 @@ class WorkspaceController extends Controller
                 ];
             }
         }
-        $w = DB::table("workflow_requests")->whereIn("deal_id", $dealIds);
+        $w = app(\App\Services\AuthorizedData::class)->workflows(DB::table("workflow_requests")->whereIn("deal_id", $dealIds), $r->user());
         if (
-            !in_array($r->user()->role, [
+            !app(\App\Services\PermissionPolicy::class)->enabled() && !in_array($r->user()->role, [
                 "super_admin",
                 "management",
                 "finance",
@@ -485,10 +485,10 @@ class WorkspaceController extends Controller
             ];
         }
         if (
-            in_array($r->user()->role, ["super_admin", "management", "finance"])
+            app(\App\Services\PermissionPolicy::class)->enabled() ? app(\App\Services\PermissionPolicy::class)->allows('collections.view', $r->user()) : in_array($r->user()->role, ["super_admin", "management", "finance"])
         ) {
             foreach (
-                DB::table("collection_notes")
+                app(\App\Services\AuthorizedData::class)->auxiliary('collection_notes', $r->user())
                     ->whereIn(
                         "payment_schedule_id",
                         DB::table("payment_schedules")
@@ -512,19 +512,17 @@ class WorkspaceController extends Controller
     }
     public function audit(Request $r)
     {
-        abort_unless(
-            in_array($r->user()->role, ["super_admin", "management"]),
-            403,
-        );
+        app(\App\Services\PermissionPolicy::class)->authorize('audit.view', $r->user());
         $v = $r->validate([
             "resource" => "nullable|string|max:80",
             "actor" => "nullable|integer",
             "record" => "nullable|integer",
             "page" => "nullable|integer|min:1",
         ]);
-        $q = DB::table("audit_logs")
+        $q = app(\App\Services\AuthorizedData::class)->audit(DB::table("audit_logs"), $r->user())
             ->leftJoin("users", "users.id", "=", "audit_logs.user_id")
             ->select("audit_logs.*", "users.name as actor");
+        if (app(\App\Services\PermissionPolicy::class)->enabled() && $r->user()->role !== 'super_admin') $q->select('audit_logs.id', 'resource', 'record_id', 'action', 'audit_logs.created_at', 'users.name as actor');
         if ($r->user()->role !== "super_admin") {
             $q->whereNotIn("resource", ["users", "employees", "security"]);
         }
@@ -544,9 +542,9 @@ class WorkspaceController extends Controller
     }
     public function expenses(Request $r)
     {
-        $this->work->financeUser($r->user());
+        $this->work->financeUser($r->user(), 'expenses.view');
         return [
-            "data" => DB::table("expenses")
+            "data" => app(\App\Services\AuthorizedData::class)->auxiliary('expenses', $r->user())
                 ->whereIn(
                     "exhibition_id",
                     $this->access
@@ -559,7 +557,7 @@ class WorkspaceController extends Controller
     }
     public function expense(Request $r)
     {
-        $this->work->financeUser($r->user());
+        $this->work->financeUser($r->user(), 'expenses.create');
         $v = $r->validate([
             "exhibition_id" => "required|integer|exists:exhibitions,id",
             "name" => "required|string|max:255",
@@ -592,7 +590,7 @@ class WorkspaceController extends Controller
     }
     public function profitability(Request $r)
     {
-        $this->work->financeUser($r->user());
+        $this->work->financeUser($r->user(), 'profitability.view');
         $rows = [];
         foreach (
             $this->access->query("exhibitions", $r->user())->get()
@@ -602,7 +600,7 @@ class WorkspaceController extends Controller
                 ->query("deals", $r->user())
                 ->where("exhibition_id", $expo->id)
                 ->get();
-            $expenses = DB::table("expenses")
+            $expenses = app(\App\Services\AuthorizedData::class)->auxiliary('expenses', $r->user())
                 ->where("exhibition_id", $expo->id)
                 ->get();
             foreach (
@@ -662,9 +660,9 @@ class WorkspaceController extends Controller
     public function reminders(Request $r)
     {
         return [
-            "data" => DB::table("reminders")
+            "data" => app(\App\Services\AuthorizedData::class)->pointers(DB::table('reminders'), 'reminders', $r->user())
                 ->when(
-                    !in_array($r->user()->role, ["super_admin", "management"]),
+                    !app(\App\Services\PermissionPolicy::class)->allows('reminders.manage_all', $r->user()),
                     fn($q) => $q->where("created_by", $r->user()->id),
                 )
                 ->orderByDesc("id")
@@ -718,9 +716,13 @@ class WorkspaceController extends Controller
                 ->lockForUpdate()
                 ->first();
             abort_unless($row, 404);
+            if (app(\App\Services\PermissionPolicy::class)->enabled()) {
+                $this->crm->authorize($row->resource, $r->user());
+                $this->access->check($row->resource, $row->record_id, $r->user());
+            }
             abort_unless(
                 $row->created_by === $r->user()->id ||
-                    in_array($r->user()->role, ["super_admin", "management"]),
+                    app(\App\Services\PermissionPolicy::class)->allows('reminders.manage_all', $r->user()),
                 403,
             );
             abort_unless(
@@ -749,7 +751,7 @@ class WorkspaceController extends Controller
     }
     public function reservation(Request $r, int $id)
     {
-        $this->crm->authorize("booths", $r->user(), true);
+        $this->crm->operation('booths', 'reserve', $r->user());
         $v = $r->validate(["expires_at" => "required|date|after:now"]);
         return DB::transaction(function () use ($r, $id, $v) {
             $d = DB::table("deals")->where("id", $id)->lockForUpdate()->first();
@@ -797,7 +799,7 @@ class WorkspaceController extends Controller
     }
     public function layout(Request $r)
     {
-        $this->crm->authorize("booths", $r->user(), true);
+        $this->crm->operation('booths', 'layout.edit', $r->user());
         $v = $r->validate([
             "booth_id" => "required|integer|exists:booths,id",
             "x" => "required|integer|min:0|max:950",
@@ -853,6 +855,7 @@ class WorkspaceController extends Controller
     public function setAccess(Request $r, int $id)
     {
         abort_unless($r->user()->role === "super_admin", 403);
+        abort_if(app(\App\Services\PermissionPolicy::class)->enabled(), 409, 'Use the confirmed authorization editor to change record scope or team.');
         $v = $r->validate([
             "record_scope" => ["required", Rule::in(["all", "own", "team"])],
             "team_id" => "nullable|integer|exists:teams,id",
