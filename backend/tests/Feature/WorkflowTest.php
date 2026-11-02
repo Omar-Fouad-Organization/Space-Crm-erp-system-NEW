@@ -774,6 +774,8 @@ class WorkflowTest extends TestCase
             "password_confirmation" => $new,
         ])->assertOk();
         $this->assertTrue(Hash::check($new, $this->admin->fresh()->password));
+        // The password reset now invalidates the existing authenticated browser too.
+        $this->getJson('/api/session')->assertUnauthorized();
         $this->postJson("/api/password/reset", [
             "email" => $this->admin->email,
             "token" => $token,

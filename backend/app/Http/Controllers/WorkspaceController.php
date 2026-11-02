@@ -868,9 +868,17 @@ class WorkspaceController extends Controller
             422,
             "Administrators and management retain organization-wide review access.",
         );
-        DB::table("users")->where("id", $id)->update($v);
-        DB::table("sessions")->where("user_id", $id)->delete();
-        $this->crm->audit("users", $id, "scope", $r->user()->id, $before, $v);
+        DB::transaction(function () use ($id, $v, $r) {
+            $before = DB::table('users')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($before, 404);
+            abort_if(in_array($before->role, ['super_admin', 'management']) && $v['record_scope'] !== 'all', 422,
+                'Administrators and management retain organization-wide review access.');
+            DB::table('users')->where('id', $id)->update($v);
+            if ($before->record_scope !== $v['record_scope'] || $before->team_id != ($v['team_id'] ?? null)) {
+                app(\App\Services\SessionRevocation::class)->revoke($id);
+            }
+            $this->crm->audit('users', $id, 'scope', $r->user()->id, $before, $v);
+        });
         return ["saved" => true];
     }
     public function team(Request $r)

@@ -74,7 +74,7 @@ class CrmService
         $attributes=json_decode($data['attributes'] ?? '{}',true) ?: [];
         unset($data['attributes']);
         $data=[...$attributes,...$data];
-        unset($data['password'], $data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter']);
+        unset($data['password'], $data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter'],$data['auth_version']);
         if ($resource === 'users' && $user->role !== 'super_admin') return array_intersect_key($data, array_flip(['id','name','status']));
         foreach (config("crm.resources.$resource.fields") as $key => $field) {
             if ($field['type'] === 'relation' && !empty($data[$key])) {
@@ -191,7 +191,10 @@ class CrmService
             $installments = $data['installments'] ?? null; unset($data['installments']);
             $attendees = $data['attendee_ids'] ?? null; unset($data['attendee_ids']);
             if ($resource === 'users') {
-                if ($id && !empty($data['password'])) DB::table('sessions')->where('user_id',$id)->delete();
+                if ($before && (!empty($data['password']) || $data['role'] !== $before->role
+                    || $data['status'] !== $before->status || $data['email'] !== $before->email)) {
+                    app(SessionRevocation::class)->revoke($id);
+                }
                 if (empty($data['password'])) unset($data['password']);
                 else $data['password'] = Hash::make($data['password']);
                 if ($id === $user->id && ($data['status'] !== 'active' || $data['role'] !== 'super_admin')) $this->invalid('role', 'You cannot disable or demote your own administrator account.');
@@ -362,7 +365,7 @@ class CrmService
 
     public function audit(string $resource,int $id,string $action,int $actor,$before,$after): void
     {
-        $redact = function ($data) { $data=(array)$data; unset($data['password'],$data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter']); return $data; };
+        $redact = function ($data) { $data=(array)$data; unset($data['password'],$data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter'],$data['auth_version']); return $data; };
         DB::table('audit_logs')->insert(['user_id'=>$actor,'resource'=>$resource,'record_id'=>$id,'action'=>$action,'before'=>$before ? json_encode($redact($before)) : null,'after'=>$after ? json_encode($redact($after)) : null,'created_at'=>now(),'updated_at'=>now()]);
         DB::table('notifications')->insert(['user_id'=>$actor,'name'=>ucfirst($action).' '.str_replace('_',' ',$resource).' #'.$id,'resource'=>$resource,'record_id'=>$id,'created_at'=>now(),'updated_at'=>now()]);
     }

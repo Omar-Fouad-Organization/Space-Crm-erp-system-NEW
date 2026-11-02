@@ -6,6 +6,14 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    public function actingAs(\Illuminate\Contracts\Auth\Authenticatable $user, $guard = null)
+    {
+        $this->withSession([\App\Services\SessionRevocation::STAMP => [
+            'user_id' => (int) $user->getAuthIdentifier(), 'version' => (int) $user->auth_version,
+        ]]);
+        return parent::actingAs($user, $guard);
+    }
+
     public function createApplication()
     {
         $app = parent::createApplication();

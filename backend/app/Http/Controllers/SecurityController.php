@@ -17,12 +17,14 @@ class SecurityController extends Controller
     }
     public function show(Request $r)
     {
+        $sessions = config('session.driver') === 'database'
+            ? DB::table('sessions')->where('user_id', $r->user()->id)->orderByDesc('last_activity')
+                ->get(['id', 'last_activity', 'user_agent'])
+            : collect([(object) ['id' => $r->session()->getId(), 'last_activity' => time(), 'user_agent' => $r->userAgent()]]);
         return [
             "mfa_enabled" => (bool) $r->user()->mfa_confirmed_at,
-            "sessions" => DB::table("sessions")
-                ->where("user_id", $r->user()->id)
-                ->orderByDesc("last_activity")
-                ->get(["id", "last_activity", "user_agent"])
+            "session_listing_complete" => config('session.driver') === 'database',
+            "sessions" => $sessions
                 ->map(
                     fn($s) => [
                         "id" => hash_hmac("sha256", $s->id, config("app.key")),
@@ -54,6 +56,9 @@ class SecurityController extends Controller
         $r->validate(["code" => "required|string|size:6"]);
         $pending = $r->session()->get("mfa_pending");
         abort_unless($pending, 422, "Start enrollment first.");
+        return DB::transaction(function () use ($r, $totp, $pending) {
+        $user = DB::table('users')->where('id', $r->user()->id)->lockForUpdate()->first();
+        abort_if($user->mfa_confirmed_at, 422, 'MFA is already enabled.');
         $counter = $totp->verify(
             Crypt::decryptString($pending),
             $r->input("code"),
@@ -67,17 +72,16 @@ class SecurityController extends Controller
                 "mfa_last_counter" => $counter,
             ]);
         $r->session()->forget("mfa_pending");
-        DB::table("sessions")
-            ->where("user_id", $r->user()->id)
-            ->where("id", "!=", $r->session()->getId())
-            ->delete();
+        app(\App\Services\SessionRevocation::class)->revoke($r->user()->id, $r);
         return ["enabled" => true];
+        });
     }
     public function disable(Request $r, Totp $totp)
     {
         $this->password($r);
         $r->validate(["code" => "required|string|size:6"]);
-        $u = $r->user();
+        return DB::transaction(function () use ($r, $totp) {
+        $u = DB::table('users')->where('id', $r->user()->id)->lockForUpdate()->first();
         abort_unless($u->mfa_confirmed_at, 422);
         abort_if(
             $totp->verify(
@@ -95,16 +99,15 @@ class SecurityController extends Controller
                 "mfa_confirmed_at" => null,
                 "mfa_last_counter" => null,
             ]);
+        app(\App\Services\SessionRevocation::class)->revoke($u->id, $r);
         return ["enabled" => false];
+        });
     }
     public function revoke(Request $r)
     {
         $this->password($r);
-        $count = DB::table("sessions")
-            ->where("user_id", $r->user()->id)
-            ->where("id", "!=", $r->session()->getId())
-            ->delete();
-        return ["revoked" => $count];
+        $count = app(\App\Services\SessionRevocation::class)->revoke($r->user()->id, $r);
+        return ["revoked" => $count, "revocation_enforced" => true];
     }
     public function forgot(Request $r)
     {
@@ -129,13 +132,16 @@ class SecurityController extends Controller
             "password" => "required|string|min:12|max:128|confirmed",
         ]);
         $status = Password::reset($v, function ($user, $password) {
+            DB::transaction(function () use ($user, $password) {
+            DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
             $user
                 ->forceFill([
                     "password" => Hash::make($password),
                     "remember_token" => \Illuminate\Support\Str::random(60),
                 ])
                 ->save();
-            DB::table("sessions")->where("user_id", $user->id)->delete();
+            app(\App\Services\SessionRevocation::class)->revoke($user->id);
+            });
         });
         abort_unless(
             $status === Password::PASSWORD_RESET,
