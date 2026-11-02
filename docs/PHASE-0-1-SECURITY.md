@@ -134,9 +134,17 @@ The next CI attempt successfully installed dependencies and verified the disposa
 
 Subsequent Linux runs completed 92 and then 95 tests' assertions, but reported suppressed dotenv warnings because the clean checkout had no `.env`. Their GitHub conclusions were success, but they were not treated as warning-free acceptance. CI now generates minimal `.env` and `.env.testing` files containing only `APP_ENV=testing`, while all connection/key values remain the disposable job environment. No operational file or secret is copied, and warnings are displayed rather than suppressed in the test command.
 
-Final local review suite: **92 passed, 1,418 assertions, zero failures/skips**, using the existing PHP 8.4 installation and isolated MySQL database (196.99 seconds). The focused process-level security suite passed 4 tests / 43 assertions; the historical-application compatibility test passed 1 test / 7 assertions. Local JUnit evidence is in ignored `logs/phase-1-review-results.xml`.
+The first expanded local review suite passed **92 tests / 1,418 assertions**. After adding database-safety probes, **95 tests / 1,424 assertions** passed. After the delayed-write regression, the **final local suite passed 96 tests / 1,429 assertions, zero failures, warnings, or skips**, using existing PHP 8.4 and isolated MySQL (179.59 seconds). Focused process-level security tests passed 4 tests / 43 assertions; historical-application compatibility passed 1 test / 7 assertions. Final local JUnit evidence is in ignored `logs/phase-1-final-review-results.xml`.
 
 After the final local suite, read-only fingerprints again confirmed **zero changes across all 37 operational tables and all three private files**. The authentication migration remains unapplied to the operational database. `src`, `public`, frontend manifests/build configuration, and Composer manifests/lockfile have zero diff from the audited base. GitHub Actions results are recorded separately after completion; local results do not substitute for CI or deployment smoke testing.
+
+| Final verification environment | Actual result | Evidence |
+| --- | --- | --- |
+| Local Windows, PHP 8.4, disposable `space_crm_test` | 96 passed / 1,429 assertions; 179.59s; zero failures/warnings/skips | `logs/phase-1-final-review-results.xml` (ignored, local only) |
+| GitHub Actions PR run, Ubuntu/PHP 8.4/disposable MySQL 8.4 | 96 passed / 1,429 assertions; 32.58s; successful test step, no PHPUnit warnings | https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41507486743 |
+| GitHub Actions push run, separate disposable runner/database | 96 passed / 1,429 assertions; 40.98s; successful test step, no PHPUnit warnings | https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41507475187 |
+
+These CI runs verify code head `7f3e44d215f897122fbd46a3aee681ef4a33be40`, matching the final local code tree. A subsequent results-only documentation commit does not alter application, test, workflow, schema, or dependency code. GitHub also emitted a non-test runner warning about the pinned checkout action's Node runtime; checkout succeeded. No framework/frontend dependency was upgraded to address it.
 
 ### Exact schema-first release sequence (documentation only; not executed)
 
@@ -154,3 +162,9 @@ The previous application was **runtime-tested for schema compatibility**, not ap
 Prefer a forward correction retaining the validator and new schema. Do not run `migrate:rollback`, drop the denylist, restore the whole ERP database, or remove version enforcement as a routine application rollback. Those actions can revive previously revoked credentials or erase unrelated business transactions.
 
 If an older non-enforcing application must be restored, keep staff traffic blocked, reconcile in-flight writes, and perform an explicitly authorized security rollback: invalidate this application's server-side sessions, invalidate remember credentials, and change to a fresh application session-cookie namespace before reopening. Cookie-backed sessions require the namespace change because a server cannot erase previously issued browser cookies. Do not flush shared Redis, rotate the encryption key casually (MFA secrets depend on it), or delete unrelated applications' sessions. Retain additive schema and security evidence for the subsequent fixed release. This is environment-specific operational work, not something performed by this PR.
+
+### Recommendation
+
+**Ready for Review**, not authorized for merge or deployment. No unresolved failure remains in the verified local/CI suites. Remaining release gates are production inventory/authorization, backup restoration, schema-first migration, uniform-node cutover, actual deployed-driver/browser verification, and monitoring/retention planning for persistent logout markers. Redis/memcached/DynamoDB adapters and production performance were not runtime-tested. Already-authorized in-flight transactions cannot be undone by subsequent revocation.
+
+Phase 2 development may safely branch from the final reviewed feature head in a separate dependent branch and isolated environment **after authorization**. This verification neither starts Phase 2 nor authorizes use of operational data. PR #1 remains draft; target branch, website, operational schema/data, and private files remain unchanged.
