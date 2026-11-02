@@ -137,6 +137,7 @@ class CrmController extends Controller
     public function deleteAttachment(Request $r,int $id)
     {
         $this->crm->authorize('documents',$r->user(),true); $file=DB::table('attachments')->find($id); abort_unless($file,404);
+        $this->crm->checkRecord('documents',$file->document_id,$r->user());
         DB::transaction(function () use ($file,$id,$r) { DB::table('attachments')->where('id',$id)->delete(); $this->crm->audit('attachments',$id,'delete',$r->user()->id,$file,null); });
         Storage::disk('local')->delete($file->path); return response()->noContent();
     }
