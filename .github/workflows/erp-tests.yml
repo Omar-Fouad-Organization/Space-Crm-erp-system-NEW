@@ -74,4 +74,4 @@ jobs:
           php -r '$p = new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"), getenv("DB_USERNAME"), getenv("DB_PASSWORD")); if (getenv("APP_ENV") !== "testing" || getenv("DB_HOST") !== "127.0.0.1" || $p->query("SELECT DATABASE()")->fetchColumn() !== "space_crm_test") { exit(1); } echo "Disposable loopback database verified.\n";'
       - name: Run one sequential Laravel suite with synthetic fixtures
         # No --parallel, matrix, operational .env, seed command, or deployment step.
-        run: php artisan test --compact --log-junit=storage/test-results.xml
+        run: php artisan test --compact --display-warnings --fail-on-warning --log-junit=storage/test-results.xml
