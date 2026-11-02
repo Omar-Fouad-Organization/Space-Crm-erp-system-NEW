@@ -295,7 +295,8 @@ class CrmService
             if (empty($data['booth_id']) || !empty($data['sponsorship_package_id'])) $this->invalid('booth_id','A booth deal requires one booth and no sponsorship package.');
             $booth = DB::table('booths')->where('id',$data['booth_id'])->lockForUpdate()->first();
             if ($booth->exhibition_id != $data['exhibition_id'] || $booth->currency !== $data['currency']) $this->invalid('booth_id','Booth exhibition and currency must match the deal.');
-            $occupied = DB::table('deals')->where('booth_id',$booth->id)->whereNotIn('status',['closed_lost','cancelled'])->when($before,fn($q)=>$q->where('id','!=',$before->id))->exists();
+            // A locking read sees the winner after waiting on the booth lock, even under REPEATABLE READ.
+            $occupied = DB::table('deals')->where('booth_id',$booth->id)->whereNotIn('status',['closed_lost','cancelled'])->when($before,fn($q)=>$q->where('id','!=',$before->id))->lockForUpdate()->first(['id']);
             if ($occupied && !in_array($data['status'],['closed_lost','cancelled'])) $this->invalid('booth_id','This booth is already reserved or sold.');
         } else {
             if (empty($data['sponsorship_package_id']) || !empty($data['booth_id'])) $this->invalid('sponsorship_package_id','A sponsorship deal requires a package and no booth.');
