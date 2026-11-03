@@ -24,7 +24,8 @@ import {
   Calendar,
   ChevronRight,
   Shield,
-  Crown
+  Crown,
+  Globe
 } from 'lucide-react';
 
 const menuSections = [
@@ -82,6 +83,12 @@ const menuSections = [
       { name: 'Performance', path: '/performance', icon: Gauge, description: 'System optimization', page: 'settings', roles: ['super_admin'] },
       { name: 'Design System', path: '/design', icon: Palette, description: 'UI/UX color palette', page: 'settings', roles: ['super_admin'] },
       { name: 'Modern Delete', path: '/modern-delete', icon: TestTube, description: 'Modern delete button showcase', page: 'settings', roles: ['super_admin'] },
+    ]
+  },
+  {
+    title: 'Website Management',
+    items: [
+      { name: 'Website Management', path: '/website', icon: Globe, description: 'Public website CMS', page: 'website-management' },
     ]
   }
 ];
@@ -141,7 +148,7 @@ export function Sidebar() {
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
 
-        {menuSections.map((section) => (
+        {menuSections.filter(section => section.title !== 'Website Management' || section.items.some(canAccessMenuItem)).map((section) => (
           <div key={section.title}>
 
             <div className="mb-3">

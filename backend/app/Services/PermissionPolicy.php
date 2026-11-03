@@ -25,6 +25,7 @@ class PermissionPolicy
     {
         $entry = $this->registry()[$permission] ?? null;
         if (!$entry) return ['allowed' => false, 'source' => 'unavailable', 'reason' => 'Unknown or future permission.'];
+        if (($entry['feature'] ?? null) === 'website_cms' && (!$this->enabled() || !config('cms_gateway.enabled'))) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Website management requires an approved authorization and CMS activation.'];
         if (isset($entry['unavailable_reason'])) return ['allowed'=>false,'source'=>'unavailable','reason'=>$entry['unavailable_reason']];
         if ($user->role === 'super_admin') return ['allowed' => true, 'source' => 'protected', 'reason' => 'Super Admin authority is protected.'];
         if ($entry['protected']) return ['allowed' => false, 'source' => 'protected', 'reason' => 'This security operation requires Super Admin.'];
@@ -35,6 +36,10 @@ class PermissionPolicy
         $reason = $overridden ? ($allowed ? 'Individual grant.' : 'Explicit individual denial.') : ($allowed ? 'Inherited from organizational role.' : 'Not included in organizational role.');
         if ($allowed && $this->enabled()) {
             $dependencies = [];
+            if (($entry['feature'] ?? null) === 'website_cms' && $permission !== 'website.view') {
+                $dependencies[] = 'website.view';
+                if (!str_ends_with($permission, '.view')) $dependencies[] = explode('.', $permission)[0].'.view';
+            }
             if (preg_match('/^([a-z_]+)\.(create|edit|delete|export)$/', $permission, $match) && isset(config('crm.resources')[$match[1]])) $dependencies[] = $match[1].'.view';
             if (in_array($permission, ['payments.view', 'payment_schedules.view', 'invoices.view', 'commissions.view', 'finance.view', 'profitability.view', 'expenses.view', 'expenses.create', 'collections.view', 'collections.assign', 'dashboard.financial_view'])) $dependencies[] = 'financial.fields.view';
             if (in_array($permission, ['finance.export', 'profitability.export', 'collections.export', 'dashboard.export', 'audit.export'])) $dependencies[] = str_replace('.export', '.view', $permission);
