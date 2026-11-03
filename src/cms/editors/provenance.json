@@ -1,0 +1,66 @@
+{
+  "source_repository": "Omar-Fouad-Organization/Premium-website",
+  "source_commit": "080ea485b41f034d733f467981aa73ec17b8a6e9",
+  "editors": [
+    {
+      "file": "src/cms/editors/Content.tsx",
+      "source": "src/pages/admin/Content.tsx",
+      "source_sha256": "197bad184a40ae34918f1e5f6747b07e0708a8171a937711b816767b4be1f117"
+    },
+    {
+      "file": "src/cms/editors/Settings.tsx",
+      "source": "src/pages/admin/Settings.tsx",
+      "source_sha256": "7fa533b7b80c6bc8010b5e4fbce7cc6585fa6b624dc3fe4b718eddec93eb0bfd"
+    },
+    {
+      "file": "src/cms/editors/SEO.tsx",
+      "source": "src/pages/admin/SEO.tsx",
+      "source_sha256": "6c7ab41bfae9c6f60cca96b39b6ae1ee7a1f9fa8804fa62510527293b4272e07"
+    },
+    {
+      "file": "src/cms/editors/Logo.tsx",
+      "source": "src/pages/admin/Logo.tsx",
+      "source_sha256": "ab869b46b17240733bea7297c5f2ce207de61319f1ee210eb81685759db3b6fc"
+    },
+    {
+      "file": "src/cms/editors/Design.tsx",
+      "source": "src/pages/admin/Design.tsx",
+      "source_sha256": "5b3d58a64fdabe57d3705a49a2603a8cae8a5c877e12f0434357d3c2317af6c5"
+    },
+    {
+      "file": "src/cms/editors/Photos.tsx",
+      "source": "src/pages/admin/Photos.tsx",
+      "source_sha256": "f2e390b5499d4810e602269f0f40b4eef164a8b31c09b0b74fc84abf015add55"
+    },
+    {
+      "file": "src/cms/editors/Packages.tsx",
+      "source": "src/pages/admin/Packages.tsx",
+      "source_sha256": "93bea4b565e943f063abe1c56dadd09ef106599f37965d2e2a8e63b79bd0dab1"
+    },
+    {
+      "file": "src/cms/editors/FAQs.tsx",
+      "source": "src/pages/admin/FAQs.tsx",
+      "source_sha256": "ff11d32bfcceda40de74b836edd099c9df53113d0aa2ddbdf69bcdf1b1b94180"
+    },
+    {
+      "file": "src/cms/editors/Language.tsx",
+      "source": "src/pages/admin/Language.tsx",
+      "source_sha256": "4ebb86b7c798a644bcc3a9a3f9451e33138046911c8a195097f0d2f827966c90"
+    },
+    {
+      "file": "src/cms/editors/Blogs.tsx",
+      "source": "src/pages/admin/Blogs.tsx",
+      "source_sha256": "a13fa934775b32733c5acebb31f8ad371538397b20085e22febac476a9664689"
+    },
+    {
+      "file": "src/cms/editors/Partners.tsx",
+      "source": "src/pages/admin/Partners.tsx",
+      "source_sha256": "0a7a7c42d299b1e0d8a0e9fc27ab218f952bcc9c7c637d6c4d11c3d71b8f4da6"
+    },
+    {
+      "file": "src/cms/editors/Location.tsx",
+      "source": "src/pages/admin/Location.tsx",
+      "source_sha256": "42be894f84bec5f2db4272c296fbf51c3ff9ad61221433e53b6fb4c32005e4d1"
+    }
+  ]
+}

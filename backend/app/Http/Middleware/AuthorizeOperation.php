@@ -40,11 +40,11 @@ class AuthorizeOperation
                 default => 'unregistered.operation',
             };
         } elseif ($controller === 'ImportController') $permission = 'clients.import';
-        elseif (!in_array($controller, ['SecurityController', 'AuthorizationController', 'ExportController'])) $permission = 'unregistered.operation';
+        elseif (!in_array($controller, ['SecurityController', 'AuthorizationController', 'ExportController', 'WebsiteCmsController'])) $permission = 'unregistered.operation';
         if ($permission) $policy->authorize($permission, $request->user());
         if ($controller === 'CrmController' && $request->route('resource') === 'users'
             && in_array($method, ['store', 'update', 'destroy'])) app(\App\Services\PrivilegeConfirmation::class)->confirm($request);
-        if (!in_array($controller, ['SecurityController', 'AuthorizationController', 'ExportController'])) {
+        if (!in_array($controller, ['SecurityController', 'AuthorizationController', 'ExportController', 'WebsiteCmsController'])) {
             foreach (['exhibition_id' => 'exhibitions', 'deal_id' => 'deals', 'client_id' => 'clients', 'booth_id' => 'booths',
                 'sponsorship_package_id' => 'sponsorship_packages', 'payment_schedule_id' => 'payment_schedules', 'payment_id' => 'payments',
                 'commission_id' => 'commissions', 'channel_id' => 'channels'] as $field => $resource) {

@@ -1,4 +1,5 @@
 import WorkflowWorkspace from './pages/WorkflowWorkspace';
+import {lazy,Suspense} from 'react';
 import {PasswordRecovery} from './components/workspace/AccountSecurity';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -34,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import {ChatPage, AnalyticsPage, AdvancedPage, NotificationsPage, SettingsPage, DiagnosticsPage, DesignPage, DeleteShowcasePage, ProfilePage, SearchPage, HelpPage} from './pages/WorkspacePages';
 
 const queryClient = new QueryClient();
+const WebsiteManagement=lazy(()=>import('./pages/WebsiteManagement'));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -48,6 +50,7 @@ const App = () => (
           <Route path="/reset-password" element={<PasswordRecovery/>}/><Route path="/login" element={<Index />} />
           <Route path="/" element={<CRMLayout />}>
             <Route index element={<Dashboard />} />
+          <Route path="website/:section?" element={<Suspense fallback={<p role="status" className="p-6 text-muted-foreground">Loading website management…</p>}><WebsiteManagement/></Suspense>}/>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="expos" element={<Expos />} />
             <Route path="expos/:expoId" element={<ExpoDetail />} />

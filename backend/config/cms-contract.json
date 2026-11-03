@@ -1,0 +1,582 @@
+{
+  "version": 1,
+  "public_setting_keys": [
+    "accent_color",
+    "accent_color_ar",
+    "background_color",
+    "background_color_ar",
+    "canonical_url",
+    "canonical_url_ar",
+    "color_accent",
+    "color_accent_ar",
+    "color_background",
+    "color_background_ar",
+    "color_primary",
+    "color_primary_ar",
+    "color_secondary",
+    "color_secondary_ar",
+    "contact_address",
+    "contact_address_ar",
+    "contact_email",
+    "contact_email_ar",
+    "contact_phone",
+    "contact_phone_ar",
+    "enable_language_switcher",
+    "enable_language_switcher_ar",
+    "event_date",
+    "event_date_ar",
+    "event_location",
+    "event_location_ar",
+    "facebook_url",
+    "facebook_url_ar",
+    "favicon_url",
+    "favicon_url_ar",
+    "hero_cta_primary",
+    "hero_cta_primary_ar",
+    "hero_cta_secondary",
+    "hero_cta_secondary_ar",
+    "hero_date",
+    "hero_date_ar",
+    "hero_headline",
+    "hero_headline_ar",
+    "hero_location",
+    "hero_location_ar",
+    "hero_subtitle",
+    "hero_subtitle_ar",
+    "hero_title",
+    "hero_title_ar",
+    "instagram_url",
+    "instagram_url_ar",
+    "linkedin_url",
+    "linkedin_url_ar",
+    "logo_alt_text",
+    "logo_alt_text_ar",
+    "logo_url",
+    "logo_url_ar",
+    "map_embed_url",
+    "map_embed_url_ar",
+    "map_latitude",
+    "map_latitude_ar",
+    "map_longitude",
+    "map_longitude_ar",
+    "map_marker_title",
+    "map_marker_title_ar",
+    "map_zoom",
+    "map_zoom_ar",
+    "meta_description",
+    "meta_description_ar",
+    "meta_keywords",
+    "meta_keywords_ar",
+    "meta_title",
+    "meta_title_ar",
+    "muted_color",
+    "muted_color_ar",
+    "og_description",
+    "og_description_ar",
+    "og_image",
+    "og_image_ar",
+    "og_title",
+    "og_title_ar",
+    "primary_color",
+    "primary_color_ar",
+    "secondary_color",
+    "secondary_color_ar",
+    "site_language",
+    "site_language_ar",
+    "site_tagline",
+    "site_tagline_ar",
+    "site_title",
+    "site_title_ar",
+    "social_facebook",
+    "social_facebook_ar",
+    "social_instagram",
+    "social_instagram_ar",
+    "social_linkedin",
+    "social_linkedin_ar",
+    "social_twitter",
+    "social_twitter_ar",
+    "social_youtube",
+    "social_youtube_ar",
+    "stat_days",
+    "stat_days_ar",
+    "stat_exhibitors",
+    "stat_exhibitors_ar",
+    "stat_speakers",
+    "stat_speakers_ar",
+    "stat_visitors",
+    "stat_visitors_ar",
+    "text_color",
+    "text_color_ar",
+    "twitter_description",
+    "twitter_description_ar",
+    "twitter_image",
+    "twitter_image_ar",
+    "twitter_title",
+    "twitter_title_ar",
+    "visitor_registration_closed_message",
+    "visitor_registration_closed_message_ar",
+    "visitor_registration_closed_message_ar_ar",
+    "visitor_registration_enabled",
+    "visitor_registration_enabled_ar"
+  ],
+  "resources": {
+    "settings": {
+      "table": "site_settings",
+      "family": "settings",
+      "fields": {
+        "setting_key": "required|string|max:191",
+        "setting_value": "present|nullable|string|max:20000",
+        "setting_type": "nullable|string|max:50",
+        "category": "nullable|string|max:100",
+        "description": "nullable|string|max:1000"
+      },
+      "unique": [
+        "setting_key"
+      ],
+      "visible": null,
+      "keys": [
+        "contact_email",
+        "contact_email_ar",
+        "contact_phone",
+        "contact_phone_ar",
+        "event_date",
+        "event_date_ar",
+        "facebook_url",
+        "facebook_url_ar",
+        "hero_cta_primary",
+        "hero_cta_primary_ar",
+        "hero_cta_secondary",
+        "hero_cta_secondary_ar",
+        "hero_date",
+        "hero_date_ar",
+        "hero_headline",
+        "hero_headline_ar",
+        "hero_location",
+        "hero_location_ar",
+        "hero_subtitle",
+        "hero_subtitle_ar",
+        "hero_title",
+        "hero_title_ar",
+        "instagram_url",
+        "instagram_url_ar",
+        "linkedin_url",
+        "linkedin_url_ar",
+        "site_tagline",
+        "site_tagline_ar",
+        "site_title",
+        "site_title_ar",
+        "social_facebook",
+        "social_facebook_ar",
+        "social_instagram",
+        "social_instagram_ar",
+        "social_linkedin",
+        "social_linkedin_ar",
+        "social_twitter",
+        "social_twitter_ar",
+        "social_youtube",
+        "social_youtube_ar",
+        "stat_days",
+        "stat_days_ar",
+        "stat_exhibitors",
+        "stat_exhibitors_ar",
+        "stat_speakers",
+        "stat_speakers_ar",
+        "stat_visitors",
+        "stat_visitors_ar",
+        "visitor_registration_closed_message",
+        "visitor_registration_closed_message_ar",
+        "visitor_registration_closed_message_ar_ar",
+        "visitor_registration_enabled",
+        "visitor_registration_enabled_ar"
+      ],
+      "filters": [
+        "id",
+        "setting_key",
+        "category"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "setting_key",
+        "category"
+      ]
+    },
+    "seo": {
+      "table": "site_settings",
+      "family": "seo",
+      "fields": {
+        "setting_key": "required|string|max:191",
+        "setting_value": "present|nullable|string|max:20000",
+        "setting_type": "nullable|string|max:50",
+        "category": "nullable|string|max:100",
+        "description": "nullable|string|max:1000"
+      },
+      "unique": [
+        "setting_key"
+      ],
+      "visible": null,
+      "keys": [
+        "canonical_url",
+        "canonical_url_ar",
+        "meta_description",
+        "meta_description_ar",
+        "meta_keywords",
+        "meta_keywords_ar",
+        "meta_title",
+        "meta_title_ar",
+        "og_description",
+        "og_description_ar",
+        "og_image",
+        "og_image_ar",
+        "og_title",
+        "og_title_ar",
+        "twitter_description",
+        "twitter_description_ar",
+        "twitter_image",
+        "twitter_image_ar",
+        "twitter_title",
+        "twitter_title_ar"
+      ],
+      "filters": [
+        "id",
+        "setting_key",
+        "category"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "setting_key",
+        "category"
+      ]
+    },
+    "branding": {
+      "table": "site_settings",
+      "family": "branding",
+      "fields": {
+        "setting_key": "required|string|max:191",
+        "setting_value": "present|nullable|string|max:20000",
+        "setting_type": "nullable|string|max:50",
+        "category": "nullable|string|max:100",
+        "description": "nullable|string|max:1000"
+      },
+      "unique": [
+        "setting_key"
+      ],
+      "visible": null,
+      "keys": [
+        "accent_color",
+        "accent_color_ar",
+        "background_color",
+        "background_color_ar",
+        "color_accent",
+        "color_accent_ar",
+        "color_background",
+        "color_background_ar",
+        "color_primary",
+        "color_primary_ar",
+        "color_secondary",
+        "color_secondary_ar",
+        "favicon_url",
+        "favicon_url_ar",
+        "logo_alt_text",
+        "logo_alt_text_ar",
+        "logo_url",
+        "logo_url_ar",
+        "muted_color",
+        "muted_color_ar",
+        "primary_color",
+        "primary_color_ar",
+        "secondary_color",
+        "secondary_color_ar",
+        "text_color",
+        "text_color_ar"
+      ],
+      "filters": [
+        "id",
+        "setting_key",
+        "category"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "setting_key",
+        "category"
+      ]
+    },
+    "location": {
+      "table": "site_settings",
+      "family": "location",
+      "fields": {
+        "setting_key": "required|string|max:191",
+        "setting_value": "present|nullable|string|max:20000",
+        "setting_type": "nullable|string|max:50",
+        "category": "nullable|string|max:100",
+        "description": "nullable|string|max:1000"
+      },
+      "unique": [
+        "setting_key"
+      ],
+      "visible": null,
+      "keys": [
+        "contact_address",
+        "contact_address_ar",
+        "event_location",
+        "event_location_ar",
+        "map_embed_url",
+        "map_embed_url_ar",
+        "map_latitude",
+        "map_latitude_ar",
+        "map_longitude",
+        "map_longitude_ar",
+        "map_marker_title",
+        "map_marker_title_ar",
+        "map_zoom",
+        "map_zoom_ar"
+      ],
+      "filters": [
+        "id",
+        "setting_key",
+        "category"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "setting_key",
+        "category"
+      ]
+    },
+    "language": {
+      "table": "site_settings",
+      "family": "translations",
+      "fields": {
+        "setting_key": "required|string|max:191",
+        "setting_value": "present|nullable|string|max:20000",
+        "setting_type": "nullable|string|max:50",
+        "category": "nullable|string|max:100",
+        "description": "nullable|string|max:1000"
+      },
+      "unique": [
+        "setting_key"
+      ],
+      "visible": null,
+      "keys": [
+        "enable_language_switcher",
+        "enable_language_switcher_ar",
+        "site_language",
+        "site_language_ar"
+      ],
+      "filters": [
+        "id",
+        "setting_key",
+        "category"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "setting_key",
+        "category"
+      ]
+    },
+    "content": {
+      "table": "page_content",
+      "family": "content",
+      "fields": {
+        "page_name": "required|string|max:50",
+        "section_name": "required|string|max:100",
+        "content_key": "required|string|max:100",
+        "content_value": "present|nullable|string|max:100000",
+        "content_value_ar": "nullable|string|max:100000",
+        "content_type": "nullable|string|max:50",
+        "display_order": "nullable|integer|min:0"
+      },
+      "unique": [
+        "page_name",
+        "section_name",
+        "content_key"
+      ],
+      "visible": null,
+      "keys": null,
+      "filters": [
+        "id",
+        "page_name",
+        "section_name",
+        "content_key"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "display_order",
+        "page_name",
+        "section_name"
+      ]
+    },
+    "packages": {
+      "table": "packages",
+      "family": "packages",
+      "fields": {
+        "package_type": "required|in:exhibitor,sponsor",
+        "package_name": "required|string|max:255",
+        "price": "nullable|string|max:100",
+        "features": "nullable|array|max:100",
+        "is_popular": "nullable|boolean",
+        "is_active": "nullable|boolean",
+        "display_order": "nullable|integer|min:0"
+      },
+      "unique": [],
+      "visible": "is_active",
+      "keys": null,
+      "filters": [
+        "id",
+        "is_active",
+        "package_type"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "display_order",
+        "package_type"
+      ]
+    },
+    "faqs": {
+      "table": "faqs",
+      "family": "faqs",
+      "fields": {
+        "question": "required|string|max:1000",
+        "answer": "required|string|max:10000",
+        "category": "nullable|string|max:100",
+        "is_active": "nullable|boolean",
+        "display_order": "nullable|integer|min:0"
+      },
+      "unique": [],
+      "visible": "is_active",
+      "keys": null,
+      "filters": [
+        "id",
+        "category",
+        "is_active"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "display_order",
+        "category"
+      ]
+    },
+    "translations": {
+      "table": "translations",
+      "family": "translations",
+      "fields": {
+        "translation_key": "required|string|max:191",
+        "english_text": "required|string|max:20000",
+        "arabic_text": "required|string|max:20000",
+        "category": "nullable|string|max:100"
+      },
+      "unique": [
+        "translation_key"
+      ],
+      "visible": null,
+      "keys": null,
+      "filters": [
+        "id",
+        "translation_key",
+        "category"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "translation_key",
+        "category"
+      ]
+    },
+    "media": {
+      "table": "photos",
+      "family": "media",
+      "fields": {
+        "photo_name": "required|string|max:255",
+        "photo_url": "required|string|max:2048",
+        "photo_alt": "nullable|string|max:255",
+        "page_location": "required|string|max:50",
+        "section_name": "nullable|string|max:100",
+        "display_order": "nullable|integer|min:0",
+        "is_active": "nullable|boolean"
+      },
+      "unique": [],
+      "visible": "is_active",
+      "keys": null,
+      "filters": [
+        "id",
+        "is_active",
+        "section_name",
+        "page_location"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "display_order",
+        "section_name",
+        "page_location"
+      ]
+    },
+    "blogs": {
+      "table": "blogs",
+      "family": "blogs",
+      "fields": {
+        "title": "required|string|max:255",
+        "title_ar": "nullable|string|max:255",
+        "slug": "required|string|max:191|regex:/^[a-z0-9-]+$/",
+        "excerpt": "nullable|string|max:10000",
+        "excerpt_ar": "nullable|string|max:10000",
+        "content": "required|string|max:200000",
+        "content_ar": "nullable|string|max:200000",
+        "cover_image_url": "nullable|string|max:2048",
+        "author": "nullable|string|max:255",
+        "author_ar": "nullable|string|max:255",
+        "category": "nullable|string|max:100",
+        "category_ar": "nullable|string|max:100",
+        "is_published": "nullable|boolean",
+        "published_date": "nullable|date"
+      },
+      "unique": [
+        "slug"
+      ],
+      "visible": "is_published",
+      "keys": null,
+      "filters": [
+        "id",
+        "slug",
+        "category",
+        "is_published"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "published_date",
+        "category"
+      ]
+    },
+    "partners": {
+      "table": "partners",
+      "family": "partners",
+      "fields": {
+        "name": "required|string|max:255",
+        "name_ar": "nullable|string|max:255",
+        "logo_url": "required|string|max:2048",
+        "website_url": "nullable|url:http,https|max:2048",
+        "display_order": "nullable|integer|min:0",
+        "is_active": "nullable|boolean"
+      },
+      "unique": [],
+      "visible": "is_active",
+      "keys": null,
+      "filters": [
+        "id",
+        "is_active"
+      ],
+      "orders": [
+        "created_at",
+        "updated_at",
+        "display_order"
+      ]
+    }
+  }
+}

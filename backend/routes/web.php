@@ -17,6 +17,10 @@ Route::prefix('api')->group(function () {
         Route::put('authorization/users/{id}',[$authorization,'update'])->middleware('throttle:10,1,authorization-change');
         Route::post('exports/records/{resource}',[\App\Http\Controllers\ExportController::class,'records'])->middleware('throttle:10,1,crm-export');
         Route::post('exports/report',[\App\Http\Controllers\ExportController::class,'report'])->middleware('throttle:10,1,crm-export');
+        $cms=\App\Http\Controllers\WebsiteCmsController::class;
+        Route::get('website-cms/sites',[$cms,'sites']);
+        Route::post('website-cms/{site}/resources/{resource}',[$cms,'query'])->middleware('throttle:240,1,website-cms');
+        Route::post('website-cms/{site}/uploads',[$cms,'upload'])->middleware('throttle:20,1,website-cms-upload');
         $workspace=\App\Http\Controllers\WorkspaceController::class;
         Route::get('workspace/search',[$workspace,'search']);
         Route::get('workspace/cash-movements',[$workspace,'cashMovements']);Route::get('workspace/backup-status',[$workspace,'backupStatus']);Route::post('workspace/backup',[$workspace,'backup'])->middleware('throttle:2,1,crm-backup');

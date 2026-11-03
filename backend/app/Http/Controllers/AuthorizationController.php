@@ -53,7 +53,7 @@ class AuthorizationController extends Controller
             'version' => 'required|integer|min:0', 'authorization_scoped' => 'required|boolean', 'all_exhibitions' => 'required|boolean',
             'record_scope' => ['required', Rule::in(['all', 'team', 'own'])], 'team_id' => 'nullable|integer|exists:teams,id',
             'exhibition_ids' => 'present|array|max:500', 'exhibition_ids.*' => 'required|integer|distinct|exists:exhibitions,id',
-            'overrides' => 'present|array|max:200', 'overrides.*.permission' => ['required', 'string', 'distinct', Rule::in(array_keys($this->policy->registry()))],
+            'overrides' => 'present|array|max:500', 'overrides.*.permission' => ['required', 'string', 'distinct', Rule::in(array_keys($this->policy->registry()))],
             'overrides.*.effect' => ['required', Rule::in(['allow', 'deny'])],
             'password' => 'required|string|max:128', 'code' => 'nullable|string|size:6', 'reason' => 'required|string|min:8|max:1000',
         ]);
