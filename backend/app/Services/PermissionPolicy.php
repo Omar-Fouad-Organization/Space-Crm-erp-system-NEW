@@ -28,6 +28,7 @@ class PermissionPolicy
         if (($entry['feature'] ?? null) === 'website_cms' && (!$this->enabled() || !config('cms_gateway.enabled'))) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Website management requires an approved authorization and CMS activation.'];
         if (($entry['feature'] ?? null) === 'intake' && (!$this->enabled() || !config('intake.enabled'))) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Registration integration is not activated.'];
         if (isset($entry['unavailable_reason'])) return ['allowed'=>false,'source'=>'unavailable','reason'=>$entry['unavailable_reason']];
+        if (($entry['feature'] ?? null) === 'b2b' && (!$this->enabled() || !config('b2b.enabled'))) return ['allowed'=>false,'source'=>'unavailable','reason'=>'B2B management is not activated.'];
         if ($user->role === 'super_admin') return ['allowed' => true, 'source' => 'protected', 'reason' => 'Super Admin authority is protected.'];
         if ($entry['protected']) return ['allowed' => false, 'source' => 'protected', 'reason' => 'This security operation requires Super Admin.'];
         $overrides = $this->overrides($user);
@@ -37,6 +38,13 @@ class PermissionPolicy
         $reason = $overridden ? ($allowed ? 'Individual grant.' : 'Explicit individual denial.') : ($allowed ? 'Inherited from organizational role.' : 'Not included in organizational role.');
         if ($allowed && $this->enabled()) {
             $dependencies = [];
+            if (($entry['feature'] ?? null) === 'b2b' && $permission !== 'b2b.view') {
+                $dependencies[] = 'b2b.view';
+                if (str_starts_with($permission,'b2b.matches.') || str_starts_with($permission,'b2b.meetings.') || str_starts_with($permission,'b2b.results.')) $dependencies[]='b2b.buyers.view';
+                foreach (['matches','meetings','results','buyers'] as $family) {
+                    if (str_starts_with($permission,'b2b.'.$family.'.') && $permission!=='b2b.'.$family.'.view') $dependencies[]='b2b.'.$family.'.view';
+                }
+            }
             if (($entry['feature'] ?? null) === 'intake' && !str_ends_with($permission,'.view')) {
                 $family=explode('.',$permission)[0];
                 if (in_array($family,['submissions','buyers','visitors'])) $dependencies[]=$family.'.view';

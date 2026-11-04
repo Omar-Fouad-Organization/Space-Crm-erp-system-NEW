@@ -37,6 +37,12 @@ class AuthorizedData
         if (!$this->policy->enabled() || $user->role === 'super_admin') return $q;
         return $q->where(function ($q) use ($table, $user) {
             $q->whereRaw('1 = 0');
+            if (config('b2b.enabled') && $this->policy->allows('b2b.view',$user)) {
+                $access=app(B2BAccess::class);
+                $q->orWhere(fn($r)=>$r->where($table.'.resource','b2b_participants')->whereIn($table.'.record_id',$access->participants($user)->select('id')));
+                if ($this->policy->allows('b2b.matches.view',$user)) $q->orWhere(fn($r)=>$r->where($table.'.resource','b2b_matches')->whereIn($table.'.record_id',$access->matches($user)->select('id')));
+                if ($this->policy->allows('b2b.meetings.view',$user)) $q->orWhere(fn($r)=>$r->where($table.'.resource','b2b_meetings')->whereIn($table.'.record_id',DB::table('b2b_meetings')->whereIn('match_id',$access->matches($user)->select('id'))->select('id')));
+            }
             if (config('intake.enabled')) {
                 $q->orWhere(fn ($r) => $r->where($table.'.resource','intake_submissions')->whereIn($table.'.record_id',app(IntakeAccess::class)->query($user)->select('id')));
             }

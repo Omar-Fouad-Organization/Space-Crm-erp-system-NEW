@@ -92,6 +92,9 @@ class PermissionRegistry
                 $registry[$family.'.'.$action] = [...$this->entry('Registrations '.ucfirst($family), ucfirst(str_replace('_',' ',$action)), ['super_admin']), 'feature'=>'intake'];
             }
         }
+        foreach (['view','programs.manage','profiles.manage','buyers.view','buyers.manage','participations.confirm','qualifications.review','qualifications.approve','concierge.manage','matches.view','matches.manage','matches.approve','meetings.view','meetings.schedule','meetings.manage','results.view','results.manage','export'] as $action) {
+            $registry['b2b.'.$action] = [...$this->entry('B2B Management', ucfirst(str_replace('.', ' ', $action)), ['super_admin']), 'feature'=>'b2b'];
+        }
         return $registry;
     }
 

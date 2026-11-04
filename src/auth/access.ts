@@ -9,7 +9,7 @@ export const workflowPermissions: Record<string, string | null> = {
   reminders: 'reminders.view', access: 'permissions.manage', security: null,
 };
 const routePermissions: Record<string, string | null> = {
-  submissions:'submissions.view', buyers:'buyers.view', visitors:'visitors.view', 'registration-controls':'registrations.configure', 'registration-delivery':'registrations.deliveries',
+  b2b:'b2b.view', submissions:'submissions.view', buyers:'buyers.view', visitors:'visitors.view', 'registration-controls':'registrations.configure', 'registration-delivery':'registrations.deliveries',
   website: 'website.view',
   dashboard: 'dashboard.view', clients: 'clients.view', expos: 'exhibitions.view',
   booths: 'booths.view', deals: 'deals.view', finance: 'finance.view', commissions: 'commissions.view',
@@ -21,6 +21,10 @@ const routePermissions: Record<string, string | null> = {
   notifications: null, profile: null, search: null, help: null, workspace: null,
 };
 export function routePermission(path: string): string | null {
+  if (path.startsWith('/b2b/')) {
+    const section=path.split('/')[2];
+    return ({qualification:'b2b.qualifications.review',matches:'b2b.matches.view',scheduler:'b2b.meetings.view',results:'b2b.results.view'} as Record<string,string>)[section]||'b2b.view';
+  }
   const root = path.split('/').filter(Boolean)[0] || 'dashboard';
   return routePermissions[root] ?? null;
 }
