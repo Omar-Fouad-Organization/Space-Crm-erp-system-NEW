@@ -1,6 +1,6 @@
 # Phase 4 — Registrations, CRM Intake, Buyer Relations and Visitor Management
 
-Review date: 2026-11-04 (Africa/Cairo). Status: implementation and isolated verification; draft-only release. Findings labelled **Verified** refer to repository inspection or the isolated tests below. **Requires staging verification** means no production claim is made.
+Review date: 2026-11-04 (Africa/Cairo). **Current correction: ordinary visitors register automatically; section 14 supersedes the earlier visitor lifecycle and historical test counts below.** Status: implementation and isolated verification; draft-only release. Findings labelled **Verified** refer to repository inspection or the isolated tests below. **Requires staging verification** means no production claim is made.
 
 ## Dependency chain and scope
 
@@ -93,7 +93,7 @@ Submitted -> under review -> more information required / verified / rejected / w
 
 ### Visitor Management
 
-Submitted -> human-confirmed/cancelled/duplicate/withdrawn; reopening has explicit allowed transitions. Duplicate status requires a manually linked match. Approved visitor dates must lie within the existing exhibition interval. Counts mean registrations, never attendance. Receipt withdrawal records a terminal public cancellation and delivers it durably to ERP. No QR/access-control credential or admission promise is introduced.
+Registered automatically on durable public acceptance -> cancelled/duplicate/withdrawn. Terminal visitor records cannot be reopened by replay or a staff status change; a new valid registration uses a new source UUID. Duplicate status requires a manually linked match. Approved visitor dates must lie within the existing exhibition interval. Initial registration requires no human confirmation. Counts mean registrations, never attendance. Receipt withdrawal records a terminal public cancellation and delivers it durably to ERP. No QR/access-control credential or admission promise is introduced.
 
 ## 6. Permissions, privacy and security
 
@@ -268,3 +268,90 @@ Additional exact evidence-file inventory (unaltered browser captures, synthetic 
 **Recommendation:** draft Phase 4 implementation is ready for independent review after amended-head CI passes. Release remains conditional on the staging prerequisites above. Phase 5 design may build on these boundaries after approval; Phase 5 implementation has not started.
 
 Final corrected website code commit: `090312f0014bf9f04c9bdbd503bc8d6bf55644e4`. [GitHub Actions run 41816392970](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41816392970) completed successfully: Laravel **46 tests / 319 assertions**, frontend **9 tests**, TypeScript and production build all passed. This is the corrected application code used in the final evidence/documentation commit. ERP application code remains `36d33530910655e084e12b837a491c6ec078d278`, with its successful run above. Subsequent report/evidence commits contain no executable application changes; their independent final-head checks are linked in each PR conversation.
+
+## 14. Mandatory business correction — automatic ordinary visitor registration
+
+### Current verified behavior
+
+A valid ordinary visitor, including a Business Visitor supplying a company/job title, is registered when the website transaction commits the accepted source and immutable outbox. The public 201 response, same-key retry and secure status API return `registered` immediately. Delayed ERP delivery and receiver outages do not downgrade that business state. ERP creates `registered` directly from the versioned acceptance; no administrator confirmation endpoint/action is needed. Buyer applications still return acceptance for human business/organization review; Hosted Buyer approval remains separate and unimplemented.
+
+New ordinary visitor lifecycle: `registered -> cancelled | duplicate | withdrawn`; `duplicate -> cancelled | withdrawn`; `cancelled -> withdrawn`; withdrawal is terminal. Staff actions retain existing visitors.manage/matching permissions and event/record scope. There is no Submitted/Confirmed manual approval path for new visitors. Duplicate status still requires reviewed matching evidence. Counts, list/status APIs and CSV use the stored registered state. Physical attendance/check-in, emails and QR/E-tickets are distinct and are never claimed as completed. English and Arabic success messages are visitor-specific; buyer confirmation wording retains human review.
+
+### Durable state and replay rules
+
+The additive migration `backend/database/migrations/2026_11_04_000002_add_automatic_visitor_registration.php` exists independently in both repositories. Website public_submissions gains nullable `registration_status` and `visitor_registration_version`; ERP intake_submissions gains the nullable version marker. There is no UPDATE/backfill, table reset or legacy migration in either migration. Existing application inserts remain schema-compatible because all added columns are nullable.
+
+New visitor acceptance atomically persists registration_status=registered and visitor_registration_version=1 with the outbox. The signed envelope includes the version marker, bound into its immutable inbox hash. Outbox status/lease/attempts are transport state; public responses expose that separately as `delivery_status`. Contract revision 2 retains purpose/wire version SPACE-INTAKE-V1, adds the optional explicit acceptance marker and corrects the visitor business statuses.
+
+Website receipt polling may observe an ERP cancellation/duplicate/withdrawal and persist that terminal state, guarded against concurrent withdrawal. Later registered/awaiting_processing/submitted/confirmed replies or an outage cannot reactivate it. A cancellation not yet observed by the website is eventually reflected when the receipt API next reaches ERP; during that outage the website reports its last durable business state, not an invented live ERP result.
+
+A withdrawal can reach ERP before its original registration: the receiver durably creates a withdrawn tombstone from the signed original identity/payload. The delayed original then acknowledges without changing status. Repeated delivery cannot duplicate rows or downgrade/reopen cancelled/withdrawn/duplicate records. Source UUID, original timestamp/payload, receipt hash/expiry, source hash, dedicated authentication and privacy boundaries remain intact.
+
+### Explicit compatibility strategy — no operational records changed
+
+| Existing record/message | Safe behavior until separately reviewed |
+|---|---|
+| Historical visitor_interest/contact enquiry | Remains an enquiry; never registered |
+| Pre-correction website visitor with NULL acceptance marker | Secure receipt reports legacy_requires_review; withdrawal remains available |
+| Existing ERP visitor submitted/confirmed with NULL marker | Stored status is untouched; staff filters/counts/labels explicitly say Legacy ... (compatibility review) |
+| Unmarked legacy visitor submitted message not previously accepted | Durable source/outbox retained; receiver returns 409 requiring compatibility review; it is not silently registered |
+| Unmarked legacy withdrawal | May create/maintain a withdrawn tombstone; never grants registration |
+| New marked visitor | Automatically registered on acceptance and ERP delivery |
+
+Before any operational rollout, inventory legacy source UUIDs, event binding, consent evidence, acceptance times and inbox/outbox history read-only. Review the per-UUID classification and obtain explicit authorization. Prefer a fresh validated visitor registration where consent/binding cannot be established. Any approved reconciliation for valid old accepted registrations must use a separately designed/audited compatibility operation preserving UUID and prior message hashes; do not rewrite immutable historical envelopes or bulk change submitted/confirmed. This targeted correction intentionally provides no automatic backfill command and ran no operational reconciliation. Existing dummy legacy records also remain unchanged for review.
+
+Schema-first release order: keep forms closed and workers paused; back up and install both nullable additive schemas only after operational authorization; deploy the corrected ERP receiver before the corrected website producer; verify acceptance marker compatibility; then separately approve opening forms/restarting workers. A previous receiver would initialize submitted and cannot be used with the new producer. For rollback close forms/pause workers and retain schemas, keys, sources and messages; do not run migration down on populated tables or replay new messages through old binaries. Schema-only compatibility does not imply mixed-version business semantics are safe.
+
+### Synthetic before/after API examples
+
+Before correction (same ordinary visitor business intent):
+
+```json
+{"data":{"id":"c5055c56-17a1-4d6a-bf3d-1a3249c7a2c9","status":"accepted"}}
+```
+
+ERP would initialize submitted and offer a staff-driven confirmed transition. After correction, on committed website acceptance with ERP delivery still pending:
+
+```json
+{"data":{"id":"c5055c56-17a1-4d6a-bf3d-1a3249c7a2c9","status":"registered","delivery_status":"pending","receipt_token":"<private; omitted from evidence>"}}
+```
+
+Secure status during a receiver outage retains registered and reports transport retry/pending separately. After delivery, ERP Visitor Management and its CSV expose registered for that UUID. After withdrawal the receipt and ERP business status are withdrawn; late original delivery cannot change it. Buyer submission still returns accepted and ERP starts submitted, requiring human review/organization verification.
+
+### Exact correction file inventory
+
+ERP:
+- backend/app/Http/Controllers/IntakeReceiverController.php — versioned automatic registration, immutable acceptance marker, withdrawal-first tombstone.
+- backend/app/Http/Controllers/IntakeController.php — visitor terminal-state lifecycle; removes manual confirmation dependency.
+- backend/config/intake-contract.json — visitor states and acceptance marker revision.
+- backend/database/migrations/2026_11_04_000002_add_automatic_visitor_registration.php — nullable marker only; no data update.
+- backend/tests/Feature/RegistrationIntakeTest.php — automatic registration, cancellation/replay, withdrawal-first and legacy rejection.
+- src/pages/RegistrationWorkspace.tsx — registered labels/filter and explicit legacy labels; no initial staff confirmation action.
+- docs/PHASE-4-REGISTRATIONS-INTEGRATION.md and docs/evidence/phase4/visitor-automatic-erp.jpg.
+
+Website:
+- backend/app/Http/Controllers/PublicRegistrationController.php — durable business status, independent delivery status, terminal receipt synchronization and safe retries.
+- backend/app/Services/SubmissionOutbox.php — immutable visitor acceptance marker in envelope.
+- backend/config/intake-contract.json — identical versioned contract.
+- backend/database/migrations/2026_11_04_000002_add_automatic_visitor_registration.php — nullable business status/marker, no backfill.
+- backend/tests/Feature/PublicRegistrationTest.php — immediate public registration, outage/retry/withdrawal/cancellation and legacy/buyer separation.
+- src/components/RegistrationForm.tsx — bilingual visitor success/status copy, preserved receipt controls/styles.
+- src/pages/PremiumRegistration.tsx — ordinary visitor copy separated from buyer review.
+- docs/PHASE-4-REGISTRATIONS-INTEGRATION.md and docs/evidence/phase4/visitor-automatic-en.jpg, visitor-automatic-ar.jpg.
+
+### Verified results and browser evidence
+
+- Full isolated local ERP regression: **155 tests / 2,224 assertions**, passed.
+- Full isolated local website regression: **49 tests / 350 assertions**, passed.
+- ERP frontend **20/20**, website frontend **9/9**, both TypeScript checks and production builds passed; all **32** ERP navigation destinations passed. Existing design-preservation tests pass. Shared/global CSS, header/footer, layout/sidebar/components, auth, CRM/finance/receipt/commission/booth services are unchanged by this correction.
+- ERP correction code commit: `4c7db79b3645096a30f47fc80eb1ed157491daf2`; [CI run 41819075669](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41819075669) passed with **155 / 2,224**, frontend/type/build/navigation success.
+- Initial website correction code commit: `fd040f6f00e29b72b3312e8abf33c70b424d30db`; [CI run 41819049135](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41819049135) passed with **49 / 348**, frontend/type/build success. Later documentation/evidence heads are verified separately in the draft PR conversations.
+- English real browser registration source `c5055c56-17a1-4d6a-bf3d-1a3249c7a2c9`: company and Engineer job title supplied, immediately registered with no staff action. Stopped only the isolated ERP receiver; receipt Check status still showed registered and outbox retained retry. Restarted and delivered idempotently.
+- Arabic real browser registration source `03ec2f19-dd2a-46a7-bc26-21941e54235d`: Arabic/international details, immediate exact Arabic success confirmation, registered on ERP delivery.
+- ERP browser shows **Registered: 2**, the original legacy submitted row separately labelled, and the original withdrawn row unchanged. Neither new visitor was routed into Buyer Relations or granted Hosted Buyer status.
+- [English confirmation](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/visitor-automatic-en.jpg), [Arabic confirmation](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/visitor-automatic-ar.jpg), [ERP automatic registrations](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/visitor-automatic-erp.jpg). Confidential receipt keys are excluded from saved evidence.
+- Read-only operational fingerprints still match: ERP **37 tables / 3 private files**, website **19 tables / 2 assets**. Original synthetic exhibition/booth/deal/payment schedule/commission/client rows also match their prior fixture data. Additive schema applied only in named isolated UI/test databases.
+
+**Remaining blockers:** no failing code/test checks for the correction. Operational legacy classification, schema installation, approved dates/notices/retention, staging/load/restore verification and release authorization remain prerequisites. PRs #4 ERP and #3 website remain drafts on their existing Phase 4 branches. No merge, deploy, production activation, operational data migration or Phase 5 work occurred.
+
+Final website application-code commit: `86a213bbe07b2a735f239389ad682c2b8a9a2534` additionally proves the existing buyer outage fallback remains `accepted_awaiting_processing`. Local website full suite passes **49 / 350**. Final application-code CI: [run 41820074798](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41820074798); completed successfully with **49 tests / 350 assertions**, nine frontend tests, TypeScript and production build. Documentation/evidence-only heads are verified separately in the PR conversations.
