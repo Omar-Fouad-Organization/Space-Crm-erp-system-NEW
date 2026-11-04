@@ -86,6 +86,17 @@ const menuSections = [
     ]
   },
   {
+    title: 'B2B Management',
+    items: [
+      {name:'B2B Overview',path:'/b2b/overview',icon:Users,description:'Participation and coordination',page:'b2b'},
+      {name:'Exhibitor Qualification',path:'/b2b/qualification',icon:FileText,description:'Evidence and manager decisions',page:'b2b-qualification'},
+      {name:'Buyer Sourcing Profiles',path:'/b2b/profiles',icon:Users,description:'Verified business requirements',page:'b2b-profiles'},
+      {name:'Matchmaking',path:'/b2b/matches',icon:Users,description:'Reviewed introductions',page:'b2b-matches'},
+      {name:'Meeting Scheduler',path:'/b2b/scheduler',icon:Calendar,description:'Availability and daily calendar',page:'b2b-scheduler'},
+      {name:'Meeting Results',path:'/b2b/results',icon:FileText,description:'Outcomes and follow-ups',page:'b2b-results'},
+    ],
+  },
+  {
     title: 'Registrations & Enquiries',
     items: [
       {name:'Registrations & Enquiries',path:'/submissions',icon:FileText,description:'Intake and sales qualification',page:'submissions'},
@@ -158,7 +169,7 @@ export function Sidebar() {
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
 
-        {menuSections.filter(section => !['Website Management','Registrations & Enquiries'].includes(section.title) || section.items.some(canAccessMenuItem)).map((section) => (
+        {menuSections.filter(section => !['Website Management','Registrations & Enquiries','B2B Management'].includes(section.title) || section.items.some(canAccessMenuItem)).map((section) => (
           <div key={section.title}>
 
             <div className="mb-3">

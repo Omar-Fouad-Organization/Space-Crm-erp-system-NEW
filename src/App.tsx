@@ -34,6 +34,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import {ChatPage, AnalyticsPage, AdvancedPage, NotificationsPage, SettingsPage, DiagnosticsPage, DesignPage, DeleteShowcasePage, ProfilePage, SearchPage, HelpPage} from './pages/WorkspacePages';
 
+const B2BWorkspace=lazy(()=>import('./pages/B2BWorkspace'));
 const RegistrationWorkspace=lazy(()=>import("./pages/RegistrationWorkspace"));
 const RegistrationControls=lazy(()=>import("./pages/RegistrationControls"));
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/reset-password" element={<PasswordRecovery/>}/><Route path="/login" element={<Index />} />
           <Route path="/" element={<CRMLayout />}>
             <Route index element={<Dashboard />} />
+            <Route path="b2b/:section?" element={<Suspense fallback={<p>Loading…</p>}><B2BWorkspace/></Suspense>}/>
           <Route path="website/:section?" element={<Suspense fallback={<p role="status" className="p-6 text-muted-foreground">Loading website management…</p>}><WebsiteManagement/></Suspense>}/>
             <Route path="submissions" element={<Suspense fallback={<p>Loading…</p>}><RegistrationWorkspace key="submissions" family="submissions"/></Suspense>}/>
 <Route path="buyers" element={<Suspense fallback={<p>Loading…</p>}><RegistrationWorkspace key="buyers" family="buyers"/></Suspense>}/>

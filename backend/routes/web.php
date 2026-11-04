@@ -55,6 +55,16 @@ Route::prefix('api')->group(function () {
 });
 
 // Dedicated controller enforces module + action + exhibition + record scope.
+Route::prefix('api/b2b')->middleware([CrmAuthenticated::class,'throttle:120,1,b2b-staff'])->group(function () {
+    $c=\App\Http\Controllers\B2BController::class;
+    Route::get('/',[$c,'index']);
+    Route::get('sources',[$c,'sources']);
+    Route::get('export',[$c,'export'])->middleware('throttle:5,1,b2b-export');
+    Route::get('participants/{id}',[$c,'show'])->whereNumber('id');
+    Route::post('{action}/{id?}',[$c,'command'])->where('action','enroll|profile|review|decision|generate|transition|schedule|meeting|program|category|location|window|representative|concierge')->whereNumber('id');
+});
+
+// Dedicated controller enforces module + action + exhibition + record scope.
 Route::prefix('api/intake')->middleware([CrmAuthenticated::class,'throttle:120,1,intake-staff'])->group(function(){
     $c=\App\Http\Controllers\IntakeController::class;
     Route::get('submissions',[$c,'index']);Route::get('submissions/{id}',[$c,'show'])->whereNumber('id');
