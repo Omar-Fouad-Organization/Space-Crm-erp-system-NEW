@@ -12,7 +12,7 @@ class IntakeReceiverController extends Controller
         $v=$request->validate(['message_id'=>'required|uuid','source_id'=>'required|uuid','source_system'=>'required|in:green-life-website',
             'site'=>'required|string','exhibition_id'=>'required|integer','source_form'=>'required|in:contact,buyer,visitor,legacy_contact_submissions,legacy_visitor_registrations',
             'type'=>'required|in:'.implode(',',IntakePayload::TYPES),'event'=>'required|in:submitted,withdrawn','historical'=>'required|boolean',
-            'submitted_at'=>'required|date_format:Y-m-d\TH:i:s\Z','payload'=>'required|array','source_hash'=>'required|size:64']);
+            'visitor_registration_version'=>'nullable|integer|in:1','submitted_at'=>'required|date_format:Y-m-d\TH:i:s\Z','payload'=>'required|array','source_hash'=>'required|size:64']);
         abort_unless($v['site']===config('intake.site') && $v['exhibition_id']===config('intake.exhibition_id'),422);
         abort_unless(DB::table('exhibitions')->where('id',$v['exhibition_id'])->exists(),422);
         $payload=IntakePayload::validate($v['payload'],$v['type'],$v['historical']);
@@ -22,6 +22,7 @@ class IntakeReceiverController extends Controller
         $expectedForm=match($v['type']) {'buyer'=>'buyer','visitor'=>'visitor',default=>'contact'};
         abort_unless($v['historical'] || $v['source_form']===$expectedForm,422,'Submission form does not match its type.');
         abort_if($v['source_form']==='legacy_visitor_registrations' && $v['type']!=='visitor_interest',422);
+        abort_if(isset($v['visitor_registration_version']) && $v['type']!=='visitor',422);
         $hash=IntakePayload::hash($v);
         return DB::transaction(function() use($v,$hash,$payload){
             // Serialize an event's accepts, including a first submission and its retries.
@@ -37,26 +38,28 @@ class IntakeReceiverController extends Controller
                 abort_unless($row->source_system===$v['source_system'] && $row->source_form===$v['source_form']
                     && (bool)$row->historical===$v['historical']
                     && \Carbon\Carbon::parse($row->submitted_at)->utc()->format('Y-m-d\TH:i:s\Z')===$v['submitted_at'],409,'Source provenance mismatch.');
+                abort_unless(($row->visitor_registration_version===null?null:(int)$row->visitor_registration_version)===($v['visitor_registration_version']??null),409,'Visitor acceptance version mismatch.');
                 $id=$row->id;
             } else {
-                abort_unless($v['event']==='submitted',409,'Awaiting the original submission.');
-                $status=match($v['type']){'buyer','visitor'=>'submitted',default=>'received'};
+                abort_if($v['type']==='visitor' && $v['event']==='submitted' && ($v['visitor_registration_version']??null)!==1,409,'Legacy visitor acceptance requires an explicitly reviewed compatibility plan.');
+                $status=$v['event']==='withdrawn'?'withdrawn':match($v['type']){'buyer'=>'submitted','visitor'=>'registered',default=>'received'};
                 $id=DB::table('intake_submissions')->insertGetId(['source_id'=>$v['source_id'],'source_system'=>$v['source_system'],'site'=>$v['site'],
                     'source_form'=>$v['source_form'],'type'=>$v['type'],'exhibition_id'=>$v['exhibition_id'],'historical'=>$v['historical'],
                     'original_payload'=>Crypt::encryptString(json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)),
                     'source_hash'=>$v['source_hash'],'name'=>$payload['name'],'email'=>mb_strtolower(trim($payload['email'])),
                     'phone'=>IntakePayload::phone($payload),'company'=>$payload['company']??null,'country'=>$payload['country'],
                     'language'=>$payload['language'],'interests'=>json_encode($payload['interests']??[]),'submitted_at'=>\Carbon\Carbon::parse($v['submitted_at']),
-                    'status'=>$status,'created_at'=>now(),'updated_at'=>now()]);
-                DB::table('intake_history')->insert(['submission_id'=>$id,'action'=>'received','to_status'=>$status,'created_at'=>now()]);
+                    'status'=>$status,'visitor_registration_version'=>$v['visitor_registration_version']??null,'withdrawn_at'=>$v['event']==='withdrawn'?now():null,'created_at'=>now(),'updated_at'=>now()]);
+                DB::table('intake_history')->insert(['submission_id'=>$id,'action'=>$v['event']==='withdrawn'?'public_withdrawal':'received','to_status'=>$status,'created_at'=>now()]);
                 $policy=app(\App\Services\PermissionPolicy::class);
                 foreach(\App\Models\User::where('status','active')->get() as $staff) {
                     if ($policy->allows(IntakePayload::family($v['type']).'.view',$staff) && app(\App\Services\IntakeAccess::class)->query($staff)->where('id',$id)->exists()) {
-                        DB::table('notifications')->insert(['user_id'=>$staff->id,'name'=>'New registration or enquiry requires review','resource'=>'intake_submissions','record_id'=>$id,'created_at'=>now(),'updated_at'=>now()]);
+                        DB::table('notifications')->insert(['user_id'=>$staff->id,'name'=>$v['type']==='visitor'?'A visitor registration was received':'New registration or enquiry requires review','resource'=>'intake_submissions','record_id'=>$id,'created_at'=>now(),'updated_at'=>now()]);
                     }
                 }
             }
-            if ($v['event']==='withdrawn' && !$row?->withdrawn_at) {
+            $row=DB::table('intake_submissions')->find($id);
+            if ($v['event']==='withdrawn' && !$row->withdrawn_at) {
                 DB::table('intake_submissions')->where('id',$id)->update(['status'=>'withdrawn','withdrawn_at'=>now(),'version'=>DB::raw('version+1'),'updated_at'=>now()]);
                 DB::table('intake_history')->insert(['submission_id'=>$id,'action'=>'public_withdrawal','from_status'=>$row->status,'to_status'=>'withdrawn','created_at'=>now()]);
             }

@@ -38,11 +38,10 @@
       "withdrawn"
     ],
     "visitors": [
-      "submitted",
-      "confirmed",
+      "registered",
       "cancelled",
-      "duplicate",
-      "withdrawn"
+      "withdrawn",
+      "duplicate"
     ]
   },
   "ownership": {
@@ -50,5 +49,8 @@
     "processing": "erp",
     "controls": "erp",
     "identity": "human_review"
-  }
+  },
+  "revision": 2,
+  "visitor_registration_version": 1,
+  "visitor_compatibility": "Unmarked legacy visitor submissions require explicit review; historical visitor_interest never becomes registered."
 }

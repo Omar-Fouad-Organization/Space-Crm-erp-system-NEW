@@ -24,7 +24,7 @@ class RegistrationIntakeTest extends TestCase
         $p=['name'=>'شركة تجريبية Test Person','email'=>'Buyer@Example.test','company'=>'Synthetic International Company','country'=>'Japan','country_code'=>'+81','phone'=>'9012345678','language'=>'ar',
             'job_title'=>'Procurement','classification'=>'retailer','interests'=>['organic'],'sourcing_interests'=>'Organic products','message'=>'Synthetic request','operational_consent'=>true,'marketing_consent'=>false,'policy_version'=>'synthetic-v1','consented_at'=>'2026-11-03T12:00:00Z'];
         return ['message_id'=>Str::uuid()->toString(),'source_id'=>Str::uuid()->toString(),'source_system'=>'green-life-website','site'=>'green-life-expo','exhibition_id'=>$this->event,
-            'source_form'=>in_array($type,['buyer','visitor'])?$type:'contact','type'=>$type,'event'=>'submitted','historical'=>false,'submitted_at'=>'2026-11-03T12:00:00Z','payload'=>$p,'source_hash'=>IntakePayload::hash($p)];
+            ...($type==='visitor'?['visitor_registration_version'=>1]:[]),'source_form'=>in_array($type,['buyer','visitor'])?$type:'contact','type'=>$type,'event'=>'submitted','historical'=>false,'submitted_at'=>'2026-11-03T12:00:00Z','payload'=>$p,'source_hash'=>IntakePayload::hash($p)];
     }
     private function service(string $operation,array $body,?array $headers=null)
     {
@@ -72,7 +72,7 @@ class RegistrationIntakeTest extends TestCase
     public function test_legacy_interest_never_becomes_a_registration(): void
     {
         $e=$this->envelope('visitor');$e['historical']=true;$e['source_form']='legacy_visitor_registrations';$e['payload']['legacy_original']=['id'=>$e['source_id'],'name'=>'Historic test'];$e['source_hash']=IntakePayload::hash($e['payload']);$this->service('accept',$e)->assertUnprocessable();
-        $e['type']='visitor_interest';$this->service('accept',$e)->assertOk();$this->assertDatabaseHas('intake_submissions',['type'=>'visitor_interest','status'=>'received','historical'=>true]);
+        unset($e['visitor_registration_version']);$e['type']='visitor_interest';$this->service('accept',$e)->assertOk();$this->assertDatabaseHas('intake_submissions',['type'=>'visitor_interest','status'=>'received','historical'=>true]);
     }
     public function test_public_withdrawal_is_durable_and_cannot_be_undone_by_replay(): void
     {
@@ -131,4 +131,30 @@ class RegistrationIntakeTest extends TestCase
         $this->staff('submissions/'.$id,['version'=>1,'action'=>'assign','assigned_user_id'=>$staff->id])->assertUnprocessable();
         $response=$this->staff('export',['family'=>'submissions']);$response->assertOk();$this->assertStringContainsString("'=HYPERLINK",$response->streamedContent());
     }
+    public function test_visitors_register_automatically_and_replay_never_reactivates_cancellation(): void
+    {
+        $e=$this->envelope('visitor');$this->service('accept',$e)->assertOk();
+        $this->assertDatabaseHas('intake_submissions',['source_id'=>$e['source_id'],'status'=>'registered','visitor_registration_version'=>1]);
+        $id=DB::table('intake_submissions')->value('id');$this->actingAs($this->admin);
+        $this->staff('submissions/'.$id,['version'=>1,'action'=>'status','status'=>'cancelled','reason'=>'Synthetic cancellation'])->assertOk();
+        $e['message_id']=Str::uuid()->toString();$this->service('accept',$e)->assertOk();
+        $this->assertDatabaseHas('intake_submissions',['id'=>$id,'status'=>'cancelled']);
+        $this->staff('submissions/'.$id,['version'=>2,'action'=>'status','status'=>'registered','reason'=>'Late reactivation'])->assertUnprocessable();
+        $this->assertDatabaseCount('deals',0);$this->assertDatabaseCount('clients',0);
+    }
+    public function test_withdrawal_before_original_creates_a_terminal_tombstone(): void
+    {
+        $e=$this->envelope('visitor');$w=[...$e,'event'=>'withdrawn','message_id'=>Str::uuid()->toString()];
+        $this->service('accept',$w)->assertOk();$this->service('accept',$e)->assertOk();
+        $this->assertDatabaseHas('intake_submissions',['source_id'=>$e['source_id'],'status'=>'withdrawn']);
+        $this->assertDatabaseCount('intake_submissions',1);$this->assertDatabaseCount('intake_history',1);
+    }
+    public function test_unmarked_legacy_visitors_require_explicit_compatibility_review(): void
+    {
+        $e=$this->envelope('visitor');unset($e['visitor_registration_version']);
+        $this->service('accept',$e)->assertStatus(409);$this->assertDatabaseCount('intake_submissions',0);
+        $e['event']='withdrawn';$this->service('accept',$e)->assertOk();
+        $this->assertDatabaseHas('intake_submissions',['source_id'=>$e['source_id'],'status'=>'withdrawn','visitor_registration_version'=>null]);
+    }
+
 }

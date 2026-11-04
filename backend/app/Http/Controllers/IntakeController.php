@@ -91,17 +91,13 @@ class IntakeController extends Controller
                     abort_unless(trim($v['reason']??'')!=='',422,'A review reason is required.');
                     $transitions=match($family){
                         'buyers'=>['submitted'=>['under_review','withdrawn'],'under_review'=>['more_information_required','verified','rejected','withdrawn'],'more_information_required'=>['under_review','withdrawn'],'verified'=>['under_review','withdrawn'],'rejected'=>['under_review','withdrawn']],
-                        'visitors'=>['submitted'=>['confirmed','cancelled','duplicate','withdrawn'],'confirmed'=>['cancelled','duplicate','withdrawn'],'duplicate'=>['submitted','withdrawn'],'cancelled'=>['submitted','withdrawn']],
+                        'visitors'=>['registered'=>['cancelled','duplicate','withdrawn'],'duplicate'=>['cancelled','withdrawn'],'cancelled'=>['withdrawn'],'submitted'=>['cancelled','duplicate','withdrawn'],'confirmed'=>['cancelled','duplicate','withdrawn']],
                         default=>['received'=>['triage','contacted','disqualified','duplicate','withdrawn'],'triage'=>['assigned','contacted','disqualified','duplicate','withdrawn'],'assigned'=>['contacted','disqualified','duplicate','withdrawn'],'contacted'=>['qualified','disqualified','duplicate','withdrawn'],'qualified'=>['contacted','withdrawn'],'disqualified'=>['triage','withdrawn'],'duplicate'=>['triage','withdrawn']]
                     };
                     abort_unless(in_array($next,$transitions[$row->status]??[],true),422,'This status transition is not allowed.');
                     abort_if($next==='verified' && !$row->buyer_organization_id,422,'Review and link a buyer organization first.');
                     abort_if($next==='duplicate' && !$row->duplicate_of,422,'Review and link the possible duplicate first.');
                     abort_if($next==='assigned' && !$row->assigned_user_id,422,'Assign an employee first.');
-                    if($next==='confirmed') {
-                        $control=app(IntakeReceiverController::class)->controls()['controls']['visitor'];
-                        abort_unless($control['open'],422,'Visitor registration is not open for confirmation.');
-                    }
                     $change['status']=$next;
                     if($next==='withdrawn'){$change['withdrawn_at']=now();}
                     break;
