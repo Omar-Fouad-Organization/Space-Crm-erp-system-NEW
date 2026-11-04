@@ -131,7 +131,7 @@ Session revocation, MFA, reset, attachment authorization and employee management
 
 ### Local execution
 
-Full ERP sequential suite: **169 tests, 2,416 assertions passed**, 728.68 seconds, including all Phase 1–4 regressions. Initial full run preceded the final availability-revision addition; focused B2B re-verification and final-head CI are recorded in the delivery verification section below. Earlier focused B2B run: **14 tests / 157 assertions**, including three real simultaneous-process resource races and rollback/same-supplier multiple-representative scheduling.
+Final full ERP sequential suite: **169 tests, 2,424 assertions passed**, 733.37 seconds, after the final authorization, field-summary, availability revision and organization-deduplication corrections. It includes all Phase 1–4 regressions and all 14 new B2B tests. Concurrency coverage includes three real simultaneous-process resource races plus rollback and same-supplier multiple-representative scheduling.
 
 Frontend: **24 tests passed**, all **38 sidebar destinations** resolve, TypeScript check and production build pass. Existing CSS/shared primitives/original business pages remain byte-equivalent under the existing preservation tests. Website unchanged: **49 Laravel tests / 354 assertions**, **9 frontend tests**, TypeScript and production build pass. Existing bundle-size/dynamic-import and website Browserslist-age notices remain; no dependencies were upgraded to suppress them.
 
@@ -206,7 +206,7 @@ Business people, organizations, participants, consent, profile revisions, introd
 
 ## Delivery verification
 
-Draft PR, exact published commit hashes, final focused test results and GitHub Actions links are appended after publication and verification. Until then, GitHub Actions is **not yet verified for Phase 5**.
+[Draft PR #5](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/pull/5) is open against the verified Phase 4 branch. Application/evidence commit `4bc4415f65a2b07885b1263bc1416e4e1a03b179`; authorization hardening commit `cc840031b0b2b1dbc09d2ad95b69e1fc1c79378d`. Final report/UI-only verification commit is identified in the PR verification comment (a commit cannot include its own hash). No merge or deployment.
 
 ### Evidence links
 
@@ -215,8 +215,16 @@ Draft PR, exact published commit hashes, final focused test results and GitHub A
 - [Staff acceptance evidence dialog](evidence/phase5/acceptance-evidence-dialog.png), [mobile Matchmaking](evidence/phase5/matchmaking-mobile.png).
 - [Daily scheduler](evidence/phase5/scheduler-desktop.png), [completed synthetic result and follow-up](evidence/phase5/completed-results.png).
 
-Availability revision/archiving re-verification: **14 B2B tests / 160 assertions passed**. Subsequent duplicate-conflict and encrypted profile-history corrections passed the affected **10 tests / 125 assertions**. The final organization-level deduplication check and published-head CI are recorded below after execution. Existing Phase 4 synthetic rows independently matched across exhibitions, clients, booths, deals, installments, payments, commissions, eight intake records, buyer organization and five registration controls.
+Final backend rerun: **169 tests / 2,424 assertions passed** on the hardened backend. Final frontend run: **24 tests**, TypeScript, production build and **38 navigation destinations** passed. A final presentation correction preserves a configured zero-point criterion maximum and displays pending follow-ups only when the server returns the permission-protected summary. No dependency or original UI changes.
 
-Final local organization-deduplication check: **5 tests / 64 assertions passed**. Duplicate category/relationship writes return 409, including database-enforced conflicts. Profile edits retain encrypted before/after history. Browser export downloaded the bounded permitted results page successfully; availability window #12 archived to version 2 without deletion. Temporary browser viewport overrides were reset.
+Final read-only operational fingerprint and all selected Phase 4 synthetic business/intake rows matched. Browser export downloaded the bounded permitted results page; window #12 archived to version 2 without deletion. Synthetic UI organization uniqueness was independently verified. Temporary viewport overrides were reset.
 
-Published application/evidence commit: `4bc4415f65a2b07885b1263bc1416e4e1a03b179`, tree `dca516a1042d19ffc754ee93c7d65d3174c9330f`, in [draft PR #5](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/pull/5). Initial [GitHub Actions run](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41862389741) was queued when recorded; it is not a passing-CI claim. Final review also restricts follow-up totals to results viewers and rejects legacy unscoped exhibition access to this new domain. A fresh full local run and final-head CI verification follow these corrections.
+### Exact evidence files
+
+`docs/evidence/phase5/`: `acceptance-evidence-dialog.png`, `client-dialog.png`, `clients-after.png`, `clients-before.png`, `clients-mobile.png`, `clients-phase4-paired.png`, `clients-phase5-paired.png`, `completed-results.png`, `matchmaking-mobile.png`, `scheduler-desktop.png`. The first before/after captures are exploratory captures at different viewport sizes; use the explicitly paired captures for the design comparison.
+
+### GitHub Actions — external verification pending
+
+[Application hardening run 41862933829](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41862933829) was still **queued**, with both frontend and Laravel jobs unstarted and no job logs, after repeated checks during the full local rerun. This is not a CI success or an application-test failure. The connector did not supply a queue reason; runner/quota/organization configuration must not be inferred. Final documentation-head run/status is recorded in the PR verification comment. Do not promote the draft until GitHub executes both jobs successfully on the final head.
+
+**Recommendation:** implementation is ready for independent code review as a draft; CI execution remains an external verification gate. Production readiness is also conditional on the explicit staging, policy, dates, retention, backup/restore and deployment prerequisites above. Phase 6 has not started.
