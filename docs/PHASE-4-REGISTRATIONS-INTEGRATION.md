@@ -133,7 +133,7 @@ Rollback: close forms first, stop new public acceptance, preserve all accepted s
 Local execution uses only `space_crm_test` / `green_life_expo_test` for destructive test suites, guarded before RefreshDatabase. UI uses separate `space_crm_phase4_ui_test` / `green_life_expo_phase4_ui_test` cloned exclusively from named synthetic Phase 3 fixtures. No operational source records were copied. Per-repository suites run sequentially against their own disposable database.
 
 - ERP complete regression before final hardening: **151 tests, 2,202 assertions passed**. After source-provenance hardening: targeted **11 tests, 85 assertions passed**. Final full-suite result recorded below.
-- Website final full Laravel suite: **45 tests, 312 assertions passed**.
+- Website final full Laravel suite: **46 tests, 319 assertions passed**.
 - ERP frontend: **20/20 passed**; TypeScript passed; all **32** sidebar destinations verified; production build passed.
 - Website frontend: **9/9 passed**; TypeScript passed; production build passed. Existing chunk-size/Browserslist warnings remain; no dependency changes.
 - Tests cover typed routing, bilingual/international payloads, source UUID/hash preservation, encryption, no automatic commercial effects, event/own scope, assignment and approval restrictions, controlled conversion, CSV escaping, signed service replay, transactional outbox, outage/replay/lease behavior, approved controls and historical reconciliation. Existing Phase 1–3 auth/MFA/reset/session/attachments/financial/booth tests remain part of full regressions.
@@ -226,7 +226,7 @@ Paths below are repository-relative. No dependencies, operational env files, pri
 
 ## 12. Final local verification addendum
 
-**Verified (2026-11-04):** final ERP full regression **152 tests / 2,207 assertions**, all passed. Website **45 / 312**, all passed. ERP frontend **20/20**, website frontend **9/9**, both TypeScript checks and production builds passed; navigation **32/32**.
+**Verified (2026-11-04):** final ERP full regression **152 tests / 2,207 assertions**, all passed. Website **46 / 319**, all passed. ERP frontend **20/20**, website frontend **9/9**, both TypeScript checks and production builds passed; navigation **32/32**.
 
 Browser sales cycle completed: source `92780a74-6bb4-4859-bb23-5ce6e9365024` -> intake #4 -> contacted -> qualified -> explicit distinct matching review -> existing client service -> synthetic prospect #2. No deal/booth/payment/commission action was invoked. Buyer source `af5ace7d-9522-4908-9fc1-e23f4c630ada` -> organization reviewed -> verified. Visitor withdrawal source `3df67718-3192-4881-84bc-de3ee64a3457` -> withdrawn -> durable delivery.
 
@@ -235,3 +235,36 @@ Additional real HTTP submissions: sponsor `270a63a3-d388-4144-955d-70cfb95f99b2`
 Restricted synthetic buyer employee actual HTTP session checks: buyer #1 and exhibitor #4 detail 404 (unassigned own scope); Finance 403; registration controls 403; deliveries 403; export 403; crafted verification action 404. Laravel tests separately prove event membership, assigned own-scope access and approval denial.
 
 For deployment, use a persistent shared cache store for rate limiting (never the isolated fixture's array store). Validate rate limits and CSRF with production-mode middleware in staging. The local browser's development-server dependency optimization became unstable during builds; final UI verification uses built production assets with loopback API proxies instead.
+
+## 13. Publication, final scope hardening and visual review
+
+- ERP draft PR: https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/pull/4
+- Website draft PR: https://github.com/Omar-Fouad-Organization/Premium-website/pull/3
+- Published ERP implementation commit: `36d33530910655e084e12b837a491c6ec078d278`; Git tree exactly matches the locally tested implementation tree.
+- Initial website implementation commit: `e8feff757e5bc12903d009e11fce9fdc912b60cd`; Git tree exactly matched its local tree. The subsequent website correction explicitly scopes queue monitor counts/rows, worker selection and replay to the configured site/exhibition. A cross-event regression verifies no monitoring, delivery attempt or replay audit effect for another event. Final local website result is **46 tests / 319 assertions**, superseding the initial 45 / 312.
+- Initial GitHub Actions ERP run [41814940716](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41814940716): Laravel **152 passed / 2,207 assertions**, frontend **20 passed**, navigation **32 passed**, TypeScript and production build passed.
+- Initial GitHub Actions website run [41814948995](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41814948995): Laravel **45 passed / 312 assertions**, frontend **9 passed**, TypeScript and production build passed. Final amended-head CI is verified separately in the PR conversation after publication; these initial results are not misrepresented as the corrected head.
+
+Browser controls check: disabled only visitor intake from ERP, reloaded the Arabic public form and verified closed message/disabled inputs while buyer intake stayed open. Restored only the synthetic fixture control afterward. Privacy-notice button was tested and retained the same contact route. Final reconciliation was **6 sources / 6 accepted / 0 missing**, with **7 delivered messages** (including withdrawal) and no pending/failed deliveries.
+
+Because the initial pre-edit capture labels did not guarantee equal viewports, an additional isolated frontend snapshot was extracted from the exact original Phase 3 website commit. It reused installed dependencies and the same synthetic CMS/backend/assets; no original repository file or data was edited. Only test-harness dependency aliases were adapted. Matched contact screenshots verify preserved hero, header, contact-information cards, card borders, colors, typography and responsive stacking. Changed form fields, independent registrations, consent and availability are expected functional differences. Desktop DOM viewport was 1781 x 1250 for both; mobile 469 x 1055 for both (host display scaling differs from requested viewport units). No whole-page pixel identity is claimed for intentionally changed forms, timestamps or synthetic records.
+
+ERP client page and all other existing business pages/shared design files remain byte-equivalent to Phase 3; fresh client and mobile Buyer Relations screenshots show the same native design. Client count increased only in the isolated UI database by the explicitly tested conversion. Initial ERP capture has a different natural viewport, so its comparison is structural, supported by byte-equivalence tests, rather than a false pixel-identical claim.
+
+Additional exact evidence-file inventory (unaltered browser captures, synthetic data only):
+
+- ERP `docs/evidence/phase4/erp-clients-before-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-clients-before-desktop.jpg)
+- ERP `docs/evidence/phase4/erp-clients-after-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-clients-after-desktop.jpg)
+- ERP `docs/evidence/phase4/erp-lead-converted.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-lead-converted.jpg)
+- ERP `docs/evidence/phase4/erp-reconciliation-complete.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-reconciliation-complete.jpg)
+- ERP `docs/evidence/phase4/erp-buyers-mobile.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-buyers-mobile.jpg)
+- Website `docs/evidence/phase4/web-contact-original-source-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-original-source-desktop.jpg)
+- Website `docs/evidence/phase4/web-contact-after-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-after-desktop.jpg)
+- Website `docs/evidence/phase4/web-contact-original-source-mobile.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-original-source-mobile.jpg)
+- Website `docs/evidence/phase4/web-contact-after-mobile.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-after-mobile.jpg)
+- Website `docs/evidence/phase4/web-buyer-mobile-ar.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-buyer-mobile-ar.jpg)
+- Website `docs/evidence/phase4/web-visitor-closed-ar.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-visitor-closed-ar.jpg)
+
+**Recommendation:** draft Phase 4 implementation is ready for independent review after amended-head CI passes. Release remains conditional on the staging prerequisites above. Phase 5 design may build on these boundaries after approval; Phase 5 implementation has not started.
+
+Final corrected website code commit: `090312f0014bf9f04c9bdbd503bc8d6bf55644e4`. [GitHub Actions run 41816392970](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41816392970) completed successfully: Laravel **46 tests / 319 assertions**, frontend **9 tests**, TypeScript and production build all passed. This is the corrected application code used in the final evidence/documentation commit. ERP application code remains `36d33530910655e084e12b837a491c6ec078d278`, with its successful run above. Subsequent report/evidence commits contain no executable application changes; their independent final-head checks are linked in each PR conversation.
