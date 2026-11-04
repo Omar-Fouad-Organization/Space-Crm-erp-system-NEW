@@ -31,7 +31,7 @@ class B2BMatchmakingTest extends TestCase
 
     private function profile(): array
     {
-        return ['name_en'=>'Synthetic business','name_ar'=>'شركة تجريبية','categories'=>[$this->category],'products'=>[['name_en'=>'Organic herbs','name_ar'=>'أعشاب عضوية']],'required_products'=>['herbs'],'preferred_origins'=>['Egypt'],'origin'=>'Egypt','capacity_verified'=>true,'capacity_evidence'=>'Synthetic reviewed capacity','quantity'=>20,'capacity'=>100,'unit'=>'kg','required_certifications'=>['Organic'],'certifications'=>[['name'=>'Organic','verified'=>true,'evidence'=>'Synthetic certificate reference']],'meeting_interests'=>['retail'],'industry'=>'Food','classification'=>'Importer'];
+        return ['name_en'=>'Synthetic business','name_ar'=>'شركة تجريبية','categories'=>[$this->category],'products'=>[['name_en'=>'Organic herbs','name_ar'=>'أعشاب عضوية']],'required_products'=>['herbs'],'preferred_origins'=>['Egypt'],'origin'=>'Egypt','catalogue_evidence'=>'Synthetic reviewed catalogue','origin_evidence'=>'Synthetic reviewed origin','capacity_verified'=>true,'capacity_evidence'=>'Synthetic reviewed capacity','quantity'=>20,'capacity'=>100,'unit'=>'kg','required_certifications'=>['Organic'],'certifications'=>[['name'=>'Organic','verified'=>true,'evidence'=>'Synthetic certificate reference']],'meeting_interests'=>['retail'],'industry'=>'Food','classification'=>'Importer'];
     }
 
     private function exhibitor(): int
@@ -75,7 +75,7 @@ class B2BMatchmakingTest extends TestCase
         $p=$this->profile(); $match=app(B2BMatching::class)->compare($p,$p);
         $this->assertSame(100,$match['score']); $this->assertSame([],$match['blockers']);
         $offer=$p; $offer['capacity_verified']=false; $offer['certifications'][0]['verified']=false;
-        $match=app(B2BMatching::class)->compare($p,$offer); $this->assertSame(75,$match['score']); $this->assertCount(2,$match['blockers']);
+        $match=app(B2BMatching::class)->compare($p,$offer); $this->assertSame(75,$match['score']); $this->assertCount(1,$match['blockers']); $this->assertCount(2,$match['unknown_information']);
     }
 
     private function qualified(): int
@@ -91,7 +91,12 @@ class B2BMatchmakingTest extends TestCase
         $before=(array)DB::table('deals')->find($this->deal); $exhibitor=$this->qualified();
         $buyer=$this->postJson('/api/b2b/enroll',['exhibition_id'=>$this->event,'kind'=>'buyer','source_id'=>$this->buyer(),'consent_evidence'=>'Synthetic buyer consent','profile'=>$this->profile()])->assertOk()->json('id');
         $this->postJson('/api/b2b/generate',['exhibition_id'=>$this->event])->assertJsonPath('created',1);
+        $beforeScore=DB::table('b2b_matches')->first();
+        $this->postJson('/api/b2b/concierge/'.$exhibitor,['active'=>true,'evidence'=>'Synthetic concierge coordination entitlement'])->assertOk();
         $this->postJson('/api/b2b/generate',['exhibition_id'=>$this->event])->assertJsonPath('created',0);
+        $this->assertSame($beforeScore->score,DB::table('b2b_matches')->first()->score);
+        $this->assertSame($beforeScore->explanation,DB::table('b2b_matches')->first()->explanation);
+        $this->assertSame(0,DB::table('b2b_meetings')->count());
         $m=DB::table('b2b_matches')->first(); $this->assertSame('suggested',$m->status); $this->assertSame(0,DB::table('b2b_meetings')->count());
         $reps=[];
         foreach ([$buyer,$exhibitor] as $p) { $reps[]=$this->postJson('/api/b2b/representative/'.$p,['name'=>'Synthetic person '.$p,'evidence'=>'Authority and attendance consent reviewed'])->assertOk()->json(); }

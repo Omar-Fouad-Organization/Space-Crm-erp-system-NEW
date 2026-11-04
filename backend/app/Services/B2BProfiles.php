@@ -25,6 +25,7 @@ class B2BProfiles
     {
         $v = Validator::make($input, [
             'name_en'=>'required|string|max:255','name_ar'=>'required|string|max:255','description_en'=>'nullable|string|max:4000','description_ar'=>'nullable|string|max:4000',
+            'catalogue_evidence'=>'nullable|string|max:2000','origin_evidence'=>'nullable|string|max:2000','requirement_states'=>'sometimes|array:products,origin,capacity,documentation','requirement_states.*'=>'in:unknown,applicable,not_applicable',
             'industry'=>'nullable|string|max:150','classification'=>'nullable|string|max:150','categories'=>'required|array|min:1|max:30','categories.*'=>'required|integer|distinct',
             'products'=>'present|array|max:50','products.*'=>'array:name_en,name_ar,description_en,description_ar',
             'products.*.name_en'=>'required|string|max:255','products.*.name_ar'=>'required|string|max:255',
@@ -42,6 +43,10 @@ class B2BProfiles
         abort_if($v['capacity_verified'] && empty($v['capacity_evidence']),422,'Verified capacity needs evidence.');
         abort_if((!empty($v['quantity']) || !empty($v['capacity'])) && empty($v['unit']),422,'Quantities and capacity require an explicit unit.');
         foreach ($v['certifications'] as $c) { abort_if($c['verified'] && empty($c['evidence']),422,'Verified certification needs evidence.'); }
+        foreach (['products'=>'required_products','origin'=>'preferred_origins','documentation'=>'required_certifications'] as $criterion=>$field) {
+            abort_if(($v['requirement_states'][$criterion]??null)==='not_applicable' && !empty($v[$field]),422,'An explicit requirement cannot also be not applicable.');
+        }
+        abort_if(($v['requirement_states']['capacity']??null)==='not_applicable' && !empty($v['quantity']),422,'A quantity requirement cannot also be not applicable.');
         return $v;
     }
 

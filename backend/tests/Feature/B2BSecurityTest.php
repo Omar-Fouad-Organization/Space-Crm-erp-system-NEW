@@ -106,4 +106,36 @@ class B2BSecurityTest extends TestCase
         $this->assertSame($before,DB::table('deals')->orderBy('id')->get()->toJson());
         $this->travelBack();
     }
+
+    public function test_rule_upgrade_holds_active_legacy_matches_without_rewriting_history(): void
+    {
+        $f=B2BFixture::create(); $this->actingAs($f['user']); $booking=B2BFixture::booking($f,0);
+        $id=app(B2BScheduler::class)->schedule($booking,$f['user']);
+        DB::table('b2b_matches')->where('id',$booking['match_id'])->update(['rule_version'=>'1']);
+        $before=DB::table('b2b_matches')->find($booking['match_id']);
+        $suggested=DB::table('b2b_matches')->where('status','suggested')->first();
+        DB::table('b2b_matches')->where('id',$suggested->id)->update(['rule_version'=>'1','score'=>91,'explanation'=>json_encode(['rule_version'=>'1','score'=>91,'factors'=>['historical'=>'preserve']])]);
+        $evidence=DB::table('b2b_invitations')->where('match_id',$before->id)->get()->toJson();
+        $this->postJson('/api/b2b/schedule',[...$booking,'meeting_id'=>$id,'version'=>1])->assertStatus(409);
+        $this->getJson('/api/b2b?exhibition_id='.$f['event'].'&section=scheduler')->assertOk()->assertJsonPath('data.0.eligibility_hold',true);
+        $this->postJson('/api/b2b/generate',['exhibition_id'=>$f['event']])->assertOk();
+        $this->assertSame((array)$before,(array)DB::table('b2b_matches')->find($before->id));
+        $this->assertSame($evidence,DB::table('b2b_invitations')->where('match_id',$before->id)->get()->toJson());
+        $audit=DB::table('b2b_audits')->where('resource','b2b_matches')->where('record_id',$suggested->id)->where('action','recommendation')->orderByDesc('id')->first();
+        $history=B2BProfiles::open($audit->details);
+        $this->assertSame(91,$history['before']['score']); $this->assertSame('1',$history['before']['rule_version']);
+        $this->assertSame(['historical'=>'preserve'],$history['before']['explanation']['factors']); $this->assertSame('2',$history['after']['rule_version']);
+        $this->assertDatabaseHas('b2b_meetings',['id'=>$id,'status'=>'scheduled','version'=>1]);
+    }
+
+    public function test_recalculation_never_reactivates_an_eligible_declined_pair(): void
+    {
+        $f=B2BFixture::create(); $this->actingAs($f['user']); $id=$f['matches'][0];
+        $this->postJson('/api/b2b/transition/'.$id,['action'=>'decline','version'=>6,'party'=>'buyer','channel'=>'phone','evidence'=>'Synthetic independently verified decline','reason'=>'Buyer declines this introduction'])->assertOk();
+        $before=(array)DB::table('b2b_matches')->find($id);
+        $this->postJson('/api/b2b/generate',['exhibition_id'=>$f['event']])->assertOk();
+        $this->assertSame($before,(array)DB::table('b2b_matches')->find($id));
+        $this->assertSame(2,DB::table('b2b_invitations')->where('match_id',$id)->count());
+        $this->assertSame(0,DB::table('b2b_meetings')->count());
+    }
 }

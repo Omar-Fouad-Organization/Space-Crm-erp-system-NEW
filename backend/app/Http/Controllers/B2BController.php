@@ -35,12 +35,12 @@ class B2BController extends Controller
             $participants=(clone $p)->get();
             $out['counts']=['standard_networking'=>$participants->filter(fn($x)=>$x->kind==='exhibitor' && $this->access->eligible($x,false))->count(),'qualified_exhibitors'=>$participants->filter(fn($x)=>$x->kind==='exhibitor' && $this->access->eligible($x))->count()];
             if ($this->policy->allows('b2b.buyers.view',$user)) { $out['counts']['verified_participating_buyers']=$participants->filter(fn($x)=>$x->kind==='buyer' && $this->access->eligible($x))->count(); }
-            if ($this->policy->allows('b2b.matches.view',$user)) { $out['match_counts']=(clone $matches)->selectRaw('status, COUNT(*) AS count')->groupBy('status')->get(); }
+            if ($this->policy->allows('b2b.matches.view',$user)) { $out['match_counts']=(clone $matches)->selectRaw("CASE WHEN rule_version <> ? AND status IN ('approved_for_outreach','invitation_pending','mutually_accepted') THEN 'rule_review_hold' ELSE status END AS display_status, COUNT(*) AS count",[\App\Services\B2BMatching::VERSION])->groupBy('display_status')->get()->map(fn($row)=>['status'=>$row->display_status,'count'=>$row->count]); }
             if ($this->policy->allows('b2b.meetings.view',$user)) {
                 $counts=[];
                 foreach ((clone $meeting)->get() as $record) {
                     $match=$this->access->match($record->match_id,$user);
-                    $held=!$this->access->eligible($this->access->participant($match->buyer_id,$user)) || !$this->access->eligible($this->access->participant($match->exhibitor_id,$user));
+                    $held=$match->rule_version!==\App\Services\B2BMatching::VERSION || !$this->access->eligible($this->access->participant($match->buyer_id,$user)) || !$this->access->eligible($this->access->participant($match->exhibitor_id,$user));
                     $status=$held && in_array($record->status,['scheduled','confirmed','in_progress'],true)?'eligibility_hold':$record->status;
                     $counts[$status]=($counts[$status]??0)+1;
                 }
@@ -67,7 +67,7 @@ class B2BController extends Controller
             },$rows->items());
         } elseif ($section==='matches') {
             $rows=$matches->orderByDesc('score')->orderBy('id')->paginate(25); $out['data']=$rows->items();
-            foreach ($out['data'] as $row) { $row->explanation=json_decode($row->explanation,true); $row->invitations=DB::table('b2b_invitations')->where('match_id',$row->id)->get(['id','party','status','communication_status','expires_at','recorded_by']); }
+            foreach ($out['data'] as $row) { $row->explanation=json_decode($row->explanation,true); $row->rule_review_hold=$row->rule_version!==\App\Services\B2BMatching::VERSION; $row->invitations=DB::table('b2b_invitations')->where('match_id',$row->id)->get(['id','party','status','communication_status','expires_at','recorded_by']); }
         } else {
             if (!empty($v['day'])) {
                 abort_unless($program,422,'Configure a program first.');
@@ -77,7 +77,7 @@ class B2BController extends Controller
             $rows=$meeting->orderBy('starts_at')->orderBy('id')->paginate(40); $out['data']=$rows->items();
             foreach ($out['data'] as $row) {
                 $m=$this->access->match($row->match_id,$user);
-                $row->eligibility_hold=!$this->access->eligible($this->access->participant($m->buyer_id,$user)) || !$this->access->eligible($this->access->participant($m->exhibitor_id,$user));
+                $row->eligibility_hold=$m->rule_version!==\App\Services\B2BMatching::VERSION || !$this->access->eligible($this->access->participant($m->buyer_id,$user)) || !$this->access->eligible($this->access->participant($m->exhibitor_id,$user));
                 if (!$this->policy->allows('b2b.results.view',$user)) { unset($row->result,$row->followup_user_id,$row->followup_due,$row->followup_status); }
                 elseif ($row->result) { $row->result=B2BProfiles::open($row->result)['notes']; }
             }

@@ -228,3 +228,111 @@ Final read-only operational fingerprint and all selected Phase 4 synthetic busin
 [Application hardening run 41862933829](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41862933829) was still **queued**, with both frontend and Laravel jobs unstarted and no job logs, after repeated checks during the full local rerun. This is not a CI success or an application-test failure. The connector did not supply a queue reason; runner/quota/organization configuration must not be inferred. Final documentation-head run/status is recorded in the PR verification comment. Do not promote the draft until GitHub executes both jobs successfully on the final head.
 
 **Recommendation:** implementation is ready for independent code review as a draft; CI execution remains an external verification gate. Production readiness is also conditional on the explicit staging, policy, dates, retention, backup/restore and deployment prerequisites above. Phase 6 has not started.
+
+## Final hardening and independent verification — matching rule 2
+
+This section supersedes the historical rule-1 scoring specification and prior CI-pending status above. Review base: `1b847a410b5c6d2e4d455830e3d70980e9356b85`; work remains on `codex/phase-5-b2b-matchmaking`, draft PR #5 targeting Phase 4. No Phase 6 work.
+
+### A. Confirmed findings
+
+**Verified root cause:** rule 1 used vacuous success checks: an empty required-products array has no missing terms; an empty origin list evaluates unrestricted; a missing quantity bypasses capacity checks; an empty required-certification array has no missing certificates. These branches awarded 55 points without documented compatibility. Category-only input scored 90/100 (35 category + 55 default points), or 100 with shared interests. This conflated unknown data, explicit irrelevance and verified fulfilment.
+
+Other confirmed issues corrected: missing supply evidence and verified insufficient supply previously shared one blocker message; unverified origin was conflated with a proven wrong origin; same-pair recomputation repeatedly decrypted profiles and queried representative windows; old rule-version approvals had no rule-upgrade review gate; historical current invitation projections needed clear historical labels after reconsideration. Fresh profile presentation now distinguishes legacy nonempty requirements, explicitly unanswered requirements and explicit no restriction. An explicit `unknown` answer never earns points from leftover field values.
+
+### B. Exact rule-2 specification
+
+Six fixed compatibility weights remain 35 categories, 15 products, 15 origin, 15 capacity, 10 documentation, 10 meeting interests. They are independent of the configurable exhibitor qualification weights and Concierge.
+
+Each factor has `state`, `weight`, `points`, `reason`; applicable states are:
+
+- `verified_match`: a documented criterion is satisfied; earns its weight.
+- `verified_mismatch`: reviewed facts demonstrate a mismatch; earns zero.
+- `unknown`: the answer or required evidence is missing/unverified; earns zero.
+- `not_applicable`: the buyer explicitly declares no restriction for that criterion; earns zero and removes that weight from the compatibility denominator.
+
+Let **E** be verified-match weight, **N** explicitly not-applicable weight, and **R** weight whose state is not unknown (verified match, verified mismatch or explicit N/A). The formulas are:
+
+- `compatibility_score = round(100 × E / (100 − N))`. Unknown weights remain in the denominator. Categories cannot be marked N/A, so it never becomes zero.
+- `evidence_coverage = R` percent, because total starting weight is 100. This is **resolved-information coverage**: it includes the verified buyer's explicit no-restriction answers, not just supplier facts. An N/A answer is clearly labelled, contributes no earned compatibility weight, and never claims that a country, quantity or certificate was independently verified. A mismatch can have full coverage but low quality.
+- `score` remains the compatibility-score projection for existing consumers; new UI/exports also expose the separate coverage, factor states, recommendation and rule version. These are commercial-review indicators, not probabilities of purchase or meeting success.
+
+**High-confidence baseline:** source eligibility remains the existing verified buyer organization/application, active consent, closed-won reviewed exhibitor participation and current manager qualification. In addition, curated outreach requires a nonempty reviewed exhibitor product catalogue (`catalogue_evidence`), meaningful buyer product terms and meeting interests, and those terms matched in the reviewed catalogue. This prevents category-only/explicitly broad networking profiles from becoming curated introductions without a meaningful product baseline. Optional quantity/origin/certification answers are not mandatory for enrollment; unanswered criteria lower confidence. Staff can maintain Standard Networking profiles and clarify potential introductions without inventing optional procurement data.
+
+Origin earns points only with a documented restriction and supplier `origin_evidence`; explicit any-origin is N/A. Positive requested quantities require verified supplier capacity/evidence and exact matching units; unknown evidence or unlike units require clarification. No quantity does not prove supply capacity. Certification points require actual requested certificates with verified flags and evidence references. Product matching uses Unicode lowercase **substring matching** in English/Arabic names/descriptions; it does not translate, infer synonyms or claim semantic understanding.
+
+**Recommendations and consequences:**
+
+1. A proven blocking mismatch produces **Incompatible**, regardless of score. Category mismatch, absent required product in a reviewed catalogue, verified wrong restricted origin or verified insufficient same-unit capacity are hard blockers.
+2. Missing/unverified **mandatory certification** is an **unknown clearance blocker**, not proof that the supplier can never comply. It prevents outreach/scheduling until evidence is supplied, even with a high numerical score. Recommendation remains potential/needs information or human review as appropriate; the reason explicitly states the clearance requirement.
+3. A missing product baseline produces **Requires Human Review** and blocks curated outreach.
+4. Any unresolved unknown criterion prevents **Strong Match** and yields **Potential Match — Needs Information** when the product baseline is satisfied and there is no proven blocking mismatch.
+5. **Strong Match** requires that baseline, no blockers, no unknowns, **100% resolved coverage**, and compatibility **≥80**. The 80 threshold permits at most 20% of applicable weight to remain unmet in nonblocking preferences; it is not a statistical confidence estimate. In this conservative rule, genuine sourcing restrictions cannot be offset by those preference points. Requiring 100% resolved coverage makes unanswered criteria an explicit clarification task; buyers may explicitly declare optional criteria N/A instead of fabricating requirements.
+6. Other fully answered but weaker nonblocked combinations require human review. A strong recommendation never approves outreach, records consent or creates a meeting. Conditional human outreach still requires the baseline, no hard clearance blocker, an authorized reviewer and recorded reason; meeting scheduling retains fresh eligibility, approval and mutual-acceptance checks.
+
+Examples:
+
+| Scenario | Expected result |
+| --- | --- |
+| A: category only | 35 compatibility / 35% coverage; Requires Human Review, missing baseline; not 90–100 |
+| B: all products/origin/quantity/certifications and interests satisfied with evidence | 100 / 100%; Strong Match; still only a suggestion until reviewed |
+| C: mandatory certificate missing/unverified | 90 / 90% in an otherwise complete example; unknown clearance blocker; no strong recommendation or outreach |
+| D: verified insufficient same-unit capacity | 85 / 100% otherwise complete; Incompatible and blocked |
+| E: explicit any origin + no certificate requirement, all remaining requirements met | those 25 weights N/A and zero points; 75/75 normalized to 100, coverage 100%; no claim of verified origin/certification |
+| F: same details but origin/certification unanswered | 75 / 75%; Potential—Needs Information; distinct from E |
+| G: matching category but catalogue evidence missing | product unknown, baseline fails; human review and outreach blocked |
+| H: Arabic `أعشاب` occurs in `أعشاب عضوية` | documented substring match; an unrelated Arabic term is a verified mismatch only against a reviewed catalogue |
+| I: eligible declined pair recalculated | decline/version/invitation count unchanged; no reactivation or meeting |
+| J: Concierge entitlement added | no score/explanation improvement and no automatic meeting |
+
+### C. Exact corrections and compatibility
+
+Changed source/config/test files for this review:
+
+- `backend/app/Services/B2BMatching.php` — rule-2 formulas, evidence states and recommendations.
+- `backend/app/Services/B2BProfiles.php` — optional `catalogue_evidence`, `origin_evidence`, whitelisted `requirement_states`; contradictory N/A plus an actual restriction is rejected.
+- `backend/app/Services/B2BWorkflow.php` — explicit rule-version writes, controlled recalculation, legacy review gate, before/after recalculation history and bounded per-participant caches.
+- `backend/app/Http/Controllers/B2BController.php` — rule-review hold projection for match reads/exports, active meeting eligibility views and overview introduction counts.
+- `src/b2b/forms.ts`, `src/pages/B2BWorkspace.tsx` — requirement-answer/evidence inputs and native matching presentation; historical labels, score versus coverage, factor states, unknown/N/A, blockers, recommendation and staff actions.
+- `backend/tests/Unit/B2BEvidenceTest.php` — A–H and explicit-unknown/leftover-value regression cases (intentionally added despite the scaffold Unit-directory ignore rule).
+- `backend/tests/Feature/B2BMatchmakingTest.php`, `backend/tests/Feature/B2BSecurityTest.php`, `backend/tests/Support/B2BFixture.php` — supplied evidence fixtures, unknown versus mismatch, Concierge non-effect, eligible decline suppression, legacy hold and history preservation.
+- `scripts/b2b-ui.test.mjs` — explicit-answer presentation semantics.
+- `.github/workflows/erp-tests.yml` — Laravel job timeout 15 → **30 minutes** only. No removed tests, weakened safety guards, dependency/version changes or runner changes.
+- This report and `docs/evidence/phase5-hardening/` captures.
+
+**No schema change or migration is needed.** Rule version and JSON explanations already exist; optional profile facts remain inside the existing encrypted profile. Existing profiles without explicit answer flags remain readable: nonempty documented values remain actual requirements, blank values remain unknown, and missing supplier evidence is not invented. An explicit unknown flag overrides leftover values. Saving through the new editor preserves the distinctions.
+
+No operational backfill ran. An authorized generation request may recalculate only suggested/under-review rows, writing rule 2 and resetting review to suggested; encrypted audit records retain the previous rule, score, status and explanation and the new explanation. Approved, invitation-pending, mutually accepted, declined and expired projections are not rewritten by generation. Prior invitations and completed meetings are preserved.
+
+Old-rule active approvals/meetings receive a **rule-review hold** in scoped views/totals, and new approval/invitation/acceptance/scheduling actions reject stale rule versions. No confirmed meeting is automatically cancelled, no slots released, no evidence fabricated. Staff may explicitly cancel through the normal authorized workflow if they choose to reconsider a future introduction; existing active-meeting safeguards still require resolving that booking before reconsideration. Historic completed outcomes remain historic completed outcomes.
+
+Rollback: disable B2B before restoring the old application; retain all records. Do not re-enable an older rule-1 application against rule-2 records as though it understands the new indicators. No schema rollback/backfill is required. Real activation remains separately authorized and subject to the prior staging prerequisites.
+
+**Performance:** the 400-pair limit is retained. A separate 800-participant bound prevents degenerate zero-pair batches from decrypting unlimited profiles, and a 2,000-window bound rejects excessive availability batches. Profiles are decrypted and source eligibility checked once per participant under transaction locks; match rows, representatives and windows are batch-loaded. Cached window lists use a sorted two-pointer overlap check instead of nested interval comparisons. Existing deterministic JSON comparison prevents unchanged writes. The engine performs no remote calls or unbounded candidate expansion. The scheduler, financial services, authentication, permissions and event-date handling are unchanged.
+
+### D. Test and browser evidence
+
+Final isolated full Laravel run: **179 tests / 2,465 assertions passed**, 664.86 seconds, with warnings treated as failures. The final before/after audit payload received a subsequent focused security rerun: **7 tests / 81 assertions passed** (18.42 seconds). The full suite includes real concurrent scheduling workers and preservation regressions. Frontend: **25 tests passed**, TypeScript and production build passed; **38 navigation destinations passed**. Tests used the disposable loopback MySQL test database; no operational credentials or records.
+
+Browser verification uses only `space_crm_phase5_ui_test`. Existing historical rule-1 accepted records remain intact and visibly labelled/held; an explicitly recalculated incomplete candidate shows **45/45%** and a failed outreach attempt proves that its missing product baseline is enforced server-side. A new labelled synthetic event 3 has complete supplier evidence and buyer requirements. Browser review, separate manager approval, fresh invitation projections, separately recorded buyer/exhibitor acceptance and scheduling were exercised for rule-2 introduction #6. No score or Concierge shortcut created the meeting.
+
+Paired visual checks compare the exact pre-hardening commit's frontend with the new frontend against the same isolated data. The matching screen intentionally gains only the requested indicators/inputs using the existing ERP primitives; original Clients and its shared layout/styles remain unchanged. Evidence: [paired Clients before](evidence/phase5-hardening/clients-before.png), [Clients after](evidence/phase5-hardening/clients-after.png), [rule-2 desktop](evidence/phase5-hardening/rule2-matches-desktop.png), [mobile](evidence/phase5-hardening/rule2-matches-mobile.png), and [outreach rejection](evidence/phase5-hardening/incomplete-outreach-rejected.png). The paired Clients PNGs are byte-identical. Desktop override 1280×800 and mobile override 390×844 were exercised; Windows scaling produced a mobile DOM viewport of 488×1055 (469-pixel content width), with no body overflow. Tables retain their native horizontal scroll behavior. Temporary viewport overrides were reset. No global CSS, fonts, colors, shared component, sidebar, header, original ERP page or website file changed.
+
+### E. CI investigation
+
+**Verified:** the requested original run [41864811367](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41864811367), on commit `1b847a410b5c6d2e4d455830e3d70980e9356b85`, subsequently completed **successfully**. Both actual job states are completed/success: frontend job `126696201566`, Laravel job `126696201885`. Its prior queue cause was not exposed and remains **unknown**; no billing, quota, runner or organization explanation is inferred.
+
+That success verifies only the old implementation. New final-head CI must be checked independently; exact SHA/run/job states are recorded below and in the PR verification comment.
+
+Configuration review: pull requests include the Phase 4 base; pushes include the existing Phase 5 branch. Concurrency cancels superseded runs per PR/ref, not individual tests. Both jobs use Ubuntu 24.04, pinned existing actions, Node 24 and PHP 8.4, locked dependency installation and read-only repository contents. The Laravel job provisions a disposable MySQL 8.4 service on its allocated port with synthetic credentials, checks actual database identity, then runs the **entire sequential suite**, including real concurrency workers. No operational secrets, production data, test parallelization or deployment step is introduced.
+
+The previous local full suite took 733 seconds; 15 minutes leaves only 167 seconds for runner/container/PHP/Composer setup and variance. Increasing the CI-only timeout to 30 minutes provides that margin without assuming Linux timing or removing any coverage. Worker-level timeouts and database safety checks remain intact. Frontend timeout remains 10 minutes.
+
+The hardening commit is awaiting publication and an actual new-head run. The final SHA and observed job states will be recorded in the PR verification comment; the old successful run is not substituted for new-head verification.
+
+### F. Preservation
+
+Read-only canonical operational database and asset fingerprints match the saved baseline: ERP **37 tables / 3 private files**, website **19 tables / 2 assets**. Existing Phase 4 synthetic exhibition/client/booth/deal/installment/commission/intake/buyer/control rows also match; new evidence fixtures are separately labelled. No operational migrations, imports, resets, seeders, writes or deletions were run. Website remains unchanged at `34086e3e177c0ca5f92afc66a61088aca0c287fb`. Financial calculations, receipts, commissions, booth reservations, automatic visitors, manual buyers, CMS, session authentication and authorization are retained and covered by the full regression suite.
+
+### G. Final recommendation
+
+**Ready for Review — CI Pending.** This is the provisional review status until the hardening commit's actual frontend and Laravel jobs both succeed. It is not a claim of final-head CI verification or permission to merge, deploy or activate matchmaking. Final verification replaces this recommendation if both jobs complete successfully. Phase 6 is not started.
