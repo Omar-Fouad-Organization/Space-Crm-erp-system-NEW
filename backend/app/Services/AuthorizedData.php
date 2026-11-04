@@ -37,6 +37,9 @@ class AuthorizedData
         if (!$this->policy->enabled() || $user->role === 'super_admin') return $q;
         return $q->where(function ($q) use ($table, $user) {
             $q->whereRaw('1 = 0');
+            if (config('intake.enabled')) {
+                $q->orWhere(fn ($r) => $r->where($table.'.resource','intake_submissions')->whereIn($table.'.record_id',app(IntakeAccess::class)->query($user)->select('id')));
+            }
             foreach (array_keys(config('crm.resources')) as $resource) {
                 if (in_array($resource, ['users', 'employees']) && $table === 'audit_logs') continue;
                 if (!$this->policy->allows($resource.'.view', $user)) continue;

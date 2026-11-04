@@ -2,9 +2,9 @@ name: ERP isolated MySQL tests
 
 on:
   pull_request:
-    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security, codex/phase-2-granular-authorization]
+    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration]
   push:
-    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration]
+    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations]
   workflow_dispatch:
 
 permissions:
@@ -28,8 +28,9 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: node --test scripts/authorization-ui.test.mjs scripts/cms-ui.test.mjs
+      - run: node --test scripts/authorization-ui.test.mjs scripts/cms-ui.test.mjs scripts/registration-ui.test.mjs
       - run: node scripts/verify-navigation.mjs
+      - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npm run build
   laravel:
     runs-on: ubuntu-24.04

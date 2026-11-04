@@ -34,6 +34,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import {ChatPage, AnalyticsPage, AdvancedPage, NotificationsPage, SettingsPage, DiagnosticsPage, DesignPage, DeleteShowcasePage, ProfilePage, SearchPage, HelpPage} from './pages/WorkspacePages';
 
+const RegistrationWorkspace=lazy(()=>import("./pages/RegistrationWorkspace"));
+const RegistrationControls=lazy(()=>import("./pages/RegistrationControls"));
 const queryClient = new QueryClient();
 const WebsiteManagement=lazy(()=>import('./pages/WebsiteManagement'));
 
@@ -51,6 +53,11 @@ const App = () => (
           <Route path="/" element={<CRMLayout />}>
             <Route index element={<Dashboard />} />
           <Route path="website/:section?" element={<Suspense fallback={<p role="status" className="p-6 text-muted-foreground">Loading website management…</p>}><WebsiteManagement/></Suspense>}/>
+            <Route path="submissions" element={<Suspense fallback={<p>Loading…</p>}><RegistrationWorkspace key="submissions" family="submissions"/></Suspense>}/>
+<Route path="buyers" element={<Suspense fallback={<p>Loading…</p>}><RegistrationWorkspace key="buyers" family="buyers"/></Suspense>}/>
+<Route path="visitors" element={<Suspense fallback={<p>Loading…</p>}><RegistrationWorkspace key="visitors" family="visitors"/></Suspense>}/>
+            <Route path="registration-controls" element={<Suspense fallback={<p>Loading…</p>}><RegistrationControls/></Suspense>}/>
+            <Route path="registration-delivery" element={<Suspense fallback={<p>Loading…</p>}><RegistrationControls deliveriesOnly/></Suspense>}/>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="expos" element={<Expos />} />
             <Route path="expos/:expoId" element={<ExpoDetail />} />

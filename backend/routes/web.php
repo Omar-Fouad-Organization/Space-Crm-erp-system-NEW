@@ -53,3 +53,13 @@ Route::prefix('api')->group(function () {
         Route::delete('records/{resource}/{id}',[CrmController::class,'destroy']);
     });
 });
+
+// Dedicated controller enforces module + action + exhibition + record scope.
+Route::prefix('api/intake')->middleware([CrmAuthenticated::class,'throttle:120,1,intake-staff'])->group(function(){
+    $c=\App\Http\Controllers\IntakeController::class;
+    Route::get('submissions',[$c,'index']);Route::get('submissions/{id}',[$c,'show'])->whereNumber('id');
+    Route::get('submissions/{id}/staff',[$c,'staff'])->whereNumber('id');Route::post('submissions/{id}',[$c,'update'])->whereNumber('id');
+    Route::get('organizations',[$c,'organizations']);Route::post('export',[$c,'export'])->middleware('throttle:5,1,intake-export');
+    Route::get('controls',[$c,'controls']);Route::put('controls',[$c,'saveControls']);
+    Route::get('deliveries',[$c,'deliveries']);Route::post('replay',[$c,'replay']);Route::post('reconcile',[$c,'reconcile']);
+});

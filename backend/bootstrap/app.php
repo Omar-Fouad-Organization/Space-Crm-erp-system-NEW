@@ -9,10 +9,14 @@ require_once __DIR__.'/windows-filesystem.php';
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/intake.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\App\Http\Middleware\LimitIntakeRequest::class);
+        $middleware->trimStrings(except: [fn ($request) => $request->is('api/internal/intake/*')]);
+        $middleware->convertEmptyStringsToNull(except: [fn ($request) => $request->is('api/internal/intake/*')]);
         $middleware->appendToGroup('web', \App\Http\Middleware\ValidateStaffSession::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,0 +1,359 @@
+# Phase 4 — Registrations, CRM Intake, Buyer Relations and Visitor Management
+
+Review date: 2026-11-04 (Africa/Cairo). **Current correction: ordinary visitors register automatically; section 14 supersedes the earlier visitor lifecycle and historical test counts below.** Status: implementation and isolated verification; draft-only release. Findings labelled **Verified** refer to repository inspection or the isolated tests below. **Requires staging verification** means no production claim is made.
+
+## Dependency chain and scope
+
+- ERP Phase 4 branch `codex/phase-4-registrations` starts at verified Phase 3 `5e904496db219a467a8ec6eec92883aea174aa0b`, targets `codex/phase-3-cms-integration` (PR #3), dependent on Phase 2 PR #2 and Phase 1 PR #1.
+- Website Phase 4 branch `codex/phase-4-public-intake` starts at verified Phase 3 `bf649ff691e476b27d1b08dcd43ee6e18b97868e`, targets `codex/phase-3-cms-gateway` (PR #2), itself targeting main.
+- Both Phase 3 PRs were open, draft and unmerged when work began. Their gateway, sessions, CMS media, commercial tables and original business services remain separate.
+- No merge, deployment, operational migration/import, production form activation, dependency upgrade, checkout or Phase 5 implementation was performed.
+
+## 1. Verified original form and business mapping
+
+| Source | Original behavior | Phase 4 behavior |
+|---|---|---|
+| `src/pages/PremiumContact.tsx` | Direct generic CMS resource submission; speaker option mismatched backend | Existing hero/contact/map retained; typed intake, bilingual receipt and withdrawal |
+| `src/pages/PremiumVisitors.tsx` | General-contact CTA and obsolete hardcoded dates/counts | Independent visitor registration; authoritative approved dates and closed state |
+| `src/pages/PremiumExhibitors.tsx` | Contact CTA | Contact prefilled as exhibitor; qualified conversion uses existing ERP client service |
+| `src/pages/PremiumSponsors.tsx` | Contact CTA and marketing package prices | Contact prefilled as sponsor; no price copied into financial fields |
+| Website `contact_submissions` | UUID legacy source records | Preserved; separately authorized reconciliation to historical enquiries |
+| Website `visitor_registrations` | UUID interest records | Preserved as `visitor_interest`, never confirmed visitors |
+| ERP `clients`, `deals` | Integer clients and existing pipeline | Existing commercial types/stages/services reused after explicit qualification |
+| ERP tasks/notifications | Existing task module requires unrelated client/user capabilities | Generic existing notifications reused; intake-specific protected correspondence/follow-up records avoid granting Finance or client management |
+
+The installed applications remain React/Laravel 12/MySQL ERP and React/Laravel 13/MySQL website. No application was rebuilt.
+
+## 2. Architecture and authoritative ownership
+
+```mermaid
+flowchart LR
+  P[Public React forms] --> W[Website Laravel validation and receipt]
+  W --> S[(Website accepted UUID source)]
+  W --> O[(Transactional encrypted outbox)]
+  O -->|Dedicated signed service; at least once| I[ERP durable inbox]
+  I --> R[(ERP intake and processing history)]
+  E[Existing ERP staff session and permissions] --> R
+  E --> C[ERP per-event registration controls]
+  W -->|Signed live controls/status reads| C
+  R -->|Authorized human qualification only| CRM[Existing CRM client and deal workflows]
+```
+
+**Verified:** website owns accepted source data and original UUID/time; ERP owns processing status, assignment, event controls, reviewed organization identity and client linkage. Browser never writes to both databases. No cross-database FK, shared application key, employee cookie or CMS writer credential is introduced. Contract version 1 is committed identically as `backend/config/intake-contract.json` in both repositories.
+
+The first deployed binding is one explicit `green-life-expo` site and `INTAKE_EXHIBITION_ID`. Every record and signed claim contains that binding. Tables support multiple exhibitions; another public exhibition requires a separately reviewed site/service binding and routing configuration. Arbitrary browser-supplied event switching is intentionally unsupported.
+
+## 3. Schema and identity mapping
+
+| Database/table | Key and relationships | Owner/purpose |
+|---|---|---|
+| Website `public_submissions` | UUID PK, unique UUID idempotency key, integer ERP event ID without cross-DB FK | Immutable accepted encrypted source, consent, hash-only 90-day receipt, withdrawal |
+| Website `submission_outbox` | UUID message PK; source UUID FK; unique source/event | Immutable encrypted signed-envelope source, retry/lease/ack state |
+| Website `submission_delivery_audits` | Integer PK, UUID message pointer | Authorized replay history without applicant details |
+| Both `intake_nonces` | SHA-256 nonce identity, expiry index | Separate service replay prevention |
+| ERP `intake_submissions` | Integer PK; unique site/source UUID; integer exhibition, assignee, client, organization and duplicate FKs | Normalized restricted search fields, encrypted original payload, versioned processing |
+| ERP `intake_inbox` | UUID message PK, payload hash, integer intake FK | Durable exactly-once processing effects for retries |
+| ERP `buyer_organizations` | Integer PK; created by existing staff | Human-reviewed identity shared by participation/application records |
+| ERP `intake_history` | Integer PK, intake FK, actor FK, encrypted reason | Append-only processing history |
+| ERP `intake_activities` | Integer PK, intake FK, encrypted note, UTC due/completion | Authorized correspondence and follow-ups |
+| ERP `registration_controls` | Unique site/event/type; version | Independent exhibitor/sponsor/buyer/visitor/general availability, approved dates, notices |
+| ERP `intake_control_audits` | Integer PK and actor/event | Configuration and export-count audit |
+
+No existing users, migration histories, sessions, jobs, financial tables or business records are combined. Both additive migrations are `2026_11_04_000001_*`. Existing applications ignore the additional tables, making schema-first installation compatible with the Phase 3 code.
+
+Normalized ERP email/phone/company fields remain plaintext for authorized search; original values, sourcing details, consent and history reasons/notes use each application's own encryption key. **Requires staging verification:** DB volume/backups encryption, least-privilege DB users, key escrow and restore exercises. Application encryption does not replace infrastructure encryption.
+
+## 4. API contract and reliability
+
+Public website endpoints under the existing same-origin web/CSRF stack:
+
+- `GET /api/registrations/controls`: safe event configuration, no-store, closed on unavailable ERP.
+- `POST /api/registrations/submit`: UUID idempotency key, type, bounded validated payload, honeypot and form age; atomic source plus outbox.
+- `POST /api/registrations/status` and `/withdraw`: source UUID plus confidential receipt token in request body; no personal details returned.
+
+Dedicated backend-only POST endpoints `/api/internal/intake/{accept,controls,status}` on ERP, and `{monitor,replay,manifest}` on website. Authentication signs exact request bytes and URI/method plus version, purpose, issuer, audience, site, event, key ID, issued/expiry time and random nonce. Lifetime <=30 seconds; replay nonce uniqueness is durable. Credentials are backend-only `INTAKE_SERVICE_KEY`, separate from CMS and APP_KEY. HTTPS, TLS verification, fixed configured origin, no redirect following, 64 KiB request and 256 KiB response bounds. HTTP loopback is allowed only in local/testing environments.
+
+ERP authenticated endpoints live under `/api/intake`: list/detail/staff assignment, versioned processing actions, organizations, CSV export, controls, delivery monitoring, replay and reconciliation. Each action checks its permission, event membership and record scope server-side. Signed routes are stateless and cannot call CMS administration or commercial mutations.
+
+Worker `php artisan intake:deliver --limit=50` claims rows using MySQL `FOR UPDATE SKIP LOCKED`, a random lease and a 60-second expiry. Network I/O occurs after the claim transaction. It sends the same immutable message UUID, validates matching durable ERP acknowledgement, and updates only its own lease. Interrupted workers can be reclaimed. Backoff is bounded exponential, capped at one hour; ten failures enter failed state. Authorized replay preserves UUID and payload and refuses an active lease. `intake:prune-nonces` removes only expired replay tokens, bounded to 5,000.
+
+ERP acceptance serializes first source acceptance on the linked exhibition row. Inbox message hashes reject altered replays; site/source UUID uniqueness prevents duplicate effects across different message IDs. Original form/type/source system/historical flag/time/hash are immutable. A withdrawal arriving before its source is retried; later original-message replay cannot undo withdrawal. This intentionally favors integrity over maximum per-event ingestion throughput; load testing is a release prerequisite.
+
+Public submissions require live controls on first acceptance. If ERP is already unavailable, new submissions fail closed and invite retry. Once accepted, a subsequent ERP outage cannot lose the source/outbox. No email delivery is claimed or configured. A lost initial response is safely replayable but cannot reveal the hash-only receipt token again; organizer-assisted identity verification is required if the applicant did not save it.
+
+## 5. Human workflows
+
+### Sales and general enquiries
+
+Received -> triage/assignment -> contacted -> qualified/disqualified/duplicate/withdrawn. Qualification plus an explicit distinct matching review is required before client conversion. Authorized employees can link an existing visible compatible client or create a prospect through the unchanged `CrmService`. Sponsor and sector sponsor types remain distinct. Opportunity creation remains the existing Deals workflow after conversion. No acceptance/conversion automatically creates deals, booths, agreements, invoices, installments, receipts or commissions. General/speaker/media/partnership/other/visitor-interest appear in central triage, with dedicated tabs for exhibitor/sponsor leads and overdue follow-ups.
+
+### Buyer Relations
+
+Submitted -> under review -> more information required / verified / rejected / withdrawn. Reviewed organizations must be linked before verification; `buyers.approve` is distinct from `buyers.review`. The same organization can have multiple people/event applications without public records overwriting its identity. Organization linking requires current visibility through an authorized participation. Applications, verified buyers, organizations and overdue follow-ups use native ERP tables/cards/dialogs. Verification grants no Hosted Buyer, travel, visa, delegation or matchmaking entitlement.
+
+### Visitor Management
+
+Registered automatically on durable public acceptance -> cancelled/duplicate/withdrawn. Terminal visitor records cannot be reopened by replay or a staff status change; a new valid registration uses a new source UUID. Duplicate status requires a manually linked match. Approved visitor dates must lie within the existing exhibition interval. Initial registration requires no human confirmation. Counts mean registrations, never attendance. Receipt withdrawal records a terminal public cancellation and delivers it durably to ERP. No QR/access-control credential or admission promise is introduced.
+
+## 6. Permissions, privacy and security
+
+- Existing staff session/MFA/reset/revocation architecture retained. No second employee login.
+- New explicit permissions: `submissions.{view,assign,manage,activity,export,review_duplicates}`, `buyers.{view,assign,review,approve,activity,export,review_duplicates}`, `visitors.{view,assign,manage,activity,export,review_duplicates}`, `leads.{qualify,convert}`, `registrations.{configure,deliveries,replay}`.
+- New permissions default to Super Admin only and remain disabled when the intake flag is off. Existing module grants do not silently confer these actions. Each action depends on its family view permission; replay depends on delivery permission.
+- Event membership and existing all/team/own scope are applied to lists, details, matches, activities, organizations and exports. Assignment targets must be active and permitted for module/event. Notifications carry generic text and fresh pointer authorization.
+- Public body limits, strict allowlists, UUID/hash conflict checks, CSRF, IP/email throttles, form timing and honeypot are enforced server-side. These are baseline anti-automation controls; edge/WAF tuning under real load remains necessary.
+- English/Arabic notices require explicit policy version and both approved texts before opening. Operational processing consent is required; marketing consent is optional and separately stored with server timestamp. International free-text countries and country codes are accepted; original Unicode text and phone values survive alongside conservative normalization.
+- No document-upload endpoint is added. Optional buyer supporting information is bounded text with a warning against sensitive documents. Existing private-file authorization is untouched.
+- Public CMS resources never expose applications. During enabled cutover, old generic legacy submission write endpoints return 409, avoiding an unmonitored parallel writer. With the feature off the Phase 3 legacy backend remains compatible; deploy sequencing must close old public writers before activation.
+- CSV export requires family export action plus event/record scope, max 5,000 rows, Unicode BOM and formula neutralization. No-store headers protect intake response caching. Do not configure proxy/browser analytics to collect request bodies or receipt secrets.
+
+### Retention and data-subject procedure
+
+`php artisan intake:retention-report` is read-only, refuses an unset/unapproved `INTAKE_RETENTION_DAYS`, and returns aggregate candidate counts only. No automatic purge runs. The retention period must be approved for the actual processing purpose/jurisdiction before release; this report makes no legal-policy assumption.
+
+For a verified deletion/correction request: validate receipt or identity through a permitted staff process; identify source UUID and all linked ERP processing/organization records; suspend contact and record withdrawal if appropriate; assess legal holds and financial record obligations; reconcile pending outbox/inbox and back up; prepare separately reviewed, reversible redaction for source, encrypted envelopes, normalized contacts, free-text notes and relevant organization data across both systems. Preserve non-PII UUID/hash audit evidence and legally required commercial records. Review shared organizations/other people before redaction. Document retention in backup expiry and prevent replay from restoring erased PII. Obtain explicit authorization before implementing or executing the redaction operation. This phase supplies the report and procedure, not an unapproved destructive erasure command.
+
+## 7. Historical reconciliation
+
+Website command `intake:reconcile-history contact_submissions --exhibition=<reviewed-id> --limit=100` (or `visitor_registrations`) defaults to dry-run; `--after=<UUID>` resumes a bounded, sorted UUID batch. `--apply` is a separate operational authorization boundary. It preserves original UUID/time and encrypted `legacy_original` snapshot, records unknown consent as false, distinguishes visitor interest, rejects invalid/conflicting/oversized sources and atomically creates source/outbox only for new identities. Counts, cursor and checksum contain no applicant details. Repeated apply skips identical rows. Synthetic tests cover dry-run, apply and restart; no operational historical import was run. Dry-run output and event binding must be reviewed before each production import batch.
+
+## 8. Safe release sequence and rollback
+
+1. Merge dependency chain only after separate approval. Back up both DBs and private/public assets, verify deployed schema/data/bindings and restore in staging. Check actual infrastructure, DNS/TLS, clocks and secret management.
+2. Keep `INTAKE_ENABLED=false` in both apps. Install ERP and website additive schemas independently. Previous Phase 3 binaries remain compatible; never run fresh/reset/seed on operational DBs.
+3. Deploy ERP receiver/permissions/UI and website outbox/controllers/UI code with intake disabled. Cache configuration deliberately; use distinct APP_KEY/session cookies and a fresh dedicated service key. Grant reviewed action/event/record permissions with the existing revocation process.
+4. In staging, verify complete suite, browser workflows, failover, concurrent delivery/lease recovery, rate limits, private logs, exported CSV, backups, monitoring and load. Review approved event dates, bilingual notices and content figures. Synthetic dates used in tests are not event announcements.
+5. Prepare controls while no public writes are possible. Enable ERP receiver and verify signed controls/monitoring; enable website integration only after ERP/control readiness and old writer handling are confirmed. Closed controls remain authoritative. Start a supervised bounded outbox worker separately; example every minute with overlap prevention, plus expiry-only nonce maintenance. No worker/scheduler was activated operationally during implementation.
+6. Open each approved form type independently. Watch queue oldest-age/failure counts and reconcile source UUID pages. Import historical data only after separate authorization. Run a synthetic canary in staging before cutover approval.
+
+Rollback: close forms first, stop new public acceptance, preserve all accepted source/outbox/inbox records, drain or pause delivery consciously, disable feature flags and revert binaries in reverse order. Keep additive tables and encryption keys; **do not run migration down after real submissions exist**, because down drops new tables. A pre-acceptance empty-schema rollback is structurally reversible, but populated data rollback requires reviewed backup/export retention. Never replay with changed source identities. Do not roll back to an old uncontrolled public form writer while accepted Phase 4 data is pending.
+
+## 9. Verification results and browser evidence
+
+Local execution uses only `space_crm_test` / `green_life_expo_test` for destructive test suites, guarded before RefreshDatabase. UI uses separate `space_crm_phase4_ui_test` / `green_life_expo_phase4_ui_test` cloned exclusively from named synthetic Phase 3 fixtures. No operational source records were copied. Per-repository suites run sequentially against their own disposable database.
+
+- ERP complete regression before final hardening: **151 tests, 2,202 assertions passed**. After source-provenance hardening: targeted **11 tests, 85 assertions passed**. Final full-suite result recorded below.
+- Website final full Laravel suite: **46 tests, 319 assertions passed**.
+- ERP frontend: **20/20 passed**; TypeScript passed; all **32** sidebar destinations verified; production build passed.
+- Website frontend: **9/9 passed**; TypeScript passed; production build passed. Existing chunk-size/Browserslist warnings remain; no dependency changes.
+- Tests cover typed routing, bilingual/international payloads, source UUID/hash preservation, encryption, no automatic commercial effects, event/own scope, assignment and approval restrictions, controlled conversion, CSV escaping, signed service replay, transactional outbox, outage/replay/lease behavior, approved controls and historical reconciliation. Existing Phase 1–3 auth/MFA/reset/session/attachments/financial/booth tests remain part of full regressions.
+
+Browser verification uses actual React pages and Laravel/MySQL services, no separate website-admin login. Recorded so far: international buyer application with Japanese and Arabic text -> receipt -> dedicated service -> ERP -> human organization review -> verified status; Arabic visitor -> accepted source -> ERP; Arabic withdrawal -> terminal public status -> outbox -> ERP; exhibitor contact -> sales intake. Remaining browser and final CI results are appended after completion, not assumed.
+
+Operational preservation: the read-only fingerprint comparison still matches the Phase 3 saved baseline: ERP **37 tables/3 private files**, website **19 tables/2 assets**. These fingerprints cover existing operational business/content records and designated private/public asset trees, not synthetic test DBs or transient service processes. No operational migration/reset/seed/import occurred.
+
+Visual evidence is captured under local `outputs/phase4-visual`. Baseline filenames were labelled desktop/mobile, but the browser's initial capture surface did not reliably follow the requested viewport dimensions; the report records actual capture limitations rather than claiming pixel-identical full-viewport comparisons. Existing ERP business pages and shared design/CSS are byte-equivalent to Phase 3, independently tested. Public shared header/footer/styles/tokens are byte-equivalent; only requested form journeys, CTAs and neutral corrections to unapproved counts/dates change. New pages reuse each application's existing primitives and typography.
+
+## 10. CI, PRs and release prerequisites
+
+Both workflows use isolated per-job MySQL 8.4 services, synthetic public CI credentials, no repository operational secrets, pinned actions, sequential Laravel suites and no deployment step. Branch filters include the Phase 4 branch and Phase 3 PR base. Jobs cannot share a MySQL instance. Final PR URLs, heads, GitHub Actions URLs/counts and final browser evidence are recorded below after publication.
+
+**Requires staging/production verification:** actual deployed schema and data, approved notices/policy/retention, correct event/date/public content, verified service endpoints and clock sync, MySQL 8 SKIP LOCKED support, proxy Content-Length/no-store/rate-limit behavior, TLS and secret rotation, logs/APM redaction, worker supervision/alerts, representative load and backup restore. Mail remains disabled until separately verified; no email can be represented as sent.
+
+**Phase 5 readiness:** source UUIDs, per-event participations, reviewed organization identity, human verification and granular permissions form an extensible boundary. Phase 5 must remain a separately authorized dependent branch after Phase 4 review; no matchmaking, Hosted Buyer acceptance, travel sponsorship or access-control engine exists here.
+
+## 11. Exact changed-file inventory
+
+Paths below are repository-relative. No dependencies, operational env files, private files or existing financial/booth services are included.
+
+### ERP
+
+- `.github/workflows/erp-tests.yml`
+- `backend/.env.example`
+- `backend/app/Console/Commands/ReportIntakeRetention.php`
+- `backend/app/Http/Controllers/IntakeController.php`
+- `backend/app/Http/Controllers/IntakeReceiverController.php`
+- `backend/app/Http/Middleware/AuthenticateIntake.php`
+- `backend/app/Http/Middleware/LimitIntakeRequest.php`
+- `backend/app/Services/AuthorizedData.php`
+- `backend/app/Services/IntakeAccess.php`
+- `backend/app/Services/IntakePayload.php`
+- `backend/app/Services/IntakeTransport.php`
+- `backend/app/Services/PermissionPolicy.php`
+- `backend/app/Services/PermissionRegistry.php`
+- `backend/bootstrap/app.php`
+- `backend/config/authorization.php`
+- `backend/config/intake-contract.json`
+- `backend/config/intake.php`
+- `backend/database/migrations/2026_11_04_000001_create_registration_intake.php`
+- `backend/routes/console.php`
+- `backend/routes/intake.php`
+- `backend/routes/web.php`
+- `backend/tests/Feature/RegistrationIntakeTest.php`
+- `docs/PHASE-4-REGISTRATIONS-INTEGRATION.md`
+- `scripts/registration-ui.test.mjs`
+- `scripts/verify-navigation.mjs`
+- `src/App.tsx`
+- `src/auth/access.ts`
+- `src/components/layout/Sidebar.tsx`
+- `src/contexts/AuthContext.tsx`
+- `src/pages/RegistrationControls.tsx`
+- `src/pages/RegistrationWorkspace.tsx`
+
+### Website
+
+- `.github/workflows/ci.yml`
+- `backend/.env.example`
+- `backend/app/Console/Commands/ReconcileHistoricalSubmissions.php`
+- `backend/app/Console/Commands/ReportIntakeRetention.php`
+- `backend/app/Http/Controllers/IntakeDeliveryController.php`
+- `backend/app/Http/Controllers/PublicRegistrationController.php`
+- `backend/app/Http/Controllers/ResourceController.php`
+- `backend/app/Http/Middleware/AuthenticateIntake.php`
+- `backend/app/Http/Middleware/LimitIntakeRequest.php`
+- `backend/app/Services/IntakePayload.php`
+- `backend/app/Services/IntakeTransport.php`
+- `backend/app/Services/SubmissionOutbox.php`
+- `backend/bootstrap/app.php`
+- `backend/config/cms.php`
+- `backend/config/intake-contract.json`
+- `backend/config/intake.php`
+- `backend/database/migrations/2026_11_04_000001_create_public_intake.php`
+- `backend/routes/cms.php`
+- `backend/routes/console.php`
+- `backend/routes/web.php`
+- `backend/tests/Feature/PublicRegistrationTest.php`
+- `docs/PHASE-4-REGISTRATIONS-INTEGRATION.md`
+- `scripts/registration-ui.test.mjs`
+- `src/App.tsx`
+- `src/components/RegistrationForm.tsx`
+- `src/pages/PremiumContact.tsx`
+- `src/pages/PremiumExhibitors.tsx`
+- `src/pages/PremiumIndex.tsx`
+- `src/pages/PremiumRegistration.tsx`
+- `src/pages/PremiumSponsors.tsx`
+- `src/pages/PremiumVisitors.tsx`
+
+## 12. Final local verification addendum
+
+**Verified (2026-11-04):** final ERP full regression **152 tests / 2,207 assertions**, all passed. Website **46 / 319**, all passed. ERP frontend **20/20**, website frontend **9/9**, both TypeScript checks and production builds passed; navigation **32/32**.
+
+Browser sales cycle completed: source `92780a74-6bb4-4859-bb23-5ce6e9365024` -> intake #4 -> contacted -> qualified -> explicit distinct matching review -> existing client service -> synthetic prospect #2. No deal/booth/payment/commission action was invoked. Buyer source `af5ace7d-9522-4908-9fc1-e23f4c630ada` -> organization reviewed -> verified. Visitor withdrawal source `3df67718-3192-4881-84bc-de3ee64a3457` -> withdrawn -> durable delivery.
+
+Additional real HTTP submissions: sponsor `270a63a3-d388-4144-955d-70cfb95f99b2` and speaker `059fc2c1-b745-467e-bd30-b7f6f9714980`; identical retries returned the same UUID, changed payload retries returned 409. Deliberately stopped only the isolated ERP receiver: worker returned delivered=0/failed=2; accepted source/outbox rows remained. ERP browser reconciliation reported source=6/accepted=4/missing=2. Restarted receiver, invoked authorized Replay from the ERP UI with original message UUIDs, and worker delivered both without duplicate processing. Runtime fixture launch initially used an artisan environment selector that rejected HTTP loopback; corrected only the isolated launcher, preserving the production HTTPS restriction.
+
+Restricted synthetic buyer employee actual HTTP session checks: buyer #1 and exhibitor #4 detail 404 (unassigned own scope); Finance 403; registration controls 403; deliveries 403; export 403; crafted verification action 404. Laravel tests separately prove event membership, assigned own-scope access and approval denial.
+
+For deployment, use a persistent shared cache store for rate limiting (never the isolated fixture's array store). Validate rate limits and CSRF with production-mode middleware in staging. The local browser's development-server dependency optimization became unstable during builds; final UI verification uses built production assets with loopback API proxies instead.
+
+## 13. Publication, final scope hardening and visual review
+
+- ERP draft PR: https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/pull/4
+- Website draft PR: https://github.com/Omar-Fouad-Organization/Premium-website/pull/3
+- Published ERP implementation commit: `36d33530910655e084e12b837a491c6ec078d278`; Git tree exactly matches the locally tested implementation tree.
+- Initial website implementation commit: `e8feff757e5bc12903d009e11fce9fdc912b60cd`; Git tree exactly matched its local tree. The subsequent website correction explicitly scopes queue monitor counts/rows, worker selection and replay to the configured site/exhibition. A cross-event regression verifies no monitoring, delivery attempt or replay audit effect for another event. Final local website result is **46 tests / 319 assertions**, superseding the initial 45 / 312.
+- Initial GitHub Actions ERP run [41814940716](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41814940716): Laravel **152 passed / 2,207 assertions**, frontend **20 passed**, navigation **32 passed**, TypeScript and production build passed.
+- Initial GitHub Actions website run [41814948995](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41814948995): Laravel **45 passed / 312 assertions**, frontend **9 passed**, TypeScript and production build passed. Final amended-head CI is verified separately in the PR conversation after publication; these initial results are not misrepresented as the corrected head.
+
+Browser controls check: disabled only visitor intake from ERP, reloaded the Arabic public form and verified closed message/disabled inputs while buyer intake stayed open. Restored only the synthetic fixture control afterward. Privacy-notice button was tested and retained the same contact route. Final reconciliation was **6 sources / 6 accepted / 0 missing**, with **7 delivered messages** (including withdrawal) and no pending/failed deliveries.
+
+Because the initial pre-edit capture labels did not guarantee equal viewports, an additional isolated frontend snapshot was extracted from the exact original Phase 3 website commit. It reused installed dependencies and the same synthetic CMS/backend/assets; no original repository file or data was edited. Only test-harness dependency aliases were adapted. Matched contact screenshots verify preserved hero, header, contact-information cards, card borders, colors, typography and responsive stacking. Changed form fields, independent registrations, consent and availability are expected functional differences. Desktop DOM viewport was 1781 x 1250 for both; mobile 469 x 1055 for both (host display scaling differs from requested viewport units). No whole-page pixel identity is claimed for intentionally changed forms, timestamps or synthetic records.
+
+ERP client page and all other existing business pages/shared design files remain byte-equivalent to Phase 3; fresh client and mobile Buyer Relations screenshots show the same native design. Client count increased only in the isolated UI database by the explicitly tested conversion. Initial ERP capture has a different natural viewport, so its comparison is structural, supported by byte-equivalence tests, rather than a false pixel-identical claim.
+
+Additional exact evidence-file inventory (unaltered browser captures, synthetic data only):
+
+- ERP `docs/evidence/phase4/erp-clients-before-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-clients-before-desktop.jpg)
+- ERP `docs/evidence/phase4/erp-clients-after-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-clients-after-desktop.jpg)
+- ERP `docs/evidence/phase4/erp-lead-converted.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-lead-converted.jpg)
+- ERP `docs/evidence/phase4/erp-reconciliation-complete.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-reconciliation-complete.jpg)
+- ERP `docs/evidence/phase4/erp-buyers-mobile.jpg`: [view](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/erp-buyers-mobile.jpg)
+- Website `docs/evidence/phase4/web-contact-original-source-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-original-source-desktop.jpg)
+- Website `docs/evidence/phase4/web-contact-after-desktop.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-after-desktop.jpg)
+- Website `docs/evidence/phase4/web-contact-original-source-mobile.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-original-source-mobile.jpg)
+- Website `docs/evidence/phase4/web-contact-after-mobile.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-contact-after-mobile.jpg)
+- Website `docs/evidence/phase4/web-buyer-mobile-ar.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-buyer-mobile-ar.jpg)
+- Website `docs/evidence/phase4/web-visitor-closed-ar.jpg`: [view](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/web-visitor-closed-ar.jpg)
+
+**Recommendation:** draft Phase 4 implementation is ready for independent review after amended-head CI passes. Release remains conditional on the staging prerequisites above. Phase 5 design may build on these boundaries after approval; Phase 5 implementation has not started.
+
+Final corrected website code commit: `090312f0014bf9f04c9bdbd503bc8d6bf55644e4`. [GitHub Actions run 41816392970](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41816392970) completed successfully: Laravel **46 tests / 319 assertions**, frontend **9 tests**, TypeScript and production build all passed. This is the corrected application code used in the final evidence/documentation commit. ERP application code remains `36d33530910655e084e12b837a491c6ec078d278`, with its successful run above. Subsequent report/evidence commits contain no executable application changes; their independent final-head checks are linked in each PR conversation.
+
+## 14. Mandatory business correction — automatic ordinary visitor registration
+
+### Current verified behavior
+
+A valid ordinary visitor, including a Business Visitor supplying a company/job title, is registered when the website transaction commits the accepted source and immutable outbox. The public 201 response, same-key retry and secure status API return `registered` immediately. Delayed ERP delivery and receiver outages do not downgrade that business state. ERP creates `registered` directly from the versioned acceptance; no administrator confirmation endpoint/action is needed. Buyer applications still return acceptance for human business/organization review; Hosted Buyer approval remains separate and unimplemented.
+
+New ordinary visitor lifecycle: `registered -> cancelled | duplicate | withdrawn`; `duplicate -> cancelled | withdrawn`; `cancelled -> withdrawn`; withdrawal is terminal. Staff actions retain existing visitors.manage/matching permissions and event/record scope. There is no Submitted/Confirmed manual approval path for new visitors. Duplicate status still requires reviewed matching evidence. Counts, list/status APIs and CSV use the stored registered state. Physical attendance/check-in, emails and QR/E-tickets are distinct and are never claimed as completed. English and Arabic success messages are visitor-specific; buyer confirmation wording retains human review.
+
+### Durable state and replay rules
+
+The additive migration `backend/database/migrations/2026_11_04_000002_add_automatic_visitor_registration.php` exists independently in both repositories. Website public_submissions gains nullable `registration_status` and `visitor_registration_version`; ERP intake_submissions gains the nullable version marker. There is no UPDATE/backfill, table reset or legacy migration in either migration. Existing application inserts remain schema-compatible because all added columns are nullable.
+
+New visitor acceptance atomically persists registration_status=registered and visitor_registration_version=1 with the outbox. The signed envelope includes the version marker, bound into its immutable inbox hash. Outbox status/lease/attempts are transport state; public responses expose that separately as `delivery_status`. Contract revision 2 retains purpose/wire version SPACE-INTAKE-V1, adds the optional explicit acceptance marker and corrects the visitor business statuses.
+
+Website receipt polling may observe an ERP cancellation/duplicate/withdrawal and persist that terminal state, guarded against concurrent withdrawal. Later registered/awaiting_processing/submitted/confirmed replies or an outage cannot reactivate it. A cancellation not yet observed by the website is eventually reflected when the receipt API next reaches ERP; during that outage the website reports its last durable business state, not an invented live ERP result.
+
+A withdrawal can reach ERP before its original registration: the receiver durably creates a withdrawn tombstone from the signed original identity/payload. The delayed original then acknowledges without changing status. Repeated delivery cannot duplicate rows or downgrade/reopen cancelled/withdrawn/duplicate records. Source UUID, original timestamp/payload, receipt hash/expiry, source hash, dedicated authentication and privacy boundaries remain intact.
+
+### Explicit compatibility strategy — no operational records changed
+
+| Existing record/message | Safe behavior until separately reviewed |
+|---|---|
+| Historical visitor_interest/contact enquiry | Remains an enquiry; never registered |
+| Pre-correction website visitor with NULL acceptance marker | Secure receipt reports legacy_requires_review; withdrawal remains available |
+| Existing ERP visitor submitted/confirmed with NULL marker | Stored status is untouched; staff filters/counts/labels explicitly say Legacy ... (compatibility review) |
+| Unmarked legacy visitor submitted message not previously accepted | Durable source/outbox retained; receiver returns 409 requiring compatibility review; it is not silently registered |
+| Unmarked legacy withdrawal | May create/maintain a withdrawn tombstone; never grants registration |
+| New marked visitor | Automatically registered on acceptance and ERP delivery |
+
+Before any operational rollout, inventory legacy source UUIDs, event binding, consent evidence, acceptance times and inbox/outbox history read-only. Review the per-UUID classification and obtain explicit authorization. Prefer a fresh validated visitor registration where consent/binding cannot be established. Any approved reconciliation for valid old accepted registrations must use a separately designed/audited compatibility operation preserving UUID and prior message hashes; do not rewrite immutable historical envelopes or bulk change submitted/confirmed. This targeted correction intentionally provides no automatic backfill command and ran no operational reconciliation. Existing dummy legacy records also remain unchanged for review.
+
+Schema-first release order: keep forms closed and workers paused; back up and install both nullable additive schemas only after operational authorization; deploy the corrected ERP receiver before the corrected website producer; verify acceptance marker compatibility; then separately approve opening forms/restarting workers. A previous receiver would initialize submitted and cannot be used with the new producer. For rollback close forms/pause workers and retain schemas, keys, sources and messages; do not run migration down on populated tables or replay new messages through old binaries. Schema-only compatibility does not imply mixed-version business semantics are safe.
+
+### Synthetic before/after API examples
+
+Before correction (same ordinary visitor business intent):
+
+```json
+{"data":{"id":"c5055c56-17a1-4d6a-bf3d-1a3249c7a2c9","status":"accepted"}}
+```
+
+ERP would initialize submitted and offer a staff-driven confirmed transition. After correction, on committed website acceptance with ERP delivery still pending:
+
+```json
+{"data":{"id":"c5055c56-17a1-4d6a-bf3d-1a3249c7a2c9","status":"registered","delivery_status":"pending","receipt_token":"<private; omitted from evidence>"}}
+```
+
+Secure status during a receiver outage retains registered and reports transport retry/pending separately. After delivery, ERP Visitor Management and its CSV expose registered for that UUID. After withdrawal the receipt and ERP business status are withdrawn; late original delivery cannot change it. Buyer submission still returns accepted and ERP starts submitted, requiring human review/organization verification.
+
+### Exact correction file inventory
+
+ERP:
+- backend/app/Http/Controllers/IntakeReceiverController.php — versioned automatic registration, immutable acceptance marker, withdrawal-first tombstone.
+- backend/app/Http/Controllers/IntakeController.php — visitor terminal-state lifecycle; removes manual confirmation dependency.
+- backend/config/intake-contract.json — visitor states and acceptance marker revision.
+- backend/database/migrations/2026_11_04_000002_add_automatic_visitor_registration.php — nullable marker only; no data update.
+- backend/tests/Feature/RegistrationIntakeTest.php — automatic registration, cancellation/replay, withdrawal-first and legacy rejection.
+- src/pages/RegistrationWorkspace.tsx — registered labels/filter and explicit legacy labels; no initial staff confirmation action.
+- docs/PHASE-4-REGISTRATIONS-INTEGRATION.md and docs/evidence/phase4/visitor-automatic-erp.jpg.
+
+Website:
+- backend/app/Http/Controllers/PublicRegistrationController.php — durable business status, independent delivery status, terminal receipt synchronization and safe retries.
+- backend/app/Services/SubmissionOutbox.php — immutable visitor acceptance marker in envelope.
+- backend/config/intake-contract.json — identical versioned contract.
+- backend/database/migrations/2026_11_04_000002_add_automatic_visitor_registration.php — nullable business status/marker, no backfill.
+- backend/tests/Feature/PublicRegistrationTest.php — immediate public registration, outage/retry/withdrawal/cancellation and legacy/buyer separation.
+- src/components/RegistrationForm.tsx — bilingual visitor success/status copy, preserved receipt controls/styles.
+- src/pages/PremiumRegistration.tsx — ordinary visitor copy separated from buyer review.
+- docs/PHASE-4-REGISTRATIONS-INTEGRATION.md and docs/evidence/phase4/visitor-automatic-en.jpg, visitor-automatic-ar.jpg.
+
+### Verified results and browser evidence
+
+- Full isolated local ERP regression: **155 tests / 2,224 assertions**, passed.
+- Full isolated local website regression: **49 tests / 354 assertions**, passed.
+- ERP frontend **20/20**, website frontend **9/9**, both TypeScript checks and production builds passed; all **32** ERP navigation destinations passed. Existing design-preservation tests pass. Shared/global CSS, header/footer, layout/sidebar/components, auth, CRM/finance/receipt/commission/booth services are unchanged by this correction.
+- ERP correction code commit: `4c7db79b3645096a30f47fc80eb1ed157491daf2`; [CI run 41819075669](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41819075669) passed with **155 / 2,224**, frontend/type/build/navigation success.
+- Initial website correction code commit: `fd040f6f00e29b72b3312e8abf33c70b424d30db`; [CI run 41819049135](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41819049135) passed with **49 / 348**, frontend/type/build success. Later documentation/evidence heads are verified separately in the draft PR conversations.
+- English real browser registration source `c5055c56-17a1-4d6a-bf3d-1a3249c7a2c9`: company and Engineer job title supplied, immediately registered with no staff action. Stopped only the isolated ERP receiver; receipt Check status still showed registered and outbox retained retry. Restarted and delivered idempotently.
+- Arabic real browser registration source `03ec2f19-dd2a-46a7-bc26-21941e54235d`: Arabic/international details, immediate exact Arabic success confirmation, registered on ERP delivery.
+- ERP browser shows **Registered: 2**, the original legacy submitted row separately labelled, and the original withdrawn row unchanged. Neither new visitor was routed into Buyer Relations or granted Hosted Buyer status.
+- [English confirmation](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/visitor-automatic-en.jpg), [Arabic confirmation](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-4-public-intake/docs/evidence/phase4/visitor-automatic-ar.jpg), [ERP automatic registrations](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/blob/codex/phase-4-registrations/docs/evidence/phase4/visitor-automatic-erp.jpg). Confidential receipt keys are excluded from saved evidence.
+- Read-only operational fingerprints still match: ERP **37 tables / 3 private files**, website **19 tables / 2 assets**. Original synthetic exhibition/booth/deal/payment schedule/commission/client rows also match their prior fixture data. Additive schema applied only in named isolated UI/test databases.
+
+**Remaining blockers:** no failing code/test checks for the correction. Operational legacy classification, schema installation, approved dates/notices/retention, staging/load/restore verification and release authorization remain prerequisites. PRs #4 ERP and #3 website remain drafts on their existing Phase 4 branches. No merge, deploy, production activation, operational data migration or Phase 5 work occurred.
+
+Final website application-code commit: `86a213bbe07b2a735f239389ad682c2b8a9a2534` additionally proves the existing buyer outage fallback remains `accepted_awaiting_processing`. Local website full suite passes **49 / 350**. Final application-code CI: [run 41820074798](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41820074798); completed successfully with **49 tests / 350 assertions**, nine frontend tests, TypeScript and production build. Documentation/evidence-only heads are verified separately in the PR conversations.
+
+Final terminal-state refinement: website commit `0fc90c9343c106edc346c0e1348e2fd7d935df2f` allows duplicate -> cancelled/withdrawn and cancelled -> withdrawn when observed from ERP, while preserving the no-reactivation rule. This also prevents a previously observed cancellation from hiding a later withdrawal. Full local website regression and [CI run 41820747096](https://github.com/Omar-Fouad-Organization/Premium-website/actions/runs/41820747096) both pass **49 tests / 354 assertions**; frontend nine tests, TypeScript and build pass. This supersedes the intermediate website assertion counts above. ERP remains **155 / 2,224**, with final head [run 41820379262](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41820379262) green. Final documentation-only head checks are attached to the PR conversations.

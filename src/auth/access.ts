@@ -9,6 +9,7 @@ export const workflowPermissions: Record<string, string | null> = {
   reminders: 'reminders.view', access: 'permissions.manage', security: null,
 };
 const routePermissions: Record<string, string | null> = {
+  submissions:'submissions.view', buyers:'buyers.view', visitors:'visitors.view', 'registration-controls':'registrations.configure', 'registration-delivery':'registrations.deliveries',
   website: 'website.view',
   dashboard: 'dashboard.view', clients: 'clients.view', expos: 'exhibitions.view',
   booths: 'booths.view', deals: 'deals.view', finance: 'finance.view', commissions: 'commissions.view',

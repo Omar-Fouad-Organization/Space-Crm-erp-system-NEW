@@ -6,6 +6,6 @@ const routes=new Set(['/']);const app=source('src/App.tsx');
 function visitRoute(n){if(ts.isJsxSelfClosingElement(n)||ts.isJsxOpeningElement(n)){if(n.tagName.getText(app)==='Route')for(const a of n.attributes.properties)if(ts.isJsxAttribute(a)&&a.name.getText(app)==='path'&&a.initializer&&ts.isStringLiteral(a.initializer))routes.add('/'+a.initializer.text.replace(/^\//,''));}ts.forEachChild(n,visitRoute);}visitRoute(app);
 const sidebar=source('src/components/layout/Sidebar.tsx');const destinations=[];
 function visitMenu(n){if(ts.isPropertyAssignment(n)&&n.name.getText(sidebar)==='path'&&ts.isStringLiteral(n.initializer))destinations.push(n.initializer.text);ts.forEachChild(n,visitMenu);}visitMenu(sidebar);
-assert.equal(destinations.length,27,'Preserve the original 26 entries and add only Website Management.');
+assert.equal(destinations.length,32,'Preserve the original 26 entries, CMS, and five implemented Phase 4 destinations.');
 for(const path of [...destinations,'/profile','/search','/help'])assert.ok((routes.has(path)||path.startsWith('/website')&&routes.has('/website/:section?')),`No React route for ${path}`);
 console.log(`PASS: all ${destinations.length} sidebar destinations and profile, search, and help have routes.`);

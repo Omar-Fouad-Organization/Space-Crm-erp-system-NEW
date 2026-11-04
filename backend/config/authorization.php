@@ -4,5 +4,5 @@ return [
     // A separately authorized schema-first rollout is required for operational users.
     'enabled' => env('GRANULAR_AUTHORIZATION_ENABLED', false),
     'standalone_resources' => ['tasks', 'meetings', 'documents', 'tickets', 'channels'],
-    'reserved_namespaces' => ['submissions', 'buyers', 'visitors', 'hosted_buyers', 'matchmaking'],
+    'reserved_namespaces' => ['hosted_buyers', 'matchmaking'],
 ];

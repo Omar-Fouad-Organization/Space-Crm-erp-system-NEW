@@ -86,6 +86,16 @@ const menuSections = [
     ]
   },
   {
+    title: 'Registrations & Enquiries',
+    items: [
+      {name:'Registrations & Enquiries',path:'/submissions',icon:FileText,description:'Intake and sales qualification',page:'submissions'},
+      {name:'Buyer Relations',path:'/buyers',icon:Users,description:'Applications and organizations',page:'buyers'},
+      {name:'Visitor Management',path:'/visitors',icon:Ticket,description:'Event registrations',page:'visitors'},
+      {name:'Registration Controls',path:'/registration-controls',icon:Settings,description:'Event-specific availability',page:'registration-controls'},
+      {name:'Registration Delivery',path:'/registration-delivery',icon:Bell,description:'Delivery and reconciliation',page:'registration-delivery'},
+    ]
+  },
+  {
     title: 'Website Management',
     items: [
       { name: 'Website Management', path: '/website', icon: Globe, description: 'Public website CMS', page: 'website-management' },
@@ -148,7 +158,7 @@ export function Sidebar() {
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
 
-        {menuSections.filter(section => section.title !== 'Website Management' || section.items.some(canAccessMenuItem)).map((section) => (
+        {menuSections.filter(section => !['Website Management','Registrations & Enquiries'].includes(section.title) || section.items.some(canAccessMenuItem)).map((section) => (
           <div key={section.title}>
 
             <div className="mb-3">
