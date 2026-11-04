@@ -39,6 +39,7 @@ class B2BSecurityTest extends TestCase
         $this->getJson($url.'matches')->assertOk()->assertJsonPath('total',0);
         $this->getJson('/api/b2b/export?exhibition_id='.$f['event'].'&section=scheduler')->assertOk()->assertJsonPath('total',0);
         $u=$this->staff($f,['view','buyers.view','matches.view','meetings.view','export'],'all',false); $this->actingAs($u);
+        $u->authorization_scoped=false; $u->save();
         foreach (['overview','profiles','matches','scheduler','results'] as $section) { $this->getJson($url.$section)->assertNotFound(); }
         $this->getJson('/api/b2b/export?exhibition_id='.$f['event'].'&section=profiles')->assertNotFound();
     }
@@ -51,6 +52,7 @@ class B2BSecurityTest extends TestCase
             $this->postJson('/api/b2b/meeting/'.$id,[...$fields,'version'=>1,'status'=>'confirmed','reason'=>'Field injection'])->assertForbidden();
         }
         $data=$this->getJson('/api/b2b?exhibition_id='.$f['event'].'&section=scheduler')->assertOk()->json('data.0');
+        $this->getJson('/api/b2b?exhibition_id='.$f['event'].'&section=overview')->assertOk()->assertJsonMissingPath('pending_coordination');
         foreach (['result','followup_user_id','followup_due','followup_status'] as $key) { $this->assertArrayNotHasKey($key,$data); }
         $this->postJson('/api/b2b/meeting/'.$id,['version'=>1,'status'=>'confirmed','reason'=>'Authorized coordination'])->assertOk();
         $this->assertFalse(app(PermissionPolicy::class)->allows('finance.view',$u));

@@ -45,7 +45,7 @@ class B2BController extends Controller
                     $counts[$status]=($counts[$status]??0)+1;
                 }
                 $out['meeting_counts']=array_map(fn($status,$count)=>compact('status','count'),array_keys($counts),array_values($counts));
-                $out['pending_coordination']=(clone $meeting)->where('followup_status','pending')->count();
+                if ($this->policy->allows('b2b.results.view',$user)) { $out['pending_coordination']=(clone $meeting)->where('followup_status','pending')->count(); }
             }
             $out['counts']['concierge_entitlements']=DB::table('b2b_concierge')->where('active',true)->whereIn('participant_id',$participants->filter(fn($x)=>$x->kind==='exhibitor' && $this->access->eligible($x))->pluck('id'))->count();
             if ($this->policy->allows('b2b.meetings.view',$user) && $program && $program->dates_approved) {

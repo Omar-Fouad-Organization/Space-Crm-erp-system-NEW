@@ -17,14 +17,22 @@ class B2BAccess
 
     public function event(int $id, $user): void
     {
-        abort_unless($this->policy->canExhibition($id, $user) && DB::table('exhibitions')->where('id', $id)->exists(), 404);
+        $ids=$this->events($user);
+        abort_unless(($ids===null || in_array($id,$ids,true)) && DB::table('exhibitions')->where('id', $id)->exists(), 404);
+    }
+
+    /** New-domain access never inherits legacy unscoped compatibility access. */
+    public function events($user): ?array
+    {
+        if ($user->role==='super_admin' || (bool)($user->all_exhibitions??false)) { return null; }
+        return DB::table('exhibition_user')->where('user_id',$user->id)->pluck('exhibition_id')->map(fn($id)=>(int)$id)->all();
     }
 
     public function participants($user)
     {
         $q = DB::table('b2b_participants');
         if (!$this->policy->allows('b2b.view', $user)) { return $q->whereRaw('1=0'); }
-        $events = $this->policy->exhibitionIds($user);
+        $events = $this->events($user);
         if ($events !== null) { $q->whereIn('exhibition_id', $events); }
         if (!$this->policy->allows('b2b.buyers.view', $user)) { $q->where('kind', 'exhibitor'); }
         if ($user->role !== 'super_admin' && ($user->record_scope ?? 'all') !== 'all') {
