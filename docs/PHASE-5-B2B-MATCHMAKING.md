@@ -327,7 +327,7 @@ Configuration review: pull requests include the Phase 4 base; pushes include the
 
 The previous local full suite took 733 seconds; 15 minutes leaves only 167 seconds for runner/container/PHP/Composer setup and variance. Increasing the CI-only timeout to 30 minutes provides that margin without assuming Linux timing or removing any coverage. Worker-level timeouts and database safety checks remain intact. Frontend timeout remains 10 minutes.
 
-The hardening commit is awaiting publication and an actual new-head run. The final SHA and observed job states will be recorded in the PR verification comment; the old successful run is not substituted for new-head verification.
+Published application correction: `078b0175e6a8da46115ef3d18f0cf96ea7aeccb0`, byte-identical tree `99270b85ac06b2bd847efd7b3a0da41e9f4fdb53`. [Hardening run 41872846222](https://github.com/Omar-Fouad-Organization/Space-Crm-erp-system-NEW/actions/runs/41872846222) started both jobs: frontend `126724333419` and Laravel `126724333825`, initially in progress. This documentation update creates a final documentation head; its exact SHA, run URL and latest actual job states are recorded in the PR verification comment to avoid a self-referential commit hash. The old successful run is not substituted for new-head verification.
 
 ### F. Preservation
 
