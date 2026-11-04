@@ -24,3 +24,8 @@ Artisan::command('inspire', function () {
 \Illuminate\Support\Facades\Schedule::command('crm:heartbeat')->everyMinute()->withoutOverlapping();
 
 \Illuminate\Support\Facades\Artisan::command('crm:scheduler-status',function(){ $this->line(\Illuminate\Support\Facades\Cache::get('crm.scheduler_seen')??''); });
+
+Artisan::command('intake:prune-nonces',function(): int {
+    $count=\Illuminate\Support\Facades\DB::table('intake_nonces')->where('expires_at','<',now()->subMinutes(5))->limit(5000)->delete();
+    $this->info('Expired replay nonces: '.$count);return 0;
+})->purpose('Prune expired service replay nonces only; preserve inbox, outbox and audit history');

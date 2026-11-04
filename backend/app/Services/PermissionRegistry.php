@@ -87,6 +87,11 @@ class PermissionRegistry
             }
         }
         $registry['media.upload'] = [...$this->entry('Website Media', 'Upload public images', ['super_admin']), 'feature'=>'website_cms'];
+        foreach (['submissions'=>['view','assign','manage','activity','export','review_duplicates'], 'buyers'=>['view','assign','review','approve','activity','export','review_duplicates'], 'visitors'=>['view','assign','manage','activity','export','review_duplicates'], 'leads'=>['qualify','convert'], 'registrations'=>['configure','deliveries','replay']] as $family=>$actions) {
+            foreach ($actions as $action) {
+                $registry[$family.'.'.$action] = [...$this->entry('Registrations '.ucfirst($family), ucfirst(str_replace('_',' ',$action)), ['super_admin']), 'feature'=>'intake'];
+            }
+        }
         return $registry;
     }
 

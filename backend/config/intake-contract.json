@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "types": [
+    "exhibitor",
+    "sponsor",
+    "general",
+    "speaker",
+    "media",
+    "partnership",
+    "other",
+    "visitor_interest",
+    "buyer",
+    "visitor"
+  ],
+  "events": [
+    "submitted",
+    "withdrawn"
+  ],
+  "transport": "SPACE-INTAKE-V1",
+  "maximum_bytes": 65536,
+  "statuses": {
+    "leads": [
+      "received",
+      "triage",
+      "assigned",
+      "contacted",
+      "qualified",
+      "disqualified",
+      "duplicate",
+      "withdrawn"
+    ],
+    "buyers": [
+      "submitted",
+      "under_review",
+      "more_information_required",
+      "verified",
+      "rejected",
+      "withdrawn"
+    ],
+    "visitors": [
+      "submitted",
+      "confirmed",
+      "cancelled",
+      "duplicate",
+      "withdrawn"
+    ]
+  },
+  "ownership": {
+    "source": "website",
+    "processing": "erp",
+    "controls": "erp",
+    "identity": "human_review"
+  }
+}
