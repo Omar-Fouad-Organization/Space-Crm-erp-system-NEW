@@ -2,9 +2,9 @@ name: ERP isolated MySQL tests
 
 on:
   pull_request:
-    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations]
+    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations, codex/phase-5-b2b-matchmaking]
   push:
-    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations, codex/phase-5-b2b-matchmaking]
+    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations, codex/phase-5-b2b-matchmaking, codex/phase-6-participant-portal-api]
   workflow_dispatch:
 
 permissions:

@@ -14,9 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\App\Http\Middleware\LimitParticipantGatewayRequest::class);
         $middleware->prepend(\App\Http\Middleware\LimitIntakeRequest::class);
-        $middleware->trimStrings(except: [fn ($request) => $request->is('api/internal/intake/*')]);
-        $middleware->convertEmptyStringsToNull(except: [fn ($request) => $request->is('api/internal/intake/*')]);
+        $middleware->trimStrings(except: [fn ($request) => $request->is('api/internal/intake/*','api/internal/participant-portal/*')]);
+        $middleware->convertEmptyStringsToNull(except: [fn ($request) => $request->is('api/internal/intake/*','api/internal/participant-portal/*')]);
         $middleware->appendToGroup('web', \App\Http\Middleware\ValidateStaffSession::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -95,6 +95,10 @@ class PermissionRegistry
         foreach (['view','programs.manage','profiles.manage','buyers.view','buyers.manage','participations.confirm','qualifications.review','qualifications.approve','concierge.manage','matches.view','matches.manage','matches.approve','meetings.view','meetings.schedule','meetings.manage','results.view','results.manage','export'] as $action) {
             $registry['b2b.'.$action] = [...$this->entry('B2B Management', ucfirst(str_replace('.', ' ', $action)), ['super_admin']), 'feature'=>'b2b'];
         }
+        foreach(['users.view','invitations.manage','access.revoke','profiles.review','requests.manage','audit.view'] as $action){
+            $registry['b2b.portal.'.$action]=[...$this->entry('Participant Portals',$action,['super_admin']),'feature'=>'b2b'];
+        }
+        $registry['b2b.portal.accounts.deactivate']=[...$this->entry('Participant Portals','Deactivate an external identity globally',['super_admin'],true),'feature'=>'b2b'];
         return $registry;
     }
 
