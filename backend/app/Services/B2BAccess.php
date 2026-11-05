@@ -64,17 +64,31 @@ class B2BAccess
 
     public function eligible(object $p, bool $curated = true, bool $lock = false): bool
     {
+        return $this->checkedEligibility($p,$curated,$lock,null);
+    }
+
+    /** Bounded read-only projection; sensitive mutations always re-check locked sources. */
+    public function eligibleMany(iterable $participants,bool $curated=true): array
+    {
+        $rows=collect($participants);abort_if($rows->count()>100,422,'Eligibility projection batch is too large.');
+        $sources=['intakes'=>DB::table('intake_submissions')->whereIn('id',$rows->pluck('intake_submission_id')->filter()->unique())->get()->keyBy('id'),
+            'deals'=>DB::table('deals')->whereIn('id',$rows->pluck('deal_id')->filter()->unique())->get()->keyBy('id')];
+        $result=[];foreach($rows as $p)$result[$p->id]=$this->checkedEligibility($p,$curated,false,$sources);return $result;
+    }
+
+    private function checkedEligibility(object $p,bool $curated,bool $lock,?array $sources):bool
+    {
         if ($p->status !== 'active' || !$p->consent_evidence) { return false; }
         if ($p->kind === 'buyer') {
             $q = DB::table('intake_submissions')->where('id', $p->intake_submission_id);
             if ($lock) { $q->lockForUpdate(); }
-            $s = $q->first();
+            $s = $sources===null?$q->first():($sources['intakes'][$p->intake_submission_id]??null);
             return $s && $s->type === 'buyer' && $s->status === 'verified' && !$s->withdrawn_at && !$s->redacted_at
                 && $s->buyer_organization_id == $p->buyer_organization_id && $s->exhibition_id == $p->exhibition_id;
         }
         $q = DB::table('deals')->where('id', $p->deal_id);
         if ($lock) { $q->lockForUpdate(); }
-        $d = $q->first();
+        $d = $sources===null?$q->first():($sources['deals'][$p->deal_id]??null);
         return $d && $d->type === 'booth' && $d->status === 'closed_won' && $d->client_id == $p->client_id
             && $d->exhibition_id == $p->exhibition_id && $p->commercial_evidence
             && (!$curated || ($p->qualification === 'approved' && $p->approved_profile_version == $p->profile_version));

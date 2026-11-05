@@ -25,9 +25,13 @@ class B2BProfiles
     {
         $v = Validator::make($input, [
             'name_en'=>'required|string|max:255','name_ar'=>'required|string|max:255','description_en'=>'nullable|string|max:4000','description_ar'=>'nullable|string|max:4000',
+            'country'=>'nullable|string|max:100','city'=>'nullable|string|max:150','website'=>'nullable|url:http,https|max:500','logo_media_id'=>'nullable|uuid',
+            'public_email'=>'nullable|email|max:255','public_phone'=>'nullable|string|max:50','public_contact_consent'=>'sometimes|boolean','business_capabilities'=>'nullable|string|max:2000','export_interests'=>'nullable|string|max:2000',
+            'supported_markets'=>'sometimes|array|max:30','supported_markets.*'=>'string|max:100','business_languages'=>'sometimes|array|max:20','business_languages.*'=>'string|max:100',
             'catalogue_evidence'=>'nullable|string|max:2000','origin_evidence'=>'nullable|string|max:2000','requirement_states'=>'sometimes|array:products,origin,capacity,documentation','requirement_states.*'=>'in:unknown,applicable,not_applicable',
             'industry'=>'nullable|string|max:150','classification'=>'nullable|string|max:150','categories'=>'required|array|min:1|max:30','categories.*'=>'required|integer|distinct',
-            'products'=>'present|array|max:50','products.*'=>'array:name_en,name_ar,description_en,description_ar',
+            'products'=>'present|array|max:50','products.*'=>'array:name_en,name_ar,description_en,description_ar,media_id,origin,specifications,packaging,visibility','products.*.visibility'=>'sometimes|in:published,hidden',
+            'products.*.media_id'=>'nullable|uuid','products.*.origin'=>'nullable|string|max:100','products.*.specifications'=>'nullable|string|max:2000','products.*.packaging'=>'nullable|string|max:1000',
             'products.*.name_en'=>'required|string|max:255','products.*.name_ar'=>'required|string|max:255',
             'products.*.description_en'=>'nullable|string|max:2000','products.*.description_ar'=>'nullable|string|max:2000',
             'required_products'=>'present|array|max:30','required_products.*'=>'string|max:100',
@@ -35,7 +39,7 @@ class B2BProfiles
             'quantity'=>'nullable|numeric|min:0|max:1000000000000','capacity'=>'nullable|numeric|min:0|max:1000000000000','unit'=>'nullable|string|max:50',
             'capacity_verified'=>'required|boolean','capacity_evidence'=>'nullable|string|max:1000',
             'required_certifications'=>'present|array|max:30','required_certifications.*'=>'string|max:100',
-            'certifications'=>'present|array|max:30','certifications.*'=>'array:name,verified,evidence',
+            'certifications'=>'present|array|max:30','certifications.*'=>'array:name,verified,evidence,media_id','certifications.*.media_id'=>'nullable|uuid',
             'certifications.*.name'=>'required|string|max:100','certifications.*.verified'=>'required|boolean','certifications.*.evidence'=>'nullable|string|max:1000',
             'meeting_interests'=>'present|array|max:30','meeting_interests.*'=>'string|max:100','procurement_criteria'=>'nullable|string|max:4000',
         ])->validate();
