@@ -36,6 +36,18 @@ return [
     */
 
     'mailers' => [
+        'participant_onboarding' => [
+            'transport' => 'smtp',
+            'scheme' => env('PARTICIPANT_ONBOARDING_SMTP_SCHEME', 'smtps'),
+            'require_tls' => true,
+            'auto_tls' => true,
+            'host' => env('PARTICIPANT_ONBOARDING_SMTP_HOST'),
+            'port' => (int) env('PARTICIPANT_ONBOARDING_SMTP_PORT', 465),
+            'username' => env('PARTICIPANT_ONBOARDING_SMTP_USERNAME'),
+            'password' => env('PARTICIPANT_ONBOARDING_SMTP_PASSWORD'),
+            'verify_peer' => true,
+            'timeout' => 10,
+        ],
 
         'smtp' => [
             'transport' => 'smtp',

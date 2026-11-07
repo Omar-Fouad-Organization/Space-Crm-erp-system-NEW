@@ -1,50 +1,124 @@
 <?php
 namespace App\Http\Controllers;
-use App\Services\ParticipantAuthority;
+
+use App\Services\{B2BAccess, B2BProfiles, ParticipantAuthority, ParticipantInvitations, ParticipantOnboardingGate};
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+
 class ParticipantGatewayController extends Controller
 {
-    public function preflight(Request $r)
+    public function __construct(private ParticipantOnboardingGate $gate, private ParticipantInvitations $invitations) {}
+
+    private function validInvitation(#[\SensitiveParameter] array $input): object
     {
-        abort_unless(app()->environment(['local','testing']),503,'Operational verified-email invitation delivery is not activated.');
-        $v=Validator::make($r->json()->all(),['email'=>'required|email|max:255','token'=>'required|string|min:40|max:255'])->validate();$db=\Illuminate\Support\Facades\DB::class;
-        $inv=$db::table('portal_access_invitations')->where('token_hash',hash('sha256',$v['token']))->first();abort_unless($inv && !$inv->revoked_at && strtolower($inv->email)===strtolower($v['email']) && \Carbon\CarbonImmutable::parse($inv->expires_at)->isFuture(),403,'Invitation is invalid or expired.');
-        $p=$db::table('b2b_participants')->where('id',$inv->participant_id)->first();abort_unless($p && app(\App\Services\B2BAccess::class)->eligible($p,false),403);
-        if($inv->redeemed_identity_id)abort_unless($db::table('portal_identity_controls')->where('identity_id',$inv->redeemed_identity_id)->whereNull('disabled_at')->exists(),403);
-        return response()->json(['valid'=>true,'identity_id'=>$inv->redeemed_identity_id])->header('Cache-Control','no-store');
+        $invitation = DB::table('portal_access_invitations')->where('token_hash', hash('sha256', $input['token']))->first();
+        $this->assertValid($invitation, $input['email']);
+        return $invitation;
     }
-    public function activate(Request $r)
+
+    private function assertValid(?object $invitation, string $email): void
     {
-        abort_unless(app()->environment(['local','testing']),503,'Operational verified-email invitation delivery is not activated.');
-        $v=Validator::make($r->json()->all(),['identity_id'=>'required|uuid','email'=>'required|email|max:255','token'=>'required|string|min:40|max:255'])->validate();
-        return \Illuminate\Support\Facades\DB::transaction(function()use($v){
-            $db=\Illuminate\Support\Facades\DB::class;
-            $inv=$db::table('portal_access_invitations')->where('token_hash',hash('sha256',$v['token']))->lockForUpdate()->first();
-            abort_unless($inv && !$inv->revoked_at && strtolower($inv->email)===strtolower($v['email']) && \Carbon\CarbonImmutable::parse($inv->expires_at)->isFuture(),403,'Invitation is invalid or expired.');
-            $db::table('portal_identity_controls')->insertOrIgnore(['identity_id'=>$v['identity_id'],'reviewed_by'=>$inv->invited_by,'created_at'=>now(),'updated_at'=>now()]);$control=$db::table('portal_identity_controls')->where('identity_id',$v['identity_id'])->lockForUpdate()->first();abort_unless($control && !$control->disabled_at,403,'Participant account access is revoked.');
-            $p=$db::table('b2b_participants')->where('id',$inv->participant_id)->lockForUpdate()->first();
-            abort_unless($p && app(\App\Services\B2BAccess::class)->eligible($p,false,true),403);
-            if($inv->redeemed_identity_id){abort_unless($inv->redeemed_identity_id===$v['identity_id'],409,'Invitation already used.');return ['membership_id'=>$inv->membership_id];}
-            $existing=$db::table('portal_memberships')->where('identity_id',$v['identity_id'])->where('participant_id',$p->id)->where('exhibition_id',$p->exhibition_id)->lockForUpdate()->first();
-            $id=$existing?->id??(string)\Illuminate\Support\Str::uuid();
-            $db::table('portal_memberships')->updateOrInsert(['id'=>$id],['identity_id'=>$v['identity_id'],'participant_id'=>$p->id,'exhibition_id'=>$p->exhibition_id,'role'=>$inv->role,'capabilities'=>json_encode(ParticipantAuthority::ROLES[$inv->role]),'status'=>'active','revoked_at'=>null,'approval_evidence'=>$inv->evidence,'reviewed_by'=>$inv->invited_by,'created_at'=>$existing?->created_at??now(),'updated_at'=>now()]);
-            $db::table('portal_access_invitations')->where('id',$inv->id)->update(['redeemed_identity_id'=>$v['identity_id'],'membership_id'=>$id,'updated_at'=>now()]);
-            $db::table('portal_activity')->insert(['membership_id'=>$id,'identity_id'=>$v['identity_id'],'exhibition_id'=>$p->exhibition_id,'operation'=>'account.activate','details'=>\App\Services\B2BProfiles::seal(['invitation_id'=>$inv->id,'before'=>$existing?['role'=>$existing->role,'status'=>$existing->status,'capabilities'=>json_decode($existing->capabilities,true),'approval_evidence'=>$existing->approval_evidence]:null,'after'=>['role'=>$inv->role,'capabilities'=>ParticipantAuthority::ROLES[$inv->role]]]),'created_at'=>now()]);
-            return ['membership_id'=>$id];
-        },3);
+        abort_unless($invitation && !$invitation->revoked_at && strtolower($invitation->email) === strtolower($email)
+            && now()->lt($invitation->expires_at) && in_array($invitation->role, array_keys(ParticipantAuthority::ROLES), true), 403, 'Invitation is invalid or expired.');
+        $this->gate->assertProof($invitation);
     }
-    public function command(Request $r,ParticipantAuthority $authority)
+
+    public function preflight(Request $request): JsonResponse
     {
-        return response()->json($authority->execute($r->json()->all()))->header('Cache-Control','no-store');
+        $input = Validator::make($request->json()->all(), ['email'=>'required|email|max:255','token'=>'required|string|min:40|max:255'])->validate();
+        $invitation = $this->validInvitation($input);
+        $participant = DB::table('b2b_participants')->where('id', $invitation->participant_id)->first();
+        abort_unless($participant && app(B2BAccess::class)->eligible($participant, false), 403);
+        if ($invitation->redeemed_identity_id) {
+            $this->assertRedeemedBinding($invitation);
+        }
+        $profile = B2BProfiles::open($participant->profile);
+        return response()->json([
+            'valid'=>true, 'identity_id'=>$invitation->redeemed_identity_id,
+            'proof_channel'=>$invitation->proof_channel ?? 'synthetic',
+            'organization'=>['en'=>$profile['name_en'],'ar'=>$profile['name_ar']],
+            'exhibition'=>DB::table('exhibitions')->where('id', $participant->exhibition_id)->value('name'),
+            'role'=>$invitation->role, 'expires_at'=>$invitation->expires_at,
+        ])->header('Cache-Control', 'no-store');
     }
-    public function contexts(Request $r,ParticipantAuthority $authority)
+
+    private function assertRedeemedBinding(object $invitation): object
     {
-        $v=Validator::make($r->json()->all(),['identity_id'=>'required|uuid'])->validate();
-        return response()->json(['items'=>$authority->contexts($v['identity_id']),'authoritative_at'=>now()->toIso8601String()])->header('Cache-Control','no-store');
+        abort_unless(DB::table('portal_identity_controls')->where('identity_id', $invitation->redeemed_identity_id)->whereNull('disabled_at')->exists(), 403);
+        $membership = DB::table('portal_memberships')->where('id', $invitation->membership_id)->where('identity_id', $invitation->redeemed_identity_id)
+            ->where('participant_id', $invitation->participant_id)->where('status', 'active')->whereNull('revoked_at')->first();
+        abort_unless($membership, 403, 'The invitation membership is no longer active.');
+        return $membership;
     }
-    public function identityStatus(Request $r)
+
+    public function activate(Request $request): array
     {
-        $v=Validator::make($r->json()->all(),['identity_id'=>'required|uuid'])->validate();return response()->json(['active'=>\Illuminate\Support\Facades\DB::table('portal_identity_controls')->where('identity_id',$v['identity_id'])->whereNull('disabled_at')->exists()])->header('Cache-Control','no-store');
+        $input = Validator::make($request->json()->all(), ['identity_id'=>'required|uuid','email'=>'required|email|max:255','token'=>'required|string|min:40|max:255'])->validate();
+        $seed = $this->validInvitation($input);
+        try {
+            return DB::transaction(function () use ($input, $seed): array {
+                DB::table('portal_identity_controls')->insertOrIgnore(['identity_id'=>$input['identity_id'],'reviewed_by'=>$seed->invited_by,'created_at'=>now(),'updated_at'=>now()]);
+                $control = DB::table('portal_identity_controls')->where('identity_id', $input['identity_id'])->lockForUpdate()->first();
+                abort_unless($control && !$control->disabled_at, 403, 'Participant account access is revoked.');
+                $participant = DB::table('b2b_participants')->where('id', $seed->participant_id)->lockForUpdate()->first();
+                abort_unless($participant && app(B2BAccess::class)->eligible($participant, false, true), 403);
+                $invitation = DB::table('portal_access_invitations')->where('id', $seed->id)->where('token_hash', hash('sha256', $input['token']))->lockForUpdate()->first();
+                $this->assertValid($invitation, $input['email']);
+                if ($invitation->redeemed_identity_id) {
+                    abort_unless($invitation->redeemed_identity_id === $input['identity_id'], 409, 'Invitation already used.');
+                    $this->assertRedeemedBinding($invitation);
+                    return ['membership_id'=>$invitation->membership_id,'proof_channel'=>$invitation->proof_channel ?? 'synthetic'];
+                }
+                $existing = DB::table('portal_memberships')->where('identity_id', $input['identity_id'])->where('participant_id', $participant->id)
+                    ->where('exhibition_id', $participant->exhibition_id)->lockForUpdate()->first();
+                if ($existing && ($existing->status !== 'active' || $existing->revoked_at)) {
+                    abort_unless($invitation->regrant_membership_id === $existing->id && is_string($invitation->regrant_revocation_hash)
+                        && hash_equals($invitation->regrant_revocation_hash, ParticipantInvitations::revocationHash($existing)), 403, 'Revoked membership requires a fresh explicit staff regrant review.');
+                }
+                $id = $existing?->id ?? (string) Str::uuid();
+                DB::table('portal_memberships')->updateOrInsert(['id'=>$id], [
+                    'identity_id'=>$input['identity_id'],'participant_id'=>$participant->id,'exhibition_id'=>$participant->exhibition_id,
+                    'role'=>$invitation->role,'capabilities'=>json_encode(ParticipantAuthority::ROLES[$invitation->role]),
+                    'status'=>'active','revoked_at'=>null,'approval_evidence'=>$invitation->evidence,'reviewed_by'=>$invitation->invited_by,
+                    'created_at'=>$existing?->created_at ?? now(),'updated_at'=>now(),
+                ]);
+                DB::table('portal_access_invitations')->where('id', $invitation->id)->update([
+                    'redeemed_identity_id'=>$input['identity_id'],'membership_id'=>$id,'status'=>'redeemed','redeemed_at'=>now(),'updated_at'=>now(),
+                ]);
+                DB::table('portal_invitation_deliveries')->where('invitation_id', $invitation->id)->update(['secret_payload'=>null,'updated_at'=>now()]);
+                DB::table('portal_activity')->insert([
+                    'membership_id'=>$id,'identity_id'=>$input['identity_id'],'exhibition_id'=>$participant->exhibition_id,'operation'=>'account.activate',
+                    'details'=>B2BProfiles::seal(['invitation_id'=>$invitation->id,'proof_channel'=>$invitation->proof_channel ?? 'synthetic',
+                        'before'=>$existing ? ['role'=>$existing->role,'status'=>$existing->status,'capabilities'=>json_decode($existing->capabilities, true),'approval_evidence'=>$existing->approval_evidence] : null,
+                        'after'=>['role'=>$invitation->role,'capabilities'=>ParticipantAuthority::ROLES[$invitation->role]]]),'created_at'=>now(),
+                ]);
+                $this->invitations->event($invitation->id, 'redeemed', null, ['identity_id'=>$input['identity_id'],'membership_id'=>$id]);
+                return ['membership_id'=>$id,'proof_channel'=>$invitation->proof_channel ?? 'synthetic'];
+            }, 3);
+        } catch (HttpExceptionInterface $exception) {
+            $this->invitations->event($seed->id, 'redemption_rejected', null, ['identity_id'=>$input['identity_id'],'http_status'=>$exception->getStatusCode()]);
+            throw $exception;
+        }
+    }
+
+    public function command(Request $request, ParticipantAuthority $authority): JsonResponse
+    {
+        return response()->json($authority->execute($request->json()->all()))->header('Cache-Control', 'no-store');
+    }
+
+    public function contexts(Request $request, ParticipantAuthority $authority): JsonResponse
+    {
+        $input = Validator::make($request->json()->all(), ['identity_id'=>'required|uuid'])->validate();
+        return response()->json(['items'=>$authority->contexts($input['identity_id']),'authoritative_at'=>now()->toIso8601String()])->header('Cache-Control', 'no-store');
+    }
+
+    public function identityStatus(Request $request): JsonResponse
+    {
+        $input = Validator::make($request->json()->all(), ['identity_id'=>'required|uuid'])->validate();
+        return response()->json(['active'=>DB::table('portal_identity_controls')->where('identity_id', $input['identity_id'])->whereNull('disabled_at')->exists()])->header('Cache-Control', 'no-store');
     }
 }

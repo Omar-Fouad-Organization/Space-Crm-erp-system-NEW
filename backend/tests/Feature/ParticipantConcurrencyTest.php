@@ -29,4 +29,15 @@ class ParticipantConcurrencyTest extends TestCase
   $f=B2BFixture::create();$token=Str::random(64);DB::table('portal_access_invitations')->insert(['id'=>(string)Str::uuid(),'participant_id'=>$f['participants'][0][0],'email'=>'synthetic@example.test','token_hash'=>hash('sha256',$token),'role'=>'owner','evidence'=>B2BProfiles::seal(['synthetic'=>true]),'invited_by'=>$f['user']->id,'expires_at'=>now()->addHour()]);
   $payload=['email'=>'synthetic@example.test','token'=>$token];$this->assertSame(['confirmed','conflict'],$this->race('activate',[[...$payload,'identity_id'=>(string)Str::uuid()],[...$payload,'identity_id'=>(string)Str::uuid()]]));$this->assertSame(1,DB::table('portal_memberships')->count());
  }
+
+ public function test_simultaneous_verified_email_redemption_has_exactly_one_membership(): void
+ {
+  $f=B2BFixture::create();$token=Str::random(64);$id=(string)Str::uuid();
+  DB::table('portal_access_invitations')->insert(['id'=>$id,'participant_id'=>$f['participants'][0][1],'email'=>'synthetic@example.test','token_hash'=>hash('sha256',$token),'role'=>'editor','evidence'=>B2BProfiles::seal(['synthetic'=>true]),'invited_by'=>$f['user']->id,'expires_at'=>now()->addHour(),'proof_channel'=>'verified_email','generation'=>1,'status'=>'issued']);
+  DB::table('portal_invitation_deliveries')->insert(['id'=>(string)Str::uuid(),'invitation_id'=>$id,'generation'=>1,'key_id'=>'primary','state'=>'sandbox_accepted','attempts'=>1,'attempted_at'=>now(),'expires_at'=>now()->addHour()]);
+  $p=['email'=>'synthetic@example.test','token'=>$token];
+  $this->assertSame(['confirmed','conflict'],$this->race('activate-verified',[[...$p,'identity_id'=>(string)Str::uuid()],[...$p,'identity_id'=>(string)Str::uuid()]]));
+  $this->assertDatabaseCount('portal_memberships',1);$this->assertDatabaseHas('portal_access_invitations',['id'=>$id,'status'=>'redeemed']);
+  $this->assertSame(1,DB::table('portal_invitation_events')->where('invitation_id',$id)->where('event','redemption_rejected')->count());
+ }
 }

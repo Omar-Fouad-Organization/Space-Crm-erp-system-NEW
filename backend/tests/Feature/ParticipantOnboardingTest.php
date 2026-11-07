@@ -12,7 +12,7 @@ class ParticipantOnboardingTest extends TestCase
 {
  use RefreshDatabase;
  private function invite(array $f,int $participant):array{
-  config(['participant_portal.enabled'=>true]);$r=Request::create('/','POST',['action'=>'invite','participant_id'=>$participant,'payload'=>['email'=>'synthetic@example.test','role'=>'owner','evidence'=>'SYNTHETIC verified individual and organization authority']]);$r->setUserResolver(fn()=>$f['user']);return app(ParticipantAdministrationController::class)->command($r)->getData(true);
+  config(['participant_portal.enabled'=>true,'participant_onboarding.test_invites'=>true]);$r=Request::create('/','POST',['action'=>'invite','participant_id'=>$participant,'payload'=>['email'=>'synthetic@example.test','role'=>'owner','evidence'=>'SYNTHETIC verified individual and organization authority']]);$r->setUserResolver(fn()=>$f['user']);return app(ParticipantAdministrationController::class)->command($r)->getData(true);
  }
  private function redeem(array $inv,string $identity,?string $email=null):array{
   $r=Request::create('/','POST',[],[],[],['CONTENT_TYPE'=>'application/json'],json_encode(['identity_id'=>$identity,'email'=>$email??'synthetic@example.test','token'=>$inv['token']]));return app(ParticipantGatewayController::class)->activate($r);

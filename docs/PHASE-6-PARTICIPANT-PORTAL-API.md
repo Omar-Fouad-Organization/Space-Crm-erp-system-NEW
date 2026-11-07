@@ -247,3 +247,154 @@ These are GitHub Actions results, distinct from local results above. The subsequ
 Rollback detail: previous binaries can continue using the unchanged business schema and reading existing B2B names/products, but old B2B profile validators do not understand all new optional product/media/display fields. After portal writes, pause B2B profile editing during a binary rollback until a compatible forward version is restored; retain the new JSON metadata, additive tables, receipts/audits and private objects. Do not strip fields or roll back business data to make old editors accept them. Normal financial/CRM workflows and their schema were not changed.
 
 The local isolated previews are ERP http://127.0.0.1:18881/ and website http://127.0.0.1:18891/. The saved synthetic data includes an approved exhibitor amendment, a submitted buyer proposal, independent participant decisions, reviewed publication, two meeting histories and a completed organizer reschedule. These are test records and dates, never operational Green Life Expo figures.
+
+## Phase 6.1 — Production Onboarding and Security Hardening
+
+This section supersedes Phase 6's development-only invitation and PDF readiness statements, not its ownership, authorization or business rules. No merge, deployment, operational activation, live mail, provider account, DNS change or Phase 7 work is authorized by this delivery.
+
+### Authority and secure invitation delivery
+
+ERP remains the sole invitation, source eligibility, exhibition and membership authority. The website owns external participant identities, passwords, devices and dedicated participant sessions. Integer participant/exhibition IDs remain ERP IDs; external identity, membership, invitation, delivery and activation-receipt references remain UUIDs. No user, business or migration tables are merged between applications.
+
+ParticipantInvitations persists authorization and a delivery intent inside the authorized employee transaction. A dedicated Laravel job carries only a delivery UUID and is dispatched after commit. A bounded scheduled sweep recovers undispatched intents. ParticipantInvitationMailer uses a dedicated Laravel SMTP-over-implicit-TLS mailer with certificate validation and authentication; it is compatible with an approved provider's secure SMTP offering, including providers such as SES or Postmark when their approved SMTP endpoint is configured. No native provider API driver or provider SDK is added. A future API-specific adapter must implement the same narrow acceptance/failure contract and undergo separate verification.
+
+Production issuance never returns a secret to staff or the admin API. Invitations contain a SHA-256 hash of a cryptographically generated 64-character secret, with substantially more than 256 bits of entropy. Encrypted, expiring delivery payloads use a separate managed 32-byte AES-256-CBC key with authenticated Laravel encryption. They are not invitation plaintext columns and never enter generic queue payloads. Separate ERP and website delivery keys are required; neither key is APP_KEY or an HMAC service key.
+
+Mail includes only reviewed exhibition/organization names, recipient, role, explicit expiry in UTC, instructions and security guidance, in English or Arabic. A support contact is included only when explicitly configured. Templates escape dynamic content and load no external tracking image. Link tracking must be disabled and approved. SMTP acceptance is recorded as provider_accepted, never delivered. Sandbox acceptance is explicitly sandbox_accepted. No actual email service, domain identity, SPF, DKIM, DMARC or delivery callback is verified by fake mail tests.
+
+Invitation authorization states are independent of delivery: issued, redeemed, expired (derived from expiry), revoked. Legacy consumed records are identified by redeemed_identity_id even when newly added status timestamps are null. Delivery states include pending, sending, provider_accepted, sandbox_accepted, failed, bounced, delivery_unknown and cancelled. Staff can issue, revoke, rotate/resend, reissue an expired unused invitation and reconcile a reported failure/bounce/unknown outcome. Reconciliation is scoped and audited; it cannot manufacture delivered evidence. No unauthenticated callback endpoint exists. Selecting a future provider webhook requires actual signature validation, timestamp/replay protection, idempotency and bounded event parsing before exposure.
+
+Resend requires a current, unused, unrevoked, unexpired invitation and fresh reason, at least 60 seconds since its last change, and at most three delivery generations per hour. It rotates the hash, invalidates the old generation and erases its pending ciphertext. Reissue creates a fresh authorization record with supersedes_id and fresh staff evidence. Revoked invitations cannot be reopened. Initial issuance is also bounded to three per organization/recipient per hour. Delivery attempts are capped at five, with exponential backoff for explicitly known temporary failures. Permanent rejection is failed; ambiguous SMTP timeout or worker lease expiry is delivery_unknown and must not be blindly retried. An authorized resend rotates the proof after review. Provider exceptions and confidential debug transcripts are not persisted as status text.
+
+Invitation events are append-only through application services. Record delivery attempts, rotations, revocation, redemption and rejected reuse separately from current-state rows. Restrict direct database mutation and apply approved retention controls; application-level append-only behavior is not a claim of cryptographic tamper-proof storage.
+
+### Activation, linking, replay and revocation
+
+Invitation links place the proof in the HashRouter fragment. The first frontend import captures it in module memory and immediately replaces navigation with the token-free route before application imports, analytics or error handlers. No localStorage, sessionStorage, server query, browser console or general-purpose telemetry is used for the proof. A reload after stripping requires reopening the original email link. Recovery links receive the same treatment. GET/link preview and invitation preflight do not redeem.
+
+The website previews a valid invitation through the existing purpose-specific signed gateway. Account activation requires the explicit form action and strong password. ERP rechecks current commercial/buyer eligibility, recipient, role, expiry, revocation, proof generation and delivery-channel evidence, then atomically binds the authoritative membership to the intended UUID. Email verification is set locally only after a valid verified_email acknowledgment. The synthetic raw-token path now requires its explicit test flag, APP_ENV=testing, loopback MySQL, an exact allowlisted disposable database name, no DB_URL, and actual SELECT DATABASE() equality. An environment name alone cannot enable it or the non-network sandbox.
+
+The lock order is identity control, participant, invitation, then membership. Current source rows are rechecked under the appropriate existing locks. Reuse by another identity is rejected and audited; same-identity acknowledgment is idempotent only while the membership remains authorized. Previously revoked membership cannot be revived by an old or merely pending invitation: a fresh staff regrant must name the revoked membership and bind its current revocation fingerprint. Global identity deactivation remains authoritative and cannot be undone through activation.
+
+A local activation receipt reserves the same UUID and proof hash across an uncertain ERP outcome. A missing/malformed acknowledgment leaves an inactive, unverified reservation and reports failure. The explicit reconciliation action obtains fresh ERP proof and the original binding, then confirms the same membership without replacing its password or duplicating its identity. Existing verified accounts must sign in and link a valid invitation for their own email; submitted identity/email fields cannot choose another account. Existing memberships and passwords remain intact.
+
+PortalTransport and ERP ParticipantMedia now assemble bounded response streams across partial reads, preserving TLS validation, fixed peer URLs, no redirects, purpose-specific HMAC signatures and hard byte limits. A real isolated browser activation exposed the old one-read/EOF assumption; chunked-stream tests protect its correction. Gateway authentication, timestamp, persistent nonce and actor-device/version checks, source revocation and command idempotency remain in force. No frontend service credential is introduced.
+
+### Independent participant recovery
+
+Participant recovery uses the existing portal_users password broker and reset table, never CMS users or ERP employees. Responses are generic for absent, inactive, unverified and eligible recipients and do not claim delivery. Existing route throttles remain. A custom Laravel notification channel persists an encrypted, short-lived recovery intent; its dedicated job contains only its delivery UUID. The worker verifies the current identity auth_version and current broker proof before delivery. Replaced/expired tokens and cancelled intents cannot be sent as valid recovery proofs. Unknown acceptance is not blindly retried; a new rate-limited recovery request supersedes the proof after broker throttling permits it.
+
+A successful reset consumes the token once, applies the existing strong-password rules, increments auth_version and revokes all prior participant devices. Pending recovery payloads are cancelled/erased. Existing CMS and ERP password flows are untouched. Explicitly known temporary transport failures use bounded exponential backoff; permanent or ambiguous failures never produce a delivery confirmation. Expired encrypted invitation/recovery payloads can be erased with portal:purge-delivery-secrets even while sending is disabled. This command preserves authorization, account and audit rows. Schedule it and monitor its execution; expiry alone does not physically erase a database backup.
+
+### Private evidence quarantine
+
+Website PortalEvidence and PortalEvidenceScanner introduce a private TLS ClamAV INSTREAM boundary. No scanner account or real engine was connected. Isolated tests inject clean, infected and unavailable outcomes; these tests verify application enforcement, not actual malware detection efficacy. Upload requires separately enabled and approved scanning configuration. PDFs go to private quarantine, with type/size checks, hash, status, attempt count, lease, claim UUID and append-only scan outcome records. An old worker cannot overwrite a newer claim's result. Stream writes have a bounded deadline and TLS peer/name validation. No arbitrary client-provided scanner origin is accepted.
+
+No pending, legacy-unscanned, infected, unavailable or changed-hash PDF is released to an owner, authorized reviewer, ERP delegated reader or a new amendment submission. Required scanner outage also blocks release of a previously clean PDF until the configured boundary is available again. Uploads and PDF release require a bounded certificate-verified TLS PING/PONG health check as well as approved configuration; a clean result and matching bytes are still required for release. Health checks do not rescan the file. The adapter uses the [ClamAV protocol](https://docs.clamav.net/manual/Usage/ClamdProtocol.html) behind an approved TLS endpoint. Private file contents and malware signature strings are not put in audit logs. Existing media IDs, storage paths and evidence relationships remain unchanged. Null legacy scan status means quarantine until a real approved scan; it never means clean. Images retain existing validated re-encoding and private access rules.
+
+The bounded scan sweep retries unavailable scans up to three attempts. After infrastructure recovery, an authorized CLI operator can use portal:scan-evidence --retry=<FILE_UUID> --reason=<APPROVED_TICKET_REFERENCE> for an unavailable file only; a reason hash and retry history are retained. Infected files cannot be released by this retry path. Selection, update policy, engine signatures, TLS service isolation, real malware test fixtures and operational monitoring remain external release prerequisites.
+
+### Exact configuration and infrastructure gates
+
+Both backend/.env.example files list the exact new variables with empty secrets and disabled flags. Never copy a testing environment into production. Existing PARTICIPANT_PORTAL_API_ENABLED (ERP) and PARTICIPANT_PORTAL_ENABLED (website) remain false by default. New operational switches are independently false:
+
+- PARTICIPANT_ONBOARDING_ENABLED, PARTICIPANT_ONBOARDING_LIVE_MAIL_AUTHORIZED, PARTICIPANT_ONBOARDING_SENDER_APPROVED and PARTICIPANT_ONBOARDING_TRACKING_DISABLED_APPROVED.
+- Website PARTICIPANT_ONBOARDING_RECOVERY_ENABLED, PARTICIPANT_EVIDENCE_SCANNING_ENABLED and PARTICIPANT_EVIDENCE_SCANNER_VERIFIED.
+- PARTICIPANT_ONBOARDING_TEST_INVITES, PARTICIPANT_ONBOARDING_SANDBOX and PARTICIPANT_EVIDENCE_SCANNING_SANDBOX must remain false outside explicit isolated synthetic testing.
+
+Configure a fixed HTTPS PARTICIPANT_ONBOARDING_WEBSITE_ORIGIN without path/query/credentials/fragment. Configure approved PARTICIPANT_ONBOARDING_FROM_ADDRESS, FROM_NAME and SENDER_DOMAIN. ERP optionally supports SUPPORT_EMAIL, LOCALE=en|ar and EXPIRY_HOURS (clamped 1–24, default 24). Select the dedicated MAILER: participant_onboarding in ERP, participant_recovery on the website. Configure PARTICIPANT_ONBOARDING_SMTP_HOST, SMTP_PORT (default 465), SMTP_USERNAME and SMTP_PASSWORD through server-side secret management. Certificate verification is mandatory. PARTICIPANT_ONBOARDING_SMTP_SCHEME defaults to smtps (implicit TLS, normally port 465); smtp is supported only with require_tls=true and auto_tls=true (required STARTTLS, normally port 587). Plaintext SMTP is rejected. Installed Symfony Mailer 7.4.22 (ERP) and 8.1.10 (website) support this transport requirement; no dependency upgrade was needed. General CMS/system mailers remain independent. Placeholder example only: SMTP_HOST=<approved-provider-host>, FROM_ADDRESS=<approved-sender>, DELIVERY_KEY=<managed-base64-32-byte-key>; never a fabricated business mailbox.
+
+PARTICIPANT_ONBOARDING_KEY_ID selects primary or previous; DELIVERY_KEY and PREVIOUS_DELIVERY_KEY populate those independent slots. Rotate into the inactive, fully drained slot, switch the selected key ID for new intents, retain the old slot until every payload referencing it is erased or safely re-encrypted under a separately authorized process, then retire it. Do not rename key aliases or replace a key still referenced by pending ciphertext. Preserve APP_KEY and HMAC rotation continuity independently, including all backup recovery keys. An unknown/unavailable delivery key must fail closed; do not fall back to plaintext or APP_KEY.
+
+Website scanning variables are PARTICIPANT_EVIDENCE_SCANNER_HOST, SCANNER_PORT (3310), SCANNER_CA_FILE and the three independent scanning flags listed above. The endpoint is trusted operator configuration, uses certificate-verified TLS, and must be isolated from public clients. A flag alone is not evidence that an engine is healthy or approved.
+
+Production mail guards require APP_DEBUG=false, shared cache (redis/database/memcached), durable queue (redis/database/sqs), required cryptographic keys, approved sender and explicit live-mail authorization. Do not treat adapter support as infrastructure provisioning. Run dedicated workers for participant-onboarding (ERP), participant-recovery and participant-evidence (website), with non-overlapping leases/timeouts and appropriate encrypted/private database access. Jobs have bounded claims; a crash/unknown SMTP outcome requires reconciliation. Run the Laravel scheduler on approved infrastructure with shared atomic locks; bounded recovery sweeps are registered and gated independently. Monitor pending age, failed/unknown mail, bounce evidence, scan age/failures, nonce growth, outbox reconciliation and key availability. Pause workers before restoring backups; do not replay all pending commands blindly.
+
+The sender-domain owner must independently verify SPF, DKIM and DMARC alignment and policy, approved From/return-path identity, least-privilege send-only provider credentials, TLS, link tracking disabled, suppression/bounce handling, rate limits, sandbox allowlists, monitoring and credential rotation. Record actual provider message IDs and approved-recipient staging evidence. No DNS record or sender domain was configured or verified here.
+
+Actual staging still requires authorized provisioning: HTTPS and certificate-chain validation on both origins; trusted reverse-proxy configuration; secure HttpOnly SameSite participant cookies and CSRF; separate employee/CMS/participant sessions; isolated MySQL; shared rate limiting/cache locks; durable jobs/scheduler; private storage and backup permissions; scanner transport isolation and signature updates; sanitized logging without request bodies/tokens; alerting; encrypted backups and key management; explicit privacy/retention, representative approval, support and bounce policies. Production topology, proxy trust and availability are not established by localhost tests.
+
+### Schema-first deployment and rollback blueprint (not executed)
+
+1. Obtain separate staging authorization and snapshot both databases, private object keys/files, configuration, queue/outbox state and required encryption/HMAC key versions. Verify backup access and a restore into new isolated targets. Keep all new flags off and workers stopped. Never restore over operational tables to test a backup.
+2. Review additive 2026_11_07_000001 migrations in each repository against actual deployed Phase 6 schema and data. Apply schema first to the correct application database under a reviewed change window. UUID ownership stays unchanged; new invitation/media fields are nullable and legacy rows are not rewritten. Previous application code can ignore the extra columns/tables. Check MySQL DDL locking on representative staging data before production.
+3. Deploy compatible ERP and website code together with flags still off. Retain original Phase 6 keys/media paths. Verify original employee/CMS/portal separation, business pages, financial invariants, receipts, commissions, reservations, meetings and existing command history before enabling onboarding.
+4. Configure shared cache, dedicated durable queues, private storage, managed delivery keys and disabled scheduler/worker startup. Validate provider TLS/domain/suppression controls and real scanning in authorized staging using synthetic allowlisted recipients. Fake transport or a configured flag cannot satisfy real-provider acceptance.
+5. Test A–P workflows, real two-process redemption/revocation races, real browser email-link handling, English/Arabic and measured small CSS widths. Exercise restore recovery with workers paused, reconcile previously provider-accepted/unknown messages before any resend, recheck actor-device/version and source permissions on pending portal commands, preserve accepted introductions and completed meeting history.
+6. Obtain business/security/privacy and explicit release authorization before enabling independent flags or sending real invitations. Enable gradually with controlled recipients, monitoring and an approved stop condition. This PR does not grant that authorization.
+7. To roll back behavior: stop mail/scan workers and affected scheduler entries, disable onboarding/recovery/scanning/portal flags as required, preserve all receipts, invitation/delivery events, nonce records, membership revocation and files, reconcile in-flight work, then roll back to the reviewed application version. The previous Phase 6 raw production path remains blocked. Keep PDF-dependent workflows disabled on an older version that lacks scan enforcement; old code must not become a bypass. Do not roll back key continuity or restore stale privileges.
+8. Do not run migration down after real Phase 6.1 writes: it drops delivery, receipt and scan history/columns. Nullable/additive schema may remain while behavior rolls back. Destructive removal requires a separate data-preservation plan, verified backups and explicit authorization. No reset, fresh migration, seed or operational restore is part of this blueprint.
+
+### Verification evidence and readiness
+
+<!-- PHASE61_EVIDENCE_START -->
+Final local verification (2026-11-07): website **86 tests / 573 assertions passed**; ERP **215 tests / 2,696 assertions passed** (1,000.21 seconds), with zero failures. ERP frontend **25 tests and all 38 navigation destinations** passed; website frontend **18 tests** passed. Both TypeScript checks and production builds passed. Additional hardening covers partial stream reads, actual two-process verified-email redemption, payload expiry, sandbox-proof provenance, SMTP 4xx/5xx/ambiguous rejection classification, and both implicit TLS and required STARTTLS with mocked transports. These are local results, not GitHub Actions results. Final-head Actions results will be linked in the draft PR after publication; a pending run is not a pass.
+
+Sandbox mail is non-network array delivery only, confined to exact loopback disposable database names and actual SELECT DATABASE equality. It issues **verified_email_sandbox** proofs. Both applications reject those proofs outside that sandbox. Normal verified_email protocol tests use an injected fake approved SMTP transport; they establish code behavior, not sender approval or real deliverability. Raw legacy test tokens require a separate explicit isolated-test gate. Participant cookies may lose Secure only in this strict disposable environment, never merely because APP_ENV says local/testing.
+
+Read-only operational fingerprints matched the unchanged local baseline: ERP **37 tables / 3 private files**, website **19 tables / 2 assets**. Original synthetic commercial rows also matched their saved baseline. The 2026-11-05 isolated restore exercise verified **73 ERP and 36 website table checksums** into newly named empty databases on port 23307. Encrypted configuration and a newly created synthetic backup-only PDF round-tripped byte-for-byte. That exercise predates the final scan-event reason_hash column and Nov7 synthetic account additions; it is snapshot restore evidence, not a final deployed-schema or operational-file disaster recovery certification. No operational database was migrated or restored.
+
+Browser evidence is in the website draft's [sanitized evidence directory](https://github.com/Omar-Fouad-Organization/Premium-website/tree/codex/phase-6-buyer-exhibitor-portals/docs/phase61-evidence). **196 checks passed**: 14 screens × English/Arabic × seven actual CSS viewport sizes (320×700, 360×800, 375×812, 390×844, 414×896, 768×1024, 1280×900). Each measurement asserts actual route and a screen-specific DOM marker, innerWidth/innerHeight, root clientWidth/scrollWidth, viewport meta, direction and actual DPR. A same-origin test iframe with outer zoom 2 calibrated Windows DPI quantization; application window properties and styles were not spoofed. Root scrollWidth never exceeded clientWidth. Only existing portal row wrapping and catalogue fieldset intrinsic sizing were corrected; no branding, fields, dialogs, public layout or ERP business-screen design was replaced.
+
+| Scenario | Local automated coverage | Actual browser evidence / limit |
+| --- | --- | --- |
+| A Exhibitor / B Buyer | Invitation, activation, eligibility and membership tests | Both activated through real isolated paired gateways and array mail |
+| C Reuse / D Expiry / E Revocation | Replay, expiry, revocation and no unauthorized restoration | Automated fault cases; no live recipient |
+| F Mail failure | 4xx retry, 5xx permanent failure, unknown outcome, bounded retry and secret purge | Injected transport only; real provider not verified |
+| G Partial activation | Durable receipt, idempotent acknowledgement and reconciliation | Exercised acknowledgment recovery without a duplicate account |
+| H Multiple organizations | Identity-bound linking and membership scoping | Existing buyer signed in and explicitly linked second context; password retained |
+| I Cross-organization / J CMS and ERP escalation | Record/exhibition/role matrix and document boundaries | Staff Finance returned to sign-in; participant CMS read exposed no records; HTTP permission assertions are automated |
+| K Recovery | Scoped broker, one-time reset, active verified user, version/device revocation | Backend tests; reset delivery used no external provider |
+| L Revoked queued commands | Authority/version/device rechecks and old command regressions | Automated only |
+| M Link scanners | Preview is non-consuming; fragment captured and stripped before render | Real GET preview left reader invitation unused; URL proof removed |
+| N Concurrent redemption | Real two-process MySQL race, one membership and rejection audit | Backend process test, not two human browsers |
+| O PDF evidence | Pending/legacy/infected/unavailable fail closed; clean hash and claim checks; scan history | Upload rejected with scanner unavailable and no media row created; real engine not verified |
+| P Original Phase 6 | Existing suites retained, finance/reservations/commissions/permissions and outbox regressions | Held accepted introduction, scheduled meetings and multi-context history retained |
+
+| Component | Implemented / local verified | Final-head CI | Staging verified | Required external configuration | Production approved |
+| --- | --- | --- | --- | --- | --- |
+| Verified-email lifecycle/outbox | Yes | See draft PR exact-head run | No | Sender, SMTP/TLS, managed keys, shared queue/cache, policy | No |
+| Activation/link/reconciliation | Yes | See draft PR exact-head run | No | Paired HTTPS gateways and release authorization | No |
+| Participant recovery | Yes | See draft PR exact-head run | No | Independent recovery mail transport and operations | No |
+| PDF quarantine/scanning | Fail-closed boundary and injected outcomes verified | See draft PR exact-head run | No | Approved TLS scanner, signatures, availability and efficacy checks | No |
+| Mobile/RTL | 196 measured browser checks, committed JSON and EN/AR screenshots | CI does not replace browser evidence | No | Repeat against authorized staging | No |
+| Business/data/design preservation | Regressions and exact local fingerprints passed | See draft PR exact-head run | No | Verify real deployed data, backup and topology | No |
+
+**Recommendation: ready for code review; blocked for operational release.** All new operational flags remain off by default. Real provider/domain/SPF/DKIM/DMARC, tracking suppression and bounce handling, TLS scanner efficacy, shared infrastructure, privacy/retention/support approval, deployed-data checks and authorized staging must be evidenced before a separately authorized rollout. No deployment, real mail, operational matchmaking activation, merge or Phase 7 work was performed.
+
+For rollback to older Phase 6 code, explicitly disable **both applications' existing participant portal flags** as well as new onboarding/recovery/scanning flags before switching code. Older code cannot enforce the new quarantine contract. Keep additive schema, private files, immutable events, receipts and encryption keys; do not run migration down after real writes.
+<!-- PHASE61_EVIDENCE_END -->
+
+
+### Phase 6.1 file impact inventory
+
+Exact paths below describe this incremental hardening scope; existing financial/business models and public website design components are not rewritten.
+
+- `backend/app/Console/Commands/DeliverParticipantInvitations.php`
+- `backend/app/Console/Commands/PurgeParticipantDeliverySecrets.php`
+- `backend/app/Jobs/DeliverParticipantInvitation.php`
+- `backend/app/Mail/ParticipantInvitationMail.php`
+- `backend/app/Services/ParticipantDeliveryCipher.php`
+- `backend/app/Services/ParticipantDeliveryFailure.php`
+- `backend/app/Services/ParticipantInvitationDelivery.php`
+- `backend/app/Services/ParticipantInvitationMailer.php`
+- `backend/app/Services/ParticipantInvitations.php`
+- `backend/app/Services/ParticipantOnboardingGate.php`
+- `backend/config/participant_onboarding.php`
+- `backend/database/migrations/2026_11_07_000001_add_participant_onboarding_delivery.php`
+- `backend/resources/views/mail/participant-invitation-text.blade.php`
+- `backend/resources/views/mail/participant-invitation.blade.php`
+- `backend/tests/Feature/ParticipantInvitationMailerTest.php`
+- `backend/tests/Feature/ParticipantMediaTest.php`
+- `backend/tests/Feature/ParticipantVerifiedEmailTest.php`
+- `backend/.env.example`
+- `backend/app/Http/Controllers/ParticipantAdministrationController.php`
+- `backend/app/Http/Controllers/ParticipantGatewayController.php`
+- `backend/app/Services/ParticipantMedia.php`
+- `backend/config/mail.php`
+- `backend/routes/console.php`
+- `backend/tests/Feature/ParticipantConcurrencyTest.php`
+- `backend/tests/Feature/ParticipantOnboardingTest.php`
+- `backend/tests/Support/participant-worker.php`
+- `docs/PHASE-6-PARTICIPANT-PORTAL-API.md`
+- `src/b2b/PortalAdministration.tsx`

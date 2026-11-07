@@ -29,3 +29,8 @@ Artisan::command('intake:prune-nonces',function(): int {
     $count=\Illuminate\Support\Facades\DB::table('intake_nonces')->where('expires_at','<',now()->subMinutes(5))->limit(5000)->delete();
     $this->info('Expired replay nonces: '.$count);return 0;
 })->purpose('Prune expired service replay nonces only; preserve inbox, outbox and audit history');
+
+// Phase 6.1: dedicated bounded sweeps, enabled only for the approved onboarding feature.
+\Illuminate\Support\Facades\Schedule::command('portal:deliver-invitations --limit=25')->everyMinute()->onOneServer()->withoutOverlapping(5)->when(fn()=>config('participant_portal.enabled') && config('participant_onboarding.enabled'));
+
+\Illuminate\Support\Facades\Schedule::command('portal:purge-delivery-secrets')->everyTenMinutes()->onOneServer()->withoutOverlapping(5)->when(fn()=>config('participant_portal.enabled'));

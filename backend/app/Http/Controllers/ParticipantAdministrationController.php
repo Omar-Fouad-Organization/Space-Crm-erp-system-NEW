@@ -1,11 +1,13 @@
 <?php
 namespace App\Http\Controllers;
-use App\Services\{B2BAccess,B2BProfiles,ParticipantAuthority,PermissionPolicy};
+use App\Services\{B2BAccess,B2BProfiles,ParticipantAuthority,PermissionPolicy,ParticipantInvitations};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB,Validator};
 use Illuminate\Support\Str;
 class ParticipantAdministrationController extends Controller
 {
+    public function __construct(private ParticipantInvitations $invitations) {}
+
     private function authorize(Request $r,string $action):void
     {
         abort_unless(config('participant_portal.enabled'),503);
@@ -15,31 +17,48 @@ class ParticipantAdministrationController extends Controller
     {
         $this->authorize($r,'users.view');$v=$r->validate(['exhibition_id'=>'required|integer','page'=>'sometimes|integer|min:1|max:10000']);app(B2BAccess::class)->event($v['exhibition_id'],$r->user());
         $ids=app(B2BAccess::class)->participants($r->user())->where('exhibition_id',$v['exhibition_id'])->select('id');$offset=(($v['page']??1)-1)*25;
+        $invitations = DB::table('portal_access_invitations')->whereIn('participant_id', $ids)->orderByDesc('created_at')->orderBy('id')->offset($offset)->limit(25)->get(['id','participant_id','email','role','expires_at','revoked_at','redeemed_at','redeemed_identity_id','status','proof_channel','generation']);
+        $deliveries = DB::table('portal_invitation_deliveries as d')->join('portal_access_invitations as i','i.id','=','d.invitation_id')->whereIn('i.id',$invitations->pluck('id'))->whereColumn('d.generation','i.generation')->get(['d.id','d.invitation_id','d.state','d.attempts','d.provider_reference','d.failure_code','d.next_attempt_at'])->keyBy('invitation_id');
+        foreach ($invitations as $invitation) {
+            $invitation->status = $invitation->revoked_at ? 'revoked' : (($invitation->redeemed_at || $invitation->redeemed_identity_id) ? 'redeemed' : (now()->gte($invitation->expires_at) ? 'expired' : 'issued'));
+            $invitation->delivery = $deliveries->get($invitation->id);
+        }
         return ['memberships'=>DB::table('portal_memberships')->whereIn('participant_id',$ids)->offset($offset)->limit(25)->get(['id','participant_id','role','status','revoked_at']),
             'amendments'=>DB::table('portal_amendments')->whereIn('participant_id',$ids)->offset($offset)->limit(25)->get(['id','participant_id','profile_version','status','created_at']),
-            'invitations'=>DB::table('portal_access_invitations')->whereIn('participant_id',$ids)->offset($offset)->limit(25)->get(['id','participant_id','email','role','expires_at','revoked_at']),
+            'invitations'=>$invitations,
             'requests'=>DB::table('portal_requests as r')->join('portal_memberships as m','m.id','=','r.membership_id')->whereIn('m.participant_id',$ids)->offset($offset)->limit(25)->get(['r.id','r.kind','r.target_id','r.status','r.version','m.participant_id'])];
     }
     public function command(Request $r)
     {
-        $v=$r->validate(['action'=>'required|in:invite,revoke,invitation.revoke,publish,amendment.review,request.review,identity.deactivate','participant_id'=>'required|integer','payload'=>'required|array']);
-        $permission=match($v['action']){'identity.deactivate'=>'accounts.deactivate','invite'=>'invitations.manage','revoke','invitation.revoke'=>'access.revoke','request.review'=>'requests.manage',default=>'profiles.review'};
+        $v=$r->validate(['action'=>'required|in:invite,revoke,invitation.revoke,publish,amendment.review,request.review,identity.deactivate,invitation.resend,invitation.reissue,invitation.reconcile','participant_id'=>'required|integer','payload'=>'required|array']);
+        $permission=match($v['action']){'identity.deactivate'=>'accounts.deactivate','invite','invitation.resend','invitation.reissue','invitation.reconcile'=>'invitations.manage','revoke','invitation.revoke'=>'access.revoke','request.review'=>'requests.manage',default=>'profiles.review'};
         $this->authorize($r,$permission);
         return DB::transaction(function()use($v,$r){
             if($v['action']==='identity.deactivate'){$id=Validator::make($v['payload'],['id'=>'required|uuid'])->validate()['id'];$member=DB::table('portal_memberships')->where('id',$id)->where('participant_id',$v['participant_id'])->first();abort_unless($member,404);DB::table('portal_identity_controls')->where('identity_id',$member->identity_id)->lockForUpdate()->first();}
             $p=app(B2BAccess::class)->participant($v['participant_id'],$r->user(),true);$a=$v['payload'];
-            if($v['action']==='invite'){
-                abort_unless(app()->environment(['local','testing']),503,'Operational invitation delivery requires an approved verified-email transport. Raw test invitations cannot be issued in production.');
-                $a=Validator::make($a,['email'=>'required|email|max:255','role'=>'required|in:owner,editor,coordinator,reader','evidence'=>'required|string|min:10|max:2000'])->validate();
-                abort_unless(app(B2BAccess::class)->eligible($p,false,true),422);
-                $token=Str::random(64);$id=(string)Str::uuid();
-                DB::table('portal_access_invitations')->insert(['id'=>$id,'participant_id'=>$p->id,'email'=>strtolower($a['email']),'role'=>$a['role'],'token_hash'=>hash('sha256',$token),'evidence'=>B2BProfiles::seal(['authority'=>$a['evidence'],'reviewer'=>$r->user()->id]),'invited_by'=>$r->user()->id,'expires_at'=>now()->addHours(24),'created_at'=>now(),'updated_at'=>now()]);
-                app(B2BProfiles::class)->audit($p->exhibition_id,'b2b_participants',$p->id,'portal_invite',$r->user(),['invitation_id'=>$id]);
-                return response()->json(['id'=>$id,'token'=>$token,'delivery'=>'not_sent','expires_in_hours'=>24])->header('Cache-Control','no-store');
+            if ($v['action'] === 'invite') {
+                $input = Validator::make($a, ['email'=>'required|email|max:255','role'=>'required|in:owner,editor,coordinator,reader','evidence'=>'required|string|min:10|max:2000','locale'=>'sometimes|in:en,ar','regrant_membership_id'=>'nullable|uuid'])->validate();
+                return response()->json($this->invitations->issue($p, $r->user(), $input))->header('Cache-Control', 'no-store');
+            }
+            if (in_array($v['action'], ['invitation.resend', 'invitation.reissue', 'invitation.reconcile'], true)) {
+                $input = Validator::make($a, ['id'=>'required|uuid','reason'=>'required|string|min:10|max:2000','state'=>'sometimes|nullable|in:failed,bounced,delivery_unknown'])->validate();
+                $invitation = DB::table('portal_access_invitations')->where('id', $input['id'])->where('participant_id', $p->id)->lockForUpdate()->first();
+                abort_unless($invitation, 404);
+                if ($v['action'] === 'invitation.resend') {
+                    return $this->invitations->resend($p, $r->user(), $invitation->id, $input['reason']);
+                }
+                if ($v['action'] === 'invitation.reissue') {
+                    abort_unless(!$invitation->revoked_at && !$invitation->redeemed_identity_id && now()->gte($invitation->expires_at), 409, 'Only an expired unused invitation may be reissued.');
+                    return $this->invitations->issue($p, $r->user(), ['email'=>$invitation->email,'role'=>$invitation->role,'locale'=>$invitation->locale??'en','evidence'=>$input['reason']], $invitation->id);
+                }
+                abort_unless(isset($input['state']), 422);
+                $this->invitations->reconcile($invitation->id, $r->user()->id, $input['state'], $input['reason']);
+                return ['saved'=>true];
             }
             if($v['action']==='revoke' || $v['action']==='invitation.revoke'){
                 $a=Validator::make($a,['id'=>'required|uuid'])->validate();$table=$v['action']==='revoke'?'portal_memberships':'portal_access_invitations';
                 $query=DB::table($table)->where('id',$a['id'])->where('participant_id',$p->id);abort_unless($query->exists(),404);
+                if ($table === 'portal_access_invitations') { $this->invitations->revoke($a['id'], $r->user()->id); }
                 $query->update(['revoked_at'=>now(),'updated_at'=>now(),...($table==='portal_memberships'?['status'=>'revoked']:[])]);
             }
             if($v['action']==='identity.deactivate'){
