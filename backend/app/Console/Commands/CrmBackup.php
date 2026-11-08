@@ -65,11 +65,7 @@ class CrmBackup extends Command
             }
             $target = "space_crm_restore_check";
             abort_if($db["database"] === $target, 422);
-            DB::statement(
-                "CREATE DATABASE IF NOT EXISTS `" .
-                    $target .
-                    "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
-            );
+            $this->createRestoreDatabase($target);
             $p = new Process(
                 [env("MYSQL_BINARY", "mysql"), ...$args, $target],
                 null,
@@ -231,5 +227,14 @@ class CrmBackup extends Command
         @chmod($path, 0600);
         $this->line($path);
         return 0;
+    }
+
+    protected function createRestoreDatabase(string $target): void
+    {
+        if (!preg_match('/^[a-z][a-z0-9_]+$/D', $target)) {
+            throw new \InvalidArgumentException('Invalid isolated restore database name.');
+        }
+        // Atomic creation refuses existing targets, including a competing restore.
+        DB::statement("CREATE DATABASE `{$target}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
     }
 }
