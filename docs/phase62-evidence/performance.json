@@ -1,0 +1,48 @@
+{
+  "scope": "Synthetic loopback PHP development servers only; not production capacity",
+  "recorded_at_utc": "2026-11-08T16:42:47.570Z",
+  "login": {
+    "requests": 3,
+    "concurrency": 3,
+    "statuses": [
+      200,
+      200,
+      200
+    ],
+    "p50_ms": 2490.6455,
+    "p95_ms": 2930.8574999999996
+  },
+  "scenarios": [
+    {
+      "name": "identity-status-poll",
+      "requests": 12,
+      "concurrency": 4,
+      "p50_ms": 1332.8060999999998,
+      "p95_ms": 2692.0605000000005,
+      "elapsed_ms": 7574.0362000000005,
+      "statuses": {
+        "200": 12
+      },
+      "unexpected_error_rate": 0
+    },
+    {
+      "name": "published-discovery-page-1",
+      "requests": 12,
+      "concurrency": 4,
+      "p50_ms": 1320.333099999998,
+      "p95_ms": 2609.4195999999993,
+      "elapsed_ms": 7712.855,
+      "statuses": {
+        "200": 12
+      },
+      "unexpected_error_rate": 0
+    }
+  ],
+  "not_observed": [
+    "Per-request SQL query counts",
+    "Application CPU and memory",
+    "Production lock-wait percentiles",
+    "Production-size datasets",
+    "Authenticated private-file load with real scanner"
+  ]
+}

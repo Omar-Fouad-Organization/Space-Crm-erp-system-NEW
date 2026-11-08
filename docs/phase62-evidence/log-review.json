@@ -1,0 +1,23 @@
+{
+  "scope": "Exact known synthetic keys/passwords in available local Laravel logs only; no broad PII or production logging certification",
+  "rows": [
+    {
+      "application": "erp",
+      "files": 1,
+      "bytes": 2397227,
+      "matches": {
+        "known_synthetic_cryptographic_keys": 0,
+        "known_synthetic_passwords": 0
+      }
+    },
+    {
+      "application": "web",
+      "files": 1,
+      "bytes": 294713,
+      "matches": {
+        "known_synthetic_cryptographic_keys": 0,
+        "known_synthetic_passwords": 0
+      }
+    }
+  ]
+}

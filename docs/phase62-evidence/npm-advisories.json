@@ -1,0 +1,41 @@
+{
+  "recorded_at_utc": "2026-11-08T16:43:23.954Z",
+  "source": "npm registry bulk advisory API for existing lockfile versions",
+  "scope": "Confirmed locked-version advisory matches; exploitability/application reachability not established",
+  "packages": 381,
+  "matched_advisories": [
+    {
+      "package": "minimatch",
+      "severity": "moderate",
+      "title": "minimatch has potential denial of service via globparts amplification",
+      "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "vulnerable_versions": ">=7.0.0 <11.0.1",
+      "locked_versions": [
+        "9.0.9",
+        "3.1.5"
+      ],
+      "affected_locked_versions": [
+        "9.0.9"
+      ],
+      "runtime_lock_entry": false
+    },
+    {
+      "package": "glob",
+      "severity": "moderate",
+      "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+      "url": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+      "vulnerable_versions": ">=9.0.0 <=14.0.1",
+      "locked_versions": [
+        "10.5.0"
+      ],
+      "affected_locked_versions": [
+        "10.5.0"
+      ],
+      "runtime_lock_entry": false
+    }
+  ],
+  "severity_counts": {
+    "moderate": 2
+  },
+  "runtime_severity_counts": {}
+}
