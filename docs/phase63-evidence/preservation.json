@@ -1,0 +1,27 @@
+{
+  "recorded_at_utc": "2026-11-08T18:34:18.097Z",
+  "method": "Read-only comparison to saved authorized local hashes; no before-baseline overwrite",
+  "unchanged": {
+    "erp": {
+      "tables": 37,
+      "private_files": 3
+    },
+    "website": {
+      "tables": 19,
+      "assets": 2
+    }
+  },
+  "original_synthetic_rows_preserved": {
+    "exhibitions": 1,
+    "clients": 2,
+    "booths": 1,
+    "deals": 1,
+    "payment_schedules": 1,
+    "payments": 0,
+    "commissions": 1,
+    "intake_submissions": 8,
+    "buyer_organizations": 1,
+    "registration_controls": 5
+  },
+  "remote_production": "Not verified"
+}

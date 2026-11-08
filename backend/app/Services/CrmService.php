@@ -89,6 +89,8 @@ class CrmService
         $attributes=json_decode($data['attributes'] ?? '{}',true) ?: [];
         unset($data['attributes']);
         $data=[...$attributes,...$data];
+        if ($resource === 'exhibitions') $data['booth_policy'] = app(BoothFootprintPolicy::class)->projection((int) $row->id);
+        if ($resource === 'booths') $data['footprint_classification'] = $row->footprint_policy_version ? 'standard_policy' : 'legacy_or_area_only';
         unset($data['password'], $data['remember_token'],$data['mfa_secret'],$data['mfa_last_counter'],$data['auth_version'],$data['authorization_scoped'],$data['all_exhibitions']);
         if ($resource === 'users' && $user->role !== 'super_admin') return array_intersect_key($data, array_flip(['id','name','status']));
         if (app(PermissionPolicy::class)->enabled() && $resource === 'employees' && !app(PermissionPolicy::class)->allows('employees.salary.view', $user)) unset($data['salary']);
@@ -194,6 +196,10 @@ class CrmService
             $rules[$key] = [$rule, ...explode('|', $type)];
             if ($field['type'] === 'select') $rules[$key][] = Rule::in($field['options']);
         }
+        if ($resource === 'booths') {
+            foreach (['footprint_width_m', 'footprint_depth_m'] as $dimension) $rules[$dimension] = 'sometimes|nullable|numeric|min:0.01|max:9999.99|decimal:0,2';
+            $rules['footprint_policy_version'] = 'prohibited';
+        }
         if ($resource === 'users') {
             $rules['email'][] = Rule::unique('users')->ignore($id);
             if (!$id) $rules['password'][0] = 'required';
@@ -273,6 +279,7 @@ class CrmService
             if ($resource === 'exhibitions' && $data['end_date'] < $data['start_date']) $this->invalid('end_date','End date must be on or after start date.');
             if ($resource === 'employees' && ($data['manager_id'] ?? null) == $data['user_id']) $this->invalid('manager_id','An employee cannot manage themselves.');
             if ($resource === 'booths') {
+                app(BoothFootprintPolicy::class)->validate($data, $before);
                 if ($this->cents($data['size_sqm']) <= 0) $this->invalid('size_sqm','Booth area must be greater than zero.');
                 if (DB::table('booths')->where('exhibition_id',$data['exhibition_id'])->where('name',$data['name'])->when($id,fn($q)=>$q->where('id','!=',$id))->exists()) $this->invalid('name','This booth code already exists in that exhibition.');
                 if ($before && $before->status !== 'available' && ($data['exhibition_id'] != $before->exhibition_id || $data['currency'] !== $before->currency)) $this->invalid('exhibition_id','A reserved or sold booth cannot change exhibition or currency.');

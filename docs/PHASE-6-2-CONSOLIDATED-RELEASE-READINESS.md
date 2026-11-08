@@ -34,3 +34,16 @@
 | B7 High release gate: approval/dependency chain | Phase1–6 drafts are still unmerged; passing ancestry does not prove independent approval. Obtain business/security/privacy/deployment approval in dependency order. | Release manager and business owner | Recorded dependency reviews, schema/code release pairing, retention decisions, rehearsal and explicit release authorization |
 
 See [ERP report](PHASE-6-2-ERP-PRODUCTION-READINESS.md) and [website report](https://github.com/Omar-Fouad-Organization/Premium-website/blob/codex/phase-6-buyer-exhibitor-portals/docs/PHASE-6-2-WEBSITE-PRODUCTION-READINESS.md) for source paths, exact tests, configuration inventory, retention proposal, incident response and schema-first rollback. No merge, deploy, live email, operational data change or Phase7 work occurred.
+
+
+## Phase 6.3 addendum — 8 November 2026
+
+Historical Phase6.2 findings above are retained as the original assessment. Phase6.3 updated locked dependencies: fresh Composer7→0 in each repository; npm ERP9moderate→0,website25(16high/9moderate)→0 vulnerable packages; runtimeERP0→0,website15→0. Original npm package/advisory pairs2/54 are different metrics and individually recorded. Framework majors unchanged.
+
+Green Life3×4m/12m² rule is now server-enforced for explicitly bound future standard booths with nullable verified dimensions, legacy preservation and commercial locking. Binding activated only for newly created isolated synthetic event; operational ID/owner approval remains missing. No historical dimensions or finance rewritten.
+
+LocalERP234/2792,frontend28,navigation38;website88/577,frontend18;types/build pass;238 exact responsive checks plus7create/7edit dialog checks pass. Existing operational-local fingerprints and original synthetic business rows preserved. Exact final-head Actions recorded on draft PR6/4; local success is not substituted for Actions.
+
+**Ready for Independent Review — Remaining Software Findings; production remains NO-GO.** Existing ERP deal-detail hardcoded booth/payment/commission previews, one stored obsolete CMS package feature and unverified public sponsor marketing claim require review. B4 locked dependency matches now clear in current feeds; B6 enforcement code implemented but real event approval/cutover unverified. B1/B2/B3/B5/B7, private storage, shared cache/worker supervision, encrypted off-host recovery, privacy and release approvals remain uncleared. No merge/deploy/operational migration/email/scanner/Phase7 occurred.
+
+See [Phase6.3 report](PHASE-6-3-SECURITY-AND-BOOTH-POLICY.md) for exact impact map, evidence, migration/rollback and limits.

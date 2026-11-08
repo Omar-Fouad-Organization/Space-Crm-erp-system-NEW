@@ -16,6 +16,15 @@ fwrite($barrier, "ready\n");
 if (trim(fgets($barrier)) !== 'go') exit(4);
 fclose($barrier);
 try {
+    if (($input['mode'] ?? '') === 'resize') {
+        try {
+            app(App\Services\CrmService::class)->save('booths', $input['booth'], App\Models\User::findOrFail($input['user_id']), $input['booth_id']);
+            echo 'resized';
+        } catch (Illuminate\Validation\ValidationException $e) {
+            echo array_key_exists('size_sqm', $e->errors()) ? 'protected' : 'unexpected-validation';
+        }
+        exit(0);
+    }
     app(App\Services\CrmService::class)->save('deals', $input['deal'], App\Models\User::findOrFail($input['user_id']));
     echo 'reserved';
 } catch (Illuminate\Validation\ValidationException $e) {

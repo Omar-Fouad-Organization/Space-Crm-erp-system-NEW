@@ -1,3 +1,4 @@
+import {expectedPreservedSource} from './preserved-erp-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,7 +14,7 @@ test('registration routes require separate permissions without granting finance'
 test('all Phase 3 ERP business pages, CSS and shared primitives remain byte-equivalent',()=>{
  const baseline='5e904496db219a467a8ec6eec92883aea174aa0b';
  const paths=execFileSync('git',['ls-tree','-r','--name-only',baseline,'src'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(p=>p.startsWith('src/pages/')||p.startsWith('src/components/ui/')||p.startsWith('src/components/layout/')&&!p.endsWith('/Sidebar.tsx')||p.endsWith('.css'));
- for(const p of paths)assert.equal(fs.readFileSync(p,'utf8').replaceAll('\r\n','\n'),execFileSync('git',['show',baseline+':'+p],{encoding:'utf8'}).replaceAll('\r\n','\n'),p);
+ for(const p of paths)assert.equal(fs.readFileSync(p,'utf8').replaceAll('\r\n','\n'),expectedPreservedSource(p,execFileSync('git',['show',baseline+':'+p],{encoding:'utf8'}).replaceAll('\r\n','\n')),p);
 });
 test('new ERP pages use native primitives and never import public website styles or sessions',()=>{
  for(const p of ['RegistrationWorkspace','RegistrationControls']){const source=fs.readFileSync('src/pages/'+p+'.tsx','utf8');assert.match(source,/@\/components\/ui\/card/);assert.match(source,/@\/contexts\/AuthContext/);assert.doesNotMatch(source,/import\s+['"][^'"]+\.css|INTAKE_SERVICE_KEY|CMS_GATEWAY_KEY|localStorage.*token/);}

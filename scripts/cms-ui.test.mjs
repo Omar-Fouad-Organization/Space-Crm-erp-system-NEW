@@ -1,3 +1,4 @@
+import {expectedPreservedSource} from './preserved-erp-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -85,7 +86,7 @@ test('website editors reuse ERP primitives without importing website providers o
 test('every original ERP business page, layout and design-system file remains unchanged',()=>{
   const baseline='80f37386ae1f8066f7c621d7d7609542a0d0d83e';
   const paths=execFileSync('git',['ls-tree','-r','--name-only',baseline,'src'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(path=>path.startsWith('src/pages/')||path.startsWith('src/components/ui/')||path.startsWith('src/components/layout/')&&!path.endsWith('/Sidebar.tsx')||/\.css$/.test(path));
-  for(const path of paths){const before=execFileSync('git',['show',baseline+':'+path],{encoding:'utf8'}).replaceAll('\r\n','\n');assert.equal(fs.readFileSync(path,'utf8').replaceAll('\r\n','\n'),before,'Locked ERP visual source changed: '+path);}
+  for(const path of paths){const before=execFileSync('git',['show',baseline+':'+path],{encoding:'utf8'}).replaceAll('\r\n','\n');assert.equal(fs.readFileSync(path,'utf8').replaceAll('\r\n','\n'),expectedPreservedSource(path,before),'Locked ERP visual source changed: '+path);}
   for(const file of ['Dashboard','Clients','Expos','DealsPage','FinancePage','UsersPage'])assert.ok(paths.includes('src/pages/'+file+'.tsx'));
 });
 

@@ -1,3 +1,5 @@
+import { boothFootprint } from '@/lib/boothFootprint';
+import { boothEditPricing } from '@/lib/boothEditPricing';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -139,7 +141,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
       length_m: booth.length_m?.toString() || '',
       height_m: booth.height_m?.toString() || '',
       status: booth.status || 'Available',
-      base_price: booth.base_price?.toString() || '',
+      base_price: boothEditPricing(booth, '', '', '').originalRate.toString(),
       additional_costs: booth.additional_costs?.toString() || '',
       currency: booth.currency || 'USD',
       assigned_to_company: booth.assigned_to_company || '',
@@ -185,14 +187,20 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
     setFeatures(prev => prev.filter(f => f !== feature));
   };
 
+  const dimensionalPolicy = exhibitions.find(expo => expo.id === formData.exhibition_id)?.booth_policy?.code === 'green_life_3x4_v1';
+  const footprint = boothFootprint(formData.width_m, formData.length_m);
+  const footprintEdited = formData.width_m !== String(booth?.width_m ?? '') || formData.length_m !== String(booth?.length_m ?? '');
+  const canonicalFootprint = booth?.footprint_width_m != null;
+  const requiresFootprint = dimensionalPolicy && (canonicalFootprint || footprintEdited || Number(formData.size_sqm) !== booth?.size_sqm);
+  useEffect(() => { if (dimensionalPolicy && (canonicalFootprint || footprintEdited)) setFormData(prev => ({...prev, size_sqm: footprint.area})); }, [dimensionalPolicy, canonicalFootprint, footprintEdited, footprint.area]);
+
   const calculateTotalPrice = () => {
-    const sizeSqm = parseFloat(formData.size_sqm) || 0;
-    const pricePerSqm = parseFloat(formData.base_price) || 0;
-    return sizeSqm * pricePerSqm;
+    return booth ? boothEditPricing(booth, formData.size_sqm, formData.base_price, formData.additional_costs).total : 0;
   };
 
   const validateForm = () => {
     const errors: string[] = [];
+    if (requiresFootprint && !footprint.compliant) errors.push(footprint.message);
 
     // Only booth_code is required now (booth_number is optional)
     if (!formData.booth_code.trim()) errors.push('Booth code is required');
@@ -226,6 +234,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
     try {
       // 🔥 MINIMAL: Extremely clean booth data
       const boothData: Partial<Booth> = {
+        ...(requiresFootprint ? {footprint_width_m: formData.width_m, footprint_depth_m: formData.length_m} : {}),
         booth_code: formData.booth_code.trim(),
         // Only include booth_number if it has a value
         ...(formData.booth_number.trim() && { booth_number: formData.booth_number.trim() }),
@@ -236,6 +245,8 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
         booth_type: formData.booth_type,
         size_sqm: parseFloat(formData.size_sqm) || 0,
         base_price: parseFloat(formData.base_price) || 0,
+        price: calculateTotalPrice(),
+        total_price: calculateTotalPrice(),
         status: formData.status,
         currency: formData.currency,
         // Optional fields
@@ -298,7 +309,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Building2 className="h-5 w-5 mr-2" />
@@ -311,7 +322,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
 
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-4 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:px-1">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="specifications">Specifications</TabsTrigger>
               <TabsTrigger value="assignment">Assignment</TabsTrigger>
@@ -490,13 +501,15 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
                     </div>
                   </div>
 
+                  {dimensionalPolicy && <p role="status" className="text-sm text-muted-foreground mb-2">Legacy area-only booths retain their existing values. Material resizing requires verified dimensions; reserved or sold booths require commercial review. {requiresFootprint ? footprint.message : ''}</p>}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="size_sqm">Size (sqm) *</Label>
+                        <Label htmlFor="size_sqm">Size (sqm) *</Label>
                       <Input
                         id="size_sqm"
                         type="number"
-                        value={formData.size_sqm}
+                        readOnly={dimensionalPolicy && (canonicalFootprint || footprintEdited)}
+                          value={formData.size_sqm}
                         onChange={(e) => handleInputChange('size_sqm', e.target.value)}
                         placeholder="100"
                         min="0"
@@ -822,7 +835,7 @@ export const EditBoothDialog: React.FC<EditBoothDialogProps> = ({
             </TabsContent>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-between pt-6 border-t">
+            <div className="flex flex-wrap gap-2 items-center justify-between pt-6 border-t">
               <div className="text-sm text-gray-500">
                 Fields marked with * are required
               </div>

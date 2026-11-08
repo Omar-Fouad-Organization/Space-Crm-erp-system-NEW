@@ -1,0 +1,150 @@
+{
+  "recorded_at_utc": "2026-11-08T18:30:05.669Z",
+  "responsive": {
+    "checks": 238,
+    "overflows": 0
+  },
+  "booth_create_metrics": 7,
+  "booth_edit_metrics": 7,
+  "erp": [
+    "Dashboard loaded",
+    "Clients: two original synthetic rows",
+    "Exhibitions: original event and new synthetic policy event",
+    "Booths: new 3x4 saved as 12 sqm/EGP1200; rotated4x3 displays compliant;2x6 displays invalid",
+    "Legacy unrelated edit retained10sqm/EGP1000; dimensions empty",
+    "Single edit dialog; 320/360 overflow corrected locally",
+    "Add Deal original tabs rendered; canceled without write",
+    "Existing deal detail loaded: hardcoded booth/payment placeholders observed (remaining finding)",
+    "Finance: EGP2000 won/outstanding,EGP0 receipts; original records",
+    "B2B matches: existing accepted introductions",
+    "Participant portal administration opened; no invitation or publication sent"
+  ],
+  "website": {
+    "public_pages": [
+      {
+        "route": "/",
+        "headings": [
+          "Egypt's Leading Go Green & Healthy Living Expo",
+          "Where Green Living Meets Business Growth",
+          "Visitor Community",
+          "High-Quality Leads",
+          "Premium Brand Positioning",
+          "Regional Platform",
+          "Curated Sectors for Maximum Impact",
+          "Organic Food & Beverages",
+          "Health & Wellness",
+          "Sustainable Living",
+          "Natural Beauty & Personal Care",
+          "Green Technology",
+          "Eco-Fashion & Textiles",
+          "Why Leading Brands Choose Green Life Expo",
+          "Qualified Audience",
+          "Media Exposure",
+          "Thought Leadership",
+          "ROI-Focused",
+          "Learn from Industry Leaders",
+          "Ready to Join Egypt's Premier Green Platform?",
+          "Participate",
+          "Explore",
+          "Get in Touch"
+        ]
+      },
+      {
+        "route": "http://127.0.0.1:18991/#/exhibitors",
+        "headings": [
+          "Exhibit at Egypt's Premier Green Living Platform",
+          "Why Leading Brands Exhibit With Us",
+          "Qualified Lead Generation",
+          "Market Expansion",
+          "High-Value Networking",
+          "Premium Brand Positioning",
+          "Regional Platform Access",
+          "First-Mover Advantage",
+          "Strategic Zone-Based Participation",
+          "Organic Food & Nutrition Zone",
+          "Health & Wellness Zone",
+          "Sustainable Living Zone",
+          "Green Technology Zone",
+          "Early Participation Benefits",
+          "Connect with Decision-Makers, Not Just Visitors",
+          "C-Level & Senior Management",
+          "Active Purchase Intent",
+          "International Buyers",
+          "Secure Your Exhibition Space Today",
+          "Participate",
+          "Explore",
+          "Get in Touch"
+        ]
+      },
+      {
+        "route": "http://127.0.0.1:18991/#/sponsors",
+        "headings": [
+          "Partner with Egypt's Leading Sustainability Platform",
+          "Strategic Partnership Benefits",
+          "Strategic Brand Alignment",
+          "Premium Media Exposure",
+          "Executive Networking",
+          "CSR & ESG Positioning",
+          "Thought Leadership Platform",
+          "Custom Brand Experiences",
+          "Partnership Levels",
+          "Platinum Partner",
+          "Gold Partner",
+          "Silver Partner",
+          "Custom Sponsorship Experiences",
+          "Content Hub Sponsorship",
+          "Sustainability Awards",
+          "VIP Lounge Experience",
+          "Innovation Showcase",
+          "Media Center Partnership",
+          "Digital Platform Integration",
+          "Strengthen Your ESG & CSR Profile",
+          "Environmental Leadership",
+          "Social Impact",
+          "Governance Excellence",
+          "Unparalleled Media Exposure",
+          " Media Partners",
+          "50M+ Impressions",
+          "Thought Leadership",
+          "Ready to Lead the Green Economy?",
+          "Participate",
+          "Explore",
+          "Get in Touch"
+        ]
+      },
+      {
+        "route": "http://127.0.0.1:18991/#/visitors",
+        "headings": [
+          "Plan Your Visit to Green Life Expo",
+          "What to Expect",
+          "Exhibitor Showcase",
+          "Expert Sessions",
+          "Networking Opportunities",
+          "Exclusive Offers",
+          "Green Innovation Program",
+          "Date to be announced",
+          "Date to be announced",
+          "Date to be announced",
+          "Why Visit Green Life Expo?",
+          "Discover Sustainable Solutions",
+          "Learn from Experts",
+          "Network & Connect",
+          "Exclusive Offers",
+          "Ready to Experience Green Life Expo?",
+          "Participate",
+          "Explore",
+          "Get in Touch"
+        ]
+      }
+    ],
+    "portals": "238 authenticated/authentication screen measurements",
+    "registration": "Closed under existing preview gate; no operational submission activated",
+    "cms": "Admin login rendered; no new CMS login or content mutation performed"
+  },
+  "limits": [
+    "No production event binding",
+    "No deployed runtime proof",
+    "No new browser-complete finance lifecycle claimed; complete synthetic backend suite passed",
+    "CMS data/editor behavior covered by automated suites, not a newly authenticated browser editor session"
+  ]
+}
