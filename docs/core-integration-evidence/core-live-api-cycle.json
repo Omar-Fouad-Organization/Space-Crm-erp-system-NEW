@@ -1,0 +1,35 @@
+{
+  "event": 3,
+  "client": 3,
+  "booth": 5,
+  "deal": 3,
+  "sponsor_deal": 4,
+  "package": 1,
+  "invoice": 1,
+  "commission": 1,
+  "verified": [
+    "authenticated CSRF API",
+    "client prospect/lead to won booth deal",
+    "reservation and sold synchronization",
+    "10% discount then14%tax givesUSD1026",
+    "irregular123.45/902.55 schedules",
+    "commission USD75 uses base1000",
+    "approval denied before receipts",
+    "two receipts/full settlement",
+    "commission approved and paid",
+    "paid invoice",
+    "sponsorship relation with zero commission",
+    "client deletion prevented",
+    "diagnostic foreign keys zero orphans",
+    "finance endpoint200"
+  ],
+  "diagnostic_relations": 145,
+  "finance_currency_keys": [
+    "currency",
+    "from",
+    "through",
+    "metrics",
+    "basis"
+  ],
+  "synthetic_only": true
+}

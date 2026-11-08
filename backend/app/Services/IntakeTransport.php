@@ -28,11 +28,16 @@ class IntakeTransport
         $target='/api/internal/intake/'.$operation;
         $body=json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
         abort_if(strlen($body)>config('intake.max_bytes'),413);
-        $response=Http::connectTimeout(3)->timeout(10)->withoutRedirecting()->withOptions(['verify'=>true,'stream'=>true])
+        $response=Http::connectTimeout(3)->timeout(10)->withoutRedirecting()->withOptions(['verify'=>true,'stream'=>true,'read_timeout'=>10])
             ->withHeaders($this->headers($target,$body))->acceptJson()->withBody($body,'application/json')->post($origin.$target);
         $stream=$response->toPsrResponse()->getBody();
-        $raw=$stream->read(262145);
-        abort_if(strlen($raw)>262144 || ! $stream->eof(),502,'Registration service response exceeded its limit.');
+        $raw='';
+        while (! $stream->eof()) {
+            $chunk=$stream->read(min(16384,262145-strlen($raw)));
+            abort_if($chunk==='' && ! $stream->eof(),502,'Registration service stream was interrupted.');
+            $raw.=$chunk;
+            abort_if(strlen($raw)>262144,502,'Registration service response exceeded its limit.');
+        }
         abort_unless($response->successful(),503,'Registration service is temporarily unavailable.');
         $result=json_decode($raw,true,32,JSON_THROW_ON_ERROR);
         abort_unless(is_array($result),502);

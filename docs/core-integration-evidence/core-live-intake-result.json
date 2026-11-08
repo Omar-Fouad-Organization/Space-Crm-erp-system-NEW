@@ -1,0 +1,42 @@
+{
+  "event": 3,
+  "records": [
+    {
+      "type": "exhibitor",
+      "family": "submissions",
+      "erp_id": 3,
+      "status": "received"
+    },
+    {
+      "type": "sponsor",
+      "family": "submissions",
+      "erp_id": 4,
+      "status": "received"
+    },
+    {
+      "type": "buyer",
+      "family": "buyers",
+      "erp_id": 5,
+      "status": "submitted"
+    },
+    {
+      "type": "visitor",
+      "family": "visitors",
+      "erp_id": 6,
+      "status": "registered"
+    }
+  ],
+  "delivery": {
+    "delivered": 4,
+    "failed": 0
+  },
+  "duplicate_records": 0,
+  "commercial_counts_unchanged": {
+    "clients": 3,
+    "deals": 4,
+    "booths": 5
+  },
+  "orphan_checks": 145,
+  "software_defect_fixed": "Single read falsely rejected complete acknowledgments before EOF; both transports now use bounded read loop",
+  "synthetic_only": true
+}

@@ -1,6 +1,8 @@
 import {ActivityTimeline} from './WorkflowWorkspace';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
-import {api} from '@/crm/api';
+import {api, money, type Detail} from '@/crm/api';
+import {Link, useNavigate} from 'react-router-dom';
+import {EditClientDialog} from '@/components/forms/EditClientDialog';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,9 +24,36 @@ import {
 export default function ClientDetail() {
   const { id } = useParams();
 
-  const [client,setClient]=React.useState<any>(null);const [linkedDeals,setLinkedDeals]=React.useState<any[]>([]);
-  React.useEffect(()=>{Promise.all([apiAll('clients'),apiAll('deals')]).then(([clients,deals])=>{const c=clients.find(c=>c.id===id);if(c)setClient({...c,client_type:c.type,primary_contact:{name:c.contact_person,email:c.email,phone:c.phone,position:c.position||''}});setLinkedDeals(deals.filter(d=>d.client_id===id));});},[id]);
+  const navigate=useNavigate();
+  const [client,setClient]=React.useState<any>(null);
+  const [linkedDeals,setLinkedDeals]=React.useState<any[]>([]);
+  const [relations,setRelations]=React.useState<Record<string,any[]>>({});
+  const [payments,setPayments]=React.useState<any[]|null>(null);
+  const [error,setError]=React.useState('');
+  const [editing,setEditing]=React.useState(false);
+  const [reload,setReload]=React.useState(0);
+  React.useEffect(()=>{
+    let active=true;setClient(null);setRelations({});setPayments(null);setLinkedDeals([]);setError('');
+    (async()=>{
+      const detail=await api<Detail>('records/clients/'+id);
+      const clients=await apiAll('clients');
+      if(!active)return;
+      const c=clients.find(c=>String(c.id)===String(id));
+      if(!c)throw new Error('Client not available.');
+      setClient({...c,client_type:c.type,primary_contact:{name:c.contact_person,email:c.email,phone:c.phone,position:c.position||''}});
+      setRelations(detail.relations);setLinkedDeals(detail.relations.deals||[]);
+      try {
+        const [schedules,receipts]=await Promise.all([apiAll('payment_schedules'),apiAll('payments')]);
+        const dealIds=new Set((detail.relations.deals||[]).map(d=>String(d.id)));
+        const scheduleIds=new Set(schedules.filter(s=>dealIds.has(String(s.deal_id))).map(s=>String(s.id)));
+        if(active && detail.relations.deals)setPayments(receipts.filter(p=>scheduleIds.has(String(p.payment_schedule_id))));
+      } catch { /* Retain unavailable state when financial access is denied. */ }
+    })().catch(e=>{if(active)setError(e.message);});
+    return ()=>{active=false;};
+  },[id,reload]);
+  if(error)return <div role="alert">{error}</div>;
   if(!client)return <div role="status">Loading client…</div>;
+  const records=(rows:any[]|undefined|null,route:string)=>rows==null?<p className="text-gray-600">Related records unavailable.</p>:rows.length===0?<p className="text-gray-600">No records recorded.</p>:<div className="space-y-3">{rows.map(row=><div key={row.id} className="flex items-center justify-between"><Link className="text-blue-600" to={route==='deals'?'/deals/'+row.id:'/'+route}>{row.name||row.reference_number||'#'+row.id}</Link><span>{row.status||''}{row.amount!==undefined && row.currency?' · '+money(row.amount,row.currency):''}</span></div>)}</div>;
 
   return (
     <div className="space-y-6">
@@ -61,8 +90,8 @@ export default function ClientDetail() {
 
         <div className="flex space-x-3">
 
-          <Button variant="outline">Edit Client</Button>
-          <Button>Create Deal</Button>
+          <Button variant="outline" onClick={()=>setEditing(true)}>Edit Client</Button>
+          <Button onClick={()=>navigate('/deals?create=1')}>Create Deal</Button>
 
         </div>
 
@@ -119,12 +148,12 @@ export default function ClientDetail() {
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Active Deals</span>
-                  <span className="font-semibold">{linkedDeals.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.stage)).length}</span>
+                  <span className="font-semibold">{linkedDeals.filter(d=>!['closed_won','closed_lost','cancelled'].includes(d.status)).length}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Value</span>
-                  <span className="font-semibold">{linkedDeals.reduce((sum,d)=>sum+d.deal_value,0).toLocaleString()}</span>
+                  <span className="font-semibold">{Object.entries(linkedDeals.reduce((totals:Record<string,number>,d)=>{if(d.amount!==undefined && d.currency)totals[d.currency]=(totals[d.currency]||0)+Number(d.amount);return totals;},{})).map(([currency,total])=>money(total,currency)).join(' · ')||'Unavailable'}</span>
                 </div>
 
                 <div className="flex justify-between">
@@ -141,37 +170,7 @@ export default function ClientDetail() {
                 <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-
-                <div className="space-y-3">
-
-                  <div className="flex items-start space-x-3">
-
-                    <div className="p-1 bg-blue-100 rounded">
-                      <DollarSign className="h-3 w-3 text-blue-600" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">Deal updated</p>
-                      <p className="text-xs text-gray-500">2 hours ago</p>
-                    </div>
-
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-
-                    <div className="p-1 bg-green-100 rounded">
-                      <DollarSign className="h-3 w-3 text-green-600" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">Payment received</p>
-                      <p className="text-xs text-gray-500">1 day ago</p>
-                    </div>
-
-                  </div>
-
-                </div>
-
+                {id&&<ActivityTimeline resource="clients" id={id}/>}
               </CardContent>
             </Card>
           </div>
@@ -184,7 +183,7 @@ export default function ClientDetail() {
               <CardDescription>All deals associated with this client</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Deal management interface would be here...</p>
+              {records(relations.deals,'deals')}
             </CardContent>
           </Card>
         </TabsContent>
@@ -195,7 +194,7 @@ export default function ClientDetail() {
               <CardDescription>Payment records and upcoming payments</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Payment tracking interface would be here...</p>
+              {records(payments,'payments')}
             </CardContent>
           </Card>
         </TabsContent>
@@ -206,7 +205,7 @@ export default function ClientDetail() {
               <CardDescription>Proposals, contracts, and other documents</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Document management interface would be here...</p>
+              {records(relations.documents,'contracts')}
             </CardContent>
           </Card>
         </TabsContent>
@@ -217,7 +216,7 @@ export default function ClientDetail() {
               <CardDescription>Client support requests and issues</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Ticket management interface would be here...</p>
+              {records(relations.tickets,'tickets')}
             </CardContent>
           </Card>
         </TabsContent>
@@ -228,12 +227,12 @@ export default function ClientDetail() {
               <CardDescription>Complete activity history for this client</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Activity timeline would be here...</p>
+              {id&&<ActivityTimeline resource="clients" id={id}/>}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    {id&&<ActivityTimeline resource="clients" id={id}/>}
+      <EditClientDialog isOpen={editing} onClose={()=>setEditing(false)} onSuccess={()=>setReload(v=>v+1)} client={client}/>
     </div>
 
   );

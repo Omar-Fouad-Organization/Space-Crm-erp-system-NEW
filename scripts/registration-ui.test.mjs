@@ -11,7 +11,7 @@ test('registration routes require separate permissions without granting finance'
  for(const [route,permission] of Object.entries(expected))assert.equal(routePermission('/'+route),permission);
  assert.equal(permitted(buyer,routePermission('/buyers')),true);assert.equal(permitted(buyer,routePermission('/finance')),false);assert.equal(permitted(buyer,routePermission('/submissions')),false);
 });
-test('all Phase 3 ERP business pages, CSS and shared primitives remain byte-equivalent',()=>{
+test('Phase 3 ERP pages and primitives retain byte checks with explicit approved functional exceptions',()=>{
  const baseline='5e904496db219a467a8ec6eec92883aea174aa0b';
  const paths=execFileSync('git',['ls-tree','-r','--name-only',baseline,'src'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(p=>p.startsWith('src/pages/')||p.startsWith('src/components/ui/')||p.startsWith('src/components/layout/')&&!p.endsWith('/Sidebar.tsx')||p.endsWith('.css'));
  for(const p of paths)assert.equal(fs.readFileSync(p,'utf8').replaceAll('\r\n','\n'),expectedPreservedSource(p,execFileSync('git',['show',baseline+':'+p],{encoding:'utf8'}).replaceAll('\r\n','\n')),p);
