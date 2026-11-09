@@ -78,6 +78,7 @@ class B2BController extends Controller
             foreach ($out['data'] as $row) {
                 $m=$this->access->match($row->match_id,$user);
                 $row->eligibility_hold=$m->rule_version!==\App\Services\B2BMatching::VERSION || !$this->access->eligible($this->access->participant($m->buyer_id,$user)) || !$this->access->eligible($this->access->participant($m->exhibitor_id,$user));
+                if (!$this->policy->allows('b2b.results.view',$user) && !$this->policy->allows('b2b.onsite.view',$user)) { unset($row->outcome_code,$row->outcome_published); }
                 if (!$this->policy->allows('b2b.results.view',$user)) { unset($row->result,$row->followup_user_id,$row->followup_due,$row->followup_status); }
                 elseif ($row->result) { $row->result=B2BProfiles::open($row->result)['notes']; }
             }

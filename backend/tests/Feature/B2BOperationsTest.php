@@ -139,6 +139,15 @@ class B2BOperationsTest extends TestCase
         $this->assertCount(0,$a->execute([...$other,'operation'=>'meetings'])['items']);
         $this->assertDatabaseHas('b2b_meetings',['id'=>$id,'status'=>'completed','outcome_published'=>true]);
         $this->assertSame(5,DB::table('b2b_audits')->where('resource','b2b_meetings')->where('record_id',$id)->where('action','like','onsite_%')->count());
+
+        $reader=User::factory()->create(['role'=>'operations','status'=>'active','authorization_scoped'=>true,'record_scope'=>'all']);
+        DB::table('exhibition_user')->insert(['exhibition_id'=>$f['event'],'user_id'=>$reader->id,'granted_by'=>$f['user']->id]);
+        foreach (['view','buyers.view','meetings.view'] as $permission) {
+            DB::table('user_permission_overrides')->insert(['user_id'=>$reader->id,'permission'=>'b2b.'.$permission,'allowed'=>true,'granted_by'=>$f['user']->id]);
+        }
+        $this->actingAs($reader)->getJson('/api/b2b?section=scheduler&exhibition_id='.$f['event'])->assertOk()
+            ->assertJsonPath('data.0.status','completed')->assertJsonMissingPath('data.0.outcome_code')->assertJsonMissingPath('data.0.outcome_published')->assertJsonMissingPath('data.0.result');
+        $this->getJson('/api/b2b/operations?section=meetings&exhibition_id='.$f['event'])->assertForbidden();
         $this->assertDatabaseCount('deals',2); $this->assertDatabaseCount('b2b_arrivals',2);
     }
 
