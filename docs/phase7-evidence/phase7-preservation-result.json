@@ -1,0 +1,18 @@
+{
+    "original_business_records_unchanged": {
+        "exhibitions": 3,
+        "clients": 3,
+        "booths": 5,
+        "sponsorship_packages": 1,
+        "deals": 4,
+        "payment_schedules": 3,
+        "payments": 2,
+        "invoices": 1,
+        "commissions": 1,
+        "intake_submissions": 6,
+        "buyer_organizations": 2,
+        "documents": 1
+    },
+    "tables": 12,
+    "synthetic_UI_database_only": true
+}

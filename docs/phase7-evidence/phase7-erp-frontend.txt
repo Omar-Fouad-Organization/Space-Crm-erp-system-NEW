@@ -1,0 +1,40 @@
+✔ module navigation and direct details share the same server capability (2.2172ms)
+✔ unknown permissions and incomplete contracts never grant authority (0.327ms)
+✔ workflow sections use distinct current permissions and reserve no fake pages (0.27ms)
+✔ managed exports map existing CSV names to exact server operations (1.514ms)
+✔ B2B direct routes require their own scoped server capability (1.642ms)
+✔ new business profiles never invent capacity, certification or purchasing facts (1.0014ms)
+✔ structured terms preserve Arabic and deterministic matching inputs (120.4288ms)
+✔ Phase 5 uses existing ERP components and never imports a replacement design system (3.9663ms)
+✔ requirement presentation distinguishes unanswered, supplied, explicitly unknown and no restriction (0.2231ms)
+✔ operations section and exhibition changes never render rows from a different response contract (0.1854ms)
+✔ unrelated legacy edits preserve the authoritative total without multiplying it by area (2.2772ms)
+✔ standard footprint accepts rotated minima and larger rectangles with exact area (0.9233ms)
+✔ area alone never makes a narrow or incomplete booth compliant (0.4415ms)
+✔ CMS route and resource mappings exclude submissions, staff and ERP business tables (1.8027ms)
+✔ pagination loads all authorized rows and never sends arbitrary columns or URLs (1.7118ms)
+✔ oversized read pages shrink predictably and cannot retry without a bound (1.9771ms)
+✔ same-record autosaves serialize and use the version returned by the preceding save (1.2595ms)
+✔ conflicts preserve an error state and prevent a blind repeated write (0.6908ms)
+✔ creating a new record never reuses an unrelated cached row version (0.8829ms)
+✔ historical relative image URLs are displayed against the website and preserved on unchanged saves (0.8986ms)
+✔ website editors reuse ERP primitives without importing website providers or global CSS (26.7865ms)
+✔ original ERP pages preserve approved sources, including reviewed relation bindings (5739.494ms)
+✔ unchanged fields do not generate writes or conflict with unrelated editor saves (0.698ms)
+✔ general settings retain their resource-specific versions and authorization boundary (0.543ms)
+✔ location saves preserve existing shared-setting metadata (0.4385ms)
+✔ deal display uses the actual irregular schedule and preserves zero commission (4.6495ms)
+✔ redacted and empty relations never fabricate installments or unauthorized amounts (0.8857ms)
+✔ missing document relations never synthesize sample proposal or contract files (0.3705ms)
+✔ registration routes require separate permissions without granting finance (1.2726ms)
+✔ Phase 3 ERP pages and primitives retain byte checks with explicit approved functional exceptions (5829.4769ms)
+✔ new ERP pages use native primitives and never import public website styles or sessions (2.7283ms)
+✔ transport contract keeps public intake separate from CMS and financial domains (1.2121ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6159.2248

@@ -25,6 +25,7 @@ class PermissionPolicy
     {
         $entry = $this->registry()[$permission] ?? null;
         if (!$entry) return ['allowed' => false, 'source' => 'unavailable', 'reason' => 'Unknown or future permission.'];
+        if ((str_starts_with($permission,'b2b.hosted.') || str_starts_with($permission,'b2b.onsite.')) && !config('b2b.onsite_enabled')) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Hosted and on-site operations are not activated.'];
         if (str_starts_with($permission,'b2b.portal.') && !config('participant_portal.enabled')) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Participant portals are not activated.'];
         if (($entry['feature'] ?? null) === 'website_cms' && (!$this->enabled() || !config('cms_gateway.enabled'))) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Website management requires an approved authorization and CMS activation.'];
         if (($entry['feature'] ?? null) === 'intake' && (!$this->enabled() || !config('intake.enabled'))) return ['allowed'=>false,'source'=>'unavailable','reason'=>'Registration integration is not activated.'];

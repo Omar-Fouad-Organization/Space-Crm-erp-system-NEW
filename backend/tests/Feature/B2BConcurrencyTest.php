@@ -59,4 +59,36 @@ class B2BConcurrencyTest extends TestCase
         $this->assertDatabaseHas('b2b_meetings',['id'=>$second,'version'=>2]);
         $this->assertSame(1,DB::table('b2b_audits')->where('record_id',$second)->where('resource','b2b_meetings')->where('action','reschedule')->count());
     }
+
+    public function test_simultaneous_staff_completion_records_one_authoritative_outcome(): void
+    {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-09T10:00:00Z'));
+        $f=B2BFixture::create(); config(['b2b.onsite_enabled'=>true]);
+        $id=app(B2BScheduler::class)->schedule(B2BFixture::booking($f,0),$f['user']);
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2027-01-01T10:00:00Z'));
+        $ops=app(\App\Services\B2BOperations::class);
+        foreach ([['arrive',1,'buyer'],['arrive',2,'exhibitor'],['start',3,null]] as [$action,$version,$party]) {
+            $ops->meeting($id,['action'=>$action,'version'=>$version,'booking_revision'=>1,'reason'=>'SYNTHETIC attendance',...($party?['party'=>$party]:[])],$f['user']);
+        }
+        $second=\App\Models\User::factory()->create(['role'=>'super_admin','status'=>'active']);
+        $server=stream_socket_server('tcp://127.0.0.1:0'); $this->assertNotFalse($server); $address='tcp://'.stream_socket_get_name($server,false);
+        $db=config('database.connections.mysql'); $env=['APP_ENV'=>'testing','DB_CONNECTION'=>'mysql','DB_URL'=>'','DB_HOST'=>'127.0.0.1','DB_PORT'=>(string)$db['port'],'DB_DATABASE'=>'space_crm_test','DB_USERNAME'=>$db['username'],'DB_PASSWORD'=>$db['password'],'CACHE_STORE'=>'array'];
+        $workers=[]; $connections=[];
+        try {
+            foreach ([[$f['user']->id,'positive_interest'],[$second->id,'not_interested']] as [$staff,$outcome]) {
+                $p=new Process([PHP_BINARY,base_path('tests/Support/operate-b2b.php')],base_path(),$env);
+                $p->setInput(json_encode(['barrier'=>$address,'user_id'=>$staff,'meeting_id'=>$id,'command'=>['action'=>'complete','version'=>4,'outcome_code'=>$outcome,'reason'=>'SYNTHETIC concurrent staff completion']]));
+                $p->setTimeout(45); $p->start(); $workers[]=$p;
+            }
+            foreach ($workers as $worker) { $c=stream_socket_accept($server,20); $this->assertNotFalse($c); stream_set_timeout($c,10); $this->assertSame("ready\n",fgets($c)); $connections[]=$c; }
+            foreach ($connections as $c) { fwrite($c,"go\n"); }
+            $results=[];
+            foreach ($workers as $worker) { $worker->wait(); $this->assertSame(0,$worker->getExitCode(),$worker->getErrorOutput()); $results[]=trim($worker->getOutput()); }
+            sort($results); $this->assertSame(['recorded','stale'],$results);
+            $meeting=DB::table('b2b_meetings')->find($id); $this->assertSame('completed',$meeting->status); $this->assertSame(5,$meeting->version);
+            $this->assertContains($meeting->outcome_code,['positive_interest','not_interested']);
+            $this->assertDatabaseCount('b2b_meeting_attendance',2);
+            $this->assertSame(1,DB::table('b2b_audits')->where('resource','b2b_meetings')->where('record_id',$id)->where('action','onsite_complete')->count());
+        } finally { foreach ($connections as $c) { fclose($c); } fclose($server); foreach ($workers as $worker) { if ($worker->isRunning()) { $worker->stop(); } } }
+    }
 }

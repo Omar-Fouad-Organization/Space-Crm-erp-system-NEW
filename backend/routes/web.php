@@ -67,6 +67,8 @@ Route::prefix('api/b2b')->middleware([CrmAuthenticated::class,'throttle:120,1,b2
     $c=\App\Http\Controllers\B2BController::class;
     Route::get('/',[$c,'index']);
     Route::get('sources',[$c,'sources']);
+    Route::get('operations',[\App\Http\Controllers\B2BOperationsController::class,'index']);
+    Route::post('operations/{action}/{id}',[\App\Http\Controllers\B2BOperationsController::class,'command'])->where('action','hosted|benefit|arrival|meeting')->whereNumber('id');
     Route::get('export',[$c,'export'])->middleware('throttle:5,1,b2b-export');
     Route::get('participants/{id}',[$c,'show'])->whereNumber('id');
     Route::post('{action}/{id?}',[$c,'command'])->where('action','enroll|profile|review|decision|generate|transition|schedule|meeting|program|category|location|window|representative|concierge')->whereNumber('id');

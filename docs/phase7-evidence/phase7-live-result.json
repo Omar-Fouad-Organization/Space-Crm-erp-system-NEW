@@ -1,0 +1,41 @@
+{
+  "synthetic_only": true,
+  "event": 4,
+  "meeting": 3,
+  "no_show_meeting": 4,
+  "hosted_approved": 2,
+  "hosted_arrived": 2,
+  "completed": 1,
+  "no_show": 1,
+  "roles": [
+    {
+      "role": "buyer",
+      "hosted": "approved",
+      "outcome": "followup_required",
+      "own_attendance": "arrived",
+      "source": "staff_manual"
+    },
+    {
+      "role": "exhibitor",
+      "hosted": null,
+      "outcome": "followup_required",
+      "own_attendance": "arrived",
+      "source": "staff_manual"
+    }
+  ],
+  "cross_identity_access": 403,
+  "private_notes_exposed": false,
+  "external_QR_verified": false,
+  "orphan_checks": 155,
+  "browser_checks": {
+    "hosted_approval": true,
+    "outcome_publication": true,
+    "buyer_arrival": true,
+    "exhibitor_no_show": true,
+    "section_switch_retested": true,
+    "english_portal": true,
+    "arabic_portal": true,
+    "rtl": true
+  },
+  "screenshots": "Capture API unavailable for visible and hidden browser; verified DOM evidence retained instead"
+}

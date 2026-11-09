@@ -26,7 +26,7 @@ class B2BController extends Controller
         $meeting=DB::table('b2b_meetings')->whereIn('match_id',(clone $matches)->select('id'));
         $program=DB::table('b2b_programs')->where('exhibition_id',$event)->first();
         if ($program) { foreach (['weights','bands','meeting_dates'] as $key) { $program->$key=json_decode($program->$key,true); } }
-        $out=['program'=>$program,'categories'=>DB::table('b2b_categories')->where('exhibition_id',$event)->get(),'locations'=>DB::table('b2b_locations')->where('exhibition_id',$event)->get()];
+        $out=['onsite_enabled'=>(bool)config('b2b.onsite_enabled'),'program'=>$program,'categories'=>DB::table('b2b_categories')->where('exhibition_id',$event)->get(),'locations'=>DB::table('b2b_locations')->where('exhibition_id',$event)->get()];
         if ($this->policy->allows('b2b.programs.manage',$user)) {
             $people=DB::table('b2b_representatives')->whereIn('participant_id',(clone $p)->select('id'))->select('person_id');
             $out['windows']=DB::table('b2b_windows')->where('exhibition_id',$event)->where(fn($q)=>$q->whereNull('person_id')->orWhereIn('person_id',$people))->orderByDesc('id')->limit(100)->get();
