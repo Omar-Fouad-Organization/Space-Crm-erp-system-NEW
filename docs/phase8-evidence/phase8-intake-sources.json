@@ -1,0 +1,18 @@
+{
+  "event": 1,
+  "sources": [
+    {
+      "type": "exhibitor",
+      "source_id": "782d2c16-38fa-44ee-a147-ea68a9a993f1"
+    },
+    {
+      "type": "sponsor",
+      "source_id": "9fd6e3c6-aeda-49df-b0c1-7d223697ec5d"
+    }
+  ],
+  "synthetic_only": true,
+  "no_automatic_commercial_records": true,
+  "cms_unauthorized_edit_status": 403,
+  "restricted_finance": false,
+  "restricted_payments": true
+}

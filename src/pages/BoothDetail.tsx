@@ -1,6 +1,7 @@
+import {linkedBoothDeal,exhibitionProjection,moneyLabel,totalsLabel,metricLabel,recordedMetric,type MoneyGroups} from '@/lib/commercialViews';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ import {
 
 // Booth data interface
 interface BoothData {
+  currency?:string;
   id: string;
   code: string;
   size_sqm: number;
@@ -79,6 +81,7 @@ interface BoothData {
     end_date: string;
   };
   deal?: {
+    currency?:string;
     id: string;
     title: string;
     value: number;
@@ -117,24 +120,19 @@ const BoothDetail = () => {
   const { boothId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const loadVersion=useRef(0);
   const [loading, setLoading] = useState(true);
   const [boothData, setBoothData] = useState<BoothData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     loadBoothData();
+    return ()=>{loadVersion.current++;};
   }, [boothId]);
 
-  const loadBoothData = async()=>{setLoading(true);try{const [booths,deals,expos,clients]=await Promise.all([apiAll('booths'),apiAll('deals'),apiAll('exhibitions'),apiAll('clients')]);const b=booths.find(b=>b.id===boothId);if(!b)throw new Error('Booth not found');const deal=deals.find(d=>d.booth_id===b.id&&!['cancelled','closed_lost'].includes(d.stage)),client=clients.find(c=>c.id===deal?.client_id),expo=expos.find(e=>e.id===b.exhibition_id);setBoothData({...b,code:b.booth_code,price_per_meter:b.size_sqm?b.total_price/b.size_sqm:0,is_corner:!!b.is_corner,status:b.status==='Sold'?'Confirmed':b.status,client:client?{...client,name:client.name}:undefined,expo,deal:deal?{...deal,value:deal.deal_value}:undefined,features:b.features||[],analytics:{revenue_generated:deal?.stage==='closed_won'?deal.deal_value:0,visitor_count:Number(b.visitor_count||0),lead_conversions:0,satisfaction_score:0,utilization_rate:deal?100:0,setup_efficiency:0},timeline:[]} as any);}catch(error){toast({title:'Booth unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
+  const loadBoothData = async()=>{const version=++loadVersion.current;setLoading(true);setBoothData(null);try{const meta=await apiMetadata();const read=(name:string)=>meta.resources[name]?apiAll(name):Promise.resolve([]);const [booths,deals,expos,clients]=await Promise.all(['booths','deals','exhibitions','clients'].map(read));if(version!==loadVersion.current)return;const b=booths.find(b=>b.id===boothId);if(!b)throw new Error('Booth not found');const deal=linkedBoothDeal(b,deals),client=clients.find(c=>c.id===deal?.client_id),expo=expos.find(e=>e.id===b.exhibition_id);setBoothData({...b,code:b.booth_code,price_per_meter:b.size_sqm&&b.total_price!=null?b.total_price/b.size_sqm:null,is_corner:!!b.is_corner,status:b.status==='Sold'?'Confirmed':b.status,client:client?{...client,name:client.name}:undefined,expo,deal:deal?{...deal,value:deal.deal_value}:undefined,features:b.features||[],analytics:{revenue_generated:deal?.stage==='closed_won'?deal.deal_value:null,visitor_count:recordedMetric(b.visitor_count),lead_conversions:recordedMetric(b.lead_conversions),satisfaction_score:recordedMetric(b.satisfaction_score),utilization_rate:recordedMetric(b.utilization_rate),setup_efficiency:recordedMetric(b.setup_efficiency)},timeline:[]} as any);}catch(error){if(version===loadVersion.current)toast({title:'Booth unavailable',description:(error as Error).message,variant:'destructive'});}finally{if(version===loadVersion.current)setLoading(false);}};
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
-  };
+  const formatCurrency = (amount:unknown) => moneyLabel(amount,boothData?.currency);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -414,35 +412,35 @@ const BoothDetail = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Revenue:</span>
                         <span className="font-semibold text-green-600">
-                          {formatCurrency(boothData.analytics.revenue_generated)}
+                          {moneyLabel(boothData.analytics.revenue_generated,boothData.deal?.currency||boothData.currency)}
                         </span>
                       </div>
                       <div className="border-t pt-2" />
                       <div className="flex justify-between">
                         <span className="text-gray-600">Visitors:</span>
                         <span className="font-semibold">
-                          {boothData.analytics.visitor_count.toLocaleString()}
+                          {metricLabel(boothData.analytics.visitor_count)}
                         </span>
                       </div>
                       <div className="border-t pt-2" />
                       <div className="flex justify-between">
                         <span className="text-gray-600">Lead Conversions:</span>
                         <span className="font-semibold">
-                          {boothData.analytics.lead_conversions}
+                          {metricLabel(boothData.analytics.lead_conversions)}
                         </span>
                       </div>
                       <div className="border-t pt-2" />
                       <div className="flex justify-between">
                         <span className="text-gray-600">Satisfaction:</span>
                         <span className="font-semibold">
-                          {boothData.analytics.satisfaction_score}/5.0
+                          {metricLabel(boothData.analytics.satisfaction_score,"/5.0")}
                         </span>
                       </div>
                       <div className="border-t pt-2" />
                       <div className="flex justify-between">
                         <span className="text-gray-600">Utilization:</span>
                         <span className="font-semibold">
-                          {boothData.analytics.utilization_rate}%
+                          {metricLabel(boothData.analytics.utilization_rate,"%")}
                         </span>
                       </div>
                     </div>
