@@ -56,6 +56,7 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 interface CreateTaskDialogProps {
   initialData?: any;
+  followup?: {meeting_id:number;exhibition_id:number;assignees:any[]};
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CreateTaskForm) => Promise<boolean | void> | boolean | void;
@@ -79,11 +80,12 @@ const mockClients = [
   { id: '3', company_name: 'EcoSolutions Ltd' },
 ];
 
-export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initialData }: CreateTaskDialogProps) {
+export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initialData, followup }: CreateTaskDialogProps) {
   const exhibition=useExhibitionField(open,'task-exhibition',initialData);
-  const mockUsers=useRecordOptions('users',open);
-  const mockClients=useRecordOptions('clients',open);
-  const mockDeals=useRecordOptions('deals',open);
+  const users=useRecordOptions('users',open&&!followup);
+  const mockUsers=followup?.assignees||users;
+  const mockClients=useRecordOptions('clients',open&&!followup);
+  const mockDeals=useRecordOptions('deals',open&&!followup);
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -106,11 +108,11 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
       assigned_user_id: values.assigned_user_id,
       deal_id: values.deal_id,
       client_id: values.client_id,
-      due_date: values.due_date.toISOString().split('T')[0],
+      due_date: format(values.due_date,'yyyy-MM-dd'),
       priority: values.priority,
     };
 
-    if(await onSubmit({...taskData,...exhibition.payload})===false)return;
+    if(await onSubmit({...taskData,...(followup?{exhibition_id:followup.exhibition_id}:exhibition.payload)})===false)return;
     form.reset();
   };
 
@@ -123,7 +125,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{initialData?'Edit Task':'Create New Task'}</DialogTitle>
+          <DialogTitle>{followup?'Create Follow-up Task':initialData?'Edit Task':'Create New Task'}</DialogTitle>
           <DialogDescription>
             Create a new task and assign it to a team member.
           </DialogDescription>
@@ -222,8 +224,9 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
               />
             </div>
 
+            {followup&&<p>Source B2B meeting #{followup.meeting_id} · Exhibition #{followup.exhibition_id}. Only enter information the assignee may access. Internal B2B notes are not copied.</p>}
             {/* Related Items */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {!followup&&<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="deal_id"
@@ -284,7 +287,7 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
                   </FormItem>
                 )}
               />
-            </div>
+            </div>}
 
             {/* Due Date */}
             <FormField
@@ -329,13 +332,13 @@ export default function CreateTaskDialog({ open, onOpenChange, onSubmit, initial
               )}
             />
 
-            {exhibition.field}
+            {!followup&&exhibition.field}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button type="submit" className="crm-button-primary">
-                {initialData?'Save Task':'Create Task'}
+                {followup?'Create Follow-up Task':initialData?'Save Task':'Create Task'}
               </Button>
             </DialogFooter>
           </form>

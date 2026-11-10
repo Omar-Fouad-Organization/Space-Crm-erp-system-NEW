@@ -13,7 +13,7 @@ class B2BOperationsController extends Controller
 
     public function index(Request $r): array
     {
-        $v=$r->validate(['exhibition_id'=>'required|integer','section'=>'required|in:hosted,meetings','day'=>'nullable|date_format:Y-m-d','status'=>'nullable|in:scheduled,confirmed,in_progress,completed,no_show,cancelled,ready,awaiting,rescheduled,eligibility_hold','buyer_id'=>'nullable|integer','exhibitor_id'=>'nullable|integer','page'=>'nullable|integer|min:1']);
+        $v=$r->validate(['meeting_id'=>'nullable|integer|min:1','exhibition_id'=>'required|integer','section'=>'required|in:hosted,meetings','day'=>'nullable|date_format:Y-m-d','status'=>'nullable|in:scheduled,confirmed,in_progress,completed,no_show,cancelled,ready,awaiting,rescheduled,eligibility_hold','buyer_id'=>'nullable|integer','exhibitor_id'=>'nullable|integer','page'=>'nullable|integer|min:1']);
         $u=$r->user(); $event=(int)$v['exhibition_id'];
         $this->operations->authorize($v['section']==='hosted'?'hosted.view':'onsite.view',$u);
         $this->access->event($event,$u);
@@ -43,6 +43,7 @@ class B2BOperationsController extends Controller
             ->whereIn('introduction.id',$this->access->matches($u)->where('exhibition_id',$event)->select('id'))
             ->where('meeting.starts_at','>=',$start)->where('meeting.starts_at','<',$start->setTimezone($timezone)->addDay()->startOfDay()->utc());
         foreach (['buyer_id','exhibitor_id'] as $key) { if (!empty($v[$key])) { $q->where('introduction.'.$key,$v[$key]); } }
+        if (!empty($v['meeting_id'])) $q->where('meeting.id',$v['meeting_id']);
         $arrived="(SELECT COUNT(*) FROM b2b_meeting_attendance attendance WHERE attendance.meeting_id=meeting.id AND attendance.booking_revision=meeting.booking_revision AND attendance.status='arrived')";
         $held=[];
         (clone $q)->whereIn('meeting.status',['scheduled','confirmed','in_progress'])
@@ -73,18 +74,29 @@ class B2BOperationsController extends Controller
         $people=(clone $participants)->whereIn('id',collect($rows->items())->pluck('buyer_id')->merge(collect($rows->items())->pluck('exhibitor_id')))->get()->keyBy('id');
         $attendance=DB::table('b2b_meeting_attendance')->whereIn('meeting_id',collect($rows->items())->pluck('id'))->get()->groupBy('meeting_id');
         $locations=DB::table('b2b_locations')->where('exhibition_id',$event)->pluck('name','id');
-        $data=collect($rows->items())->map(function ($m) use ($people,$attendance,$locations,$held) {
+        $data=collect($rows->items())->map(function ($m) use ($people,$attendance,$locations,$held,$u) {
             $out=['eligibility_hold'=>in_array($m->id,$held,true),'id'=>$m->id,'exhibition_id'=>$m->exhibition_id,'match_id'=>$m->match_id,'version'=>$m->version,'booking_revision'=>$m->booking_revision,'starts_at'=>$m->starts_at,'ends_at'=>$m->ends_at,'location'=>$locations[$m->location_id]??null,'status'=>$m->status,'started_at'=>$m->started_at,'completed_at'=>$m->completed_at,'outcome_code'=>$m->outcome_code,'outcome_published'=>(bool)$m->outcome_published];
             foreach (['buyer','exhibitor'] as $party) {
                 $p=$people[$m->{$party.'_id'}]; $profile=B2BProfiles::open($p->profile);
                 $a=($attendance[$m->id]??collect())->first(fn($a)=>$a->participant_id===$p->id && $a->booking_revision===$m->booking_revision);
                 $out[$party]=['id'=>$p->id,'name'=>$profile['name_en'],'name_ar'=>$profile['name_ar'],'attendance'=>$a?['status'=>$a->status,'recorded_at'=>$a->recorded_at,'recorded_by'=>$a->recorded_by,'source'=>$a->source]:null];
             }
-            return $out;
+            return [...$out,...app(\App\Services\B2BFollowupTasks::class)->projection($m,$u)];
         });
         $approved=DB::table('b2b_hosted_participations')->where('status','approved')->whereIn('participant_id',(clone $participants)->where('kind','buyer')->select('id'));
         $hostedStats=app(\App\Services\PermissionPolicy::class)->allows('b2b.hosted.view',$u)?['hosted_approved'=>(clone $approved)->count(),'hosted_arrived'=>(clone $approved)->whereIn('participant_id',DB::table('b2b_arrivals')->select('participant_id'))->count()]:[];
         return [...$hostedStats,'data'=>$data,'day'=>$day,'timezone'=>$timezone,'counts'=>$counts,'last_page'=>$rows->lastPage(),'total'=>$rows->total()];
+    }
+
+    public function followupContext(Request $r,int $id): array
+    {
+        return app(\App\Services\B2BFollowupTasks::class)->context($id,$r->user());
+    }
+
+    public function createFollowup(Request $r,int $id): array
+    {
+        abort_if(strlen($r->getContent())>16384,413);
+        return app(\App\Services\B2BFollowupTasks::class)->create($id,$r->all(),$r->user());
     }
 
     public function command(Request $r, string $action, int $id): array

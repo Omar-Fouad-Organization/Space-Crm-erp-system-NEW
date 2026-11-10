@@ -32,7 +32,7 @@ jobs:
         run: npm audit
       - name: Audit runtime JavaScript dependencies separately
         run: npm audit --omit=dev
-      - run: node --test scripts/authorization-ui.test.mjs scripts/cms-ui.test.mjs scripts/registration-ui.test.mjs scripts/b2b-ui.test.mjs scripts/booth-policy.test.mjs scripts/deal-relations.test.mjs scripts/commercial-views.test.mjs
+      - run: node --test scripts/authorization-ui.test.mjs scripts/cms-ui.test.mjs scripts/registration-ui.test.mjs scripts/b2b-ui.test.mjs scripts/booth-policy.test.mjs scripts/deal-relations.test.mjs scripts/commercial-views.test.mjs scripts/b2b-followup-ui.test.mjs
       - run: node scripts/verify-navigation.mjs
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npm run build

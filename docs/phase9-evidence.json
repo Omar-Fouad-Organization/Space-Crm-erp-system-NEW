@@ -1,0 +1,18 @@
+{
+    "synthetic_only": true,
+    "meeting": 1,
+    "exhibition": 1,
+    "task": 1,
+    "task_status": "completed",
+    "due_date": "2027-01-04",
+    "client_id": null,
+    "deal_id": null,
+    "protected_tables_unchanged": 11,
+    "link_foreign_keys": {
+        "meeting_id": 0,
+        "task_id": 0,
+        "exhibition_id": 0,
+        "linked_by": 0
+    },
+    "browser_cycle": "explicit create → original Tasks route → Mark Complete → source meeting"
+}

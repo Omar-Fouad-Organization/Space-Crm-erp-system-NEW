@@ -149,6 +149,7 @@ class CrmService
             foreach (config("crm.resources.$resource.fields") as $key => $field) if ($field['type'] === 'money' && $key !== 'salary') unset($data[$key]);
             foreach (SensitiveFields::FINANCIAL as $key) unset($data[$key]);
         }
+        if ($resource==='tasks') $data['b2b_source']=app(B2BFollowupTasks::class)->source((int)$row->id,$user);
         return $data;
     }
 
@@ -249,6 +250,7 @@ class CrmService
                     if ($key !== 'status' && $changed) app(PermissionPolicy::class)->authorize('commissions.edit', $user);
                 }
             }
+            if ($resource==='tasks' && $before) app(B2BFollowupTasks::class)->validateTaskWrite($data,$before);
             app(ExhibitionAccess::class)->validateWrite($resource, $data, $before, $user);
             if (app(PermissionPolicy::class)->enabled()) {
                 if ($resource === 'deals' && $before && !$this->approvedChange) {
