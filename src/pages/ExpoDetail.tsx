@@ -4,6 +4,8 @@ import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ExhibitorReadiness from '@/b2b/ExhibitorReadiness';
+import {useAuth} from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useState, useEffect, useRef } from "react";
@@ -96,6 +98,7 @@ interface ExpoEvent {
 }
 
 const ExpoDetail = () => {
+  const {can} = useAuth();
   const { expoId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -634,6 +637,7 @@ const ExpoDetail = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="exhibitors">Exhibitors</TabsTrigger>
+          {can('b2b.readiness.view') && <TabsTrigger value="readiness">Operational readiness</TabsTrigger>}
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
@@ -717,6 +721,7 @@ const ExpoDetail = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        {can('b2b.readiness.view') && expoId && <TabsContent value="readiness"><ExhibitorReadiness key={expoId} event={expoId}/></TabsContent>}
         <TabsContent value="timeline" className="space-y-4">
           <Card>
             <CardHeader>

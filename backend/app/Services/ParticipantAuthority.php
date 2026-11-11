@@ -32,7 +32,7 @@ class ParticipantAuthority
         $memberships=DB::table('portal_memberships')->where('identity_id',$identity)->where('status','active')->whereNull('revoked_at')->limit(101)->get();abort_if($memberships->count()>100,422,'Ask the organizer to narrow this identity’s active exhibition memberships.');
         $participants=DB::table('b2b_participants')->whereIn('id',$memberships->pluck('participant_id'))->get()->keyBy('id');$eligible=app(B2BAccess::class)->eligibleMany($participants,false);
         $events=DB::table('exhibitions')->whereIn('id',$memberships->pluck('exhibition_id'))->pluck('name','id');
-        return $memberships->filter(fn($m)=>isset($participants[$m->participant_id]) && $participants[$m->participant_id]->exhibition_id==$m->exhibition_id && ($eligible[$m->participant_id]??false))->map(function($m)use($participants,$events){$p=$participants[$m->participant_id];$profile=B2BProfiles::open($p->profile);return ['id'=>$m->id,'exhibition_id'=>$m->exhibition_id,'exhibition_name'=>$events[$m->exhibition_id]??null,'participant_id'=>$m->participant_id,'kind'=>$p->kind,'name_en'=>$profile['name_en'],'name_ar'=>$profile['name_ar'],'role'=>$m->role,'capabilities'=>json_decode($m->capabilities,true)];})->values()->all();
+        return $memberships->filter(fn($m)=>isset($participants[$m->participant_id]) && $participants[$m->participant_id]->exhibition_id==$m->exhibition_id && ($eligible[$m->participant_id]??false))->map(function($m)use($participants,$events){$p=$participants[$m->participant_id];$profile=B2BProfiles::open($p->profile);return ['id'=>$m->id,'exhibition_id'=>$m->exhibition_id,'exhibition_name'=>$events[$m->exhibition_id]??null,'participant_id'=>$m->participant_id,'kind'=>$p->kind,'readiness_available'=>$p->kind==='exhibitor' && (bool)config('b2b.readiness_enabled'),'name_en'=>$profile['name_en'],'name_ar'=>$profile['name_ar'],'role'=>$m->role,'capabilities'=>json_decode($m->capabilities,true)];})->values()->all();
     }
 
     public function execute(array $input): array
@@ -40,14 +40,14 @@ class ParticipantAuthority
         abort_if(array_diff(array_keys($input),['identity_id','membership_id','exhibition_id','operation','command_id','payload','page','authentication']),422,'Unsupported participant command fields.');
         $v=Validator::make($input,[
             'identity_id'=>'required|uuid','membership_id'=>'required|uuid','exhibition_id'=>'required|integer|min:1',
-            'operation'=>'required|in:overview,profile,amendment,categories,matches,meetings,discover,team,activity,requests,media.authorize,profile.submit,invitation.respond,request.submit,team.revoke,participation.withdraw,membership.leave',
+            'operation'=>'required|in:overview,profile,amendment,categories,matches,meetings,discover,team,activity,requests,readiness,readiness.submit,media.authorize,profile.submit,invitation.respond,request.submit,team.revoke,participation.withdraw,membership.leave',
             'command_id'=>'nullable|uuid','payload'=>'present|array','page'=>'sometimes|integer|min:1|max:10000',
             'authentication'=>'sometimes|array:device_id,auth_version','authentication.device_id'=>'required_with:authentication|uuid','authentication.auth_version'=>'required_with:authentication|integer|min:1',
         ])->validate();
-        $cap=match($v['operation']){'profile.submit'=>'profile.submit','invitation.respond'=>'meetings.respond','request.submit'=>'requests.submit','team.revoke'=>'team.manage','participation.withdraw'=>'consent.withdraw',default=>'view'};
+        $cap=match($v['operation']){'profile.submit','readiness.submit'=>'profile.submit','invitation.respond'=>'meetings.respond','request.submit'=>'requests.submit','team.revoke'=>'team.manage','participation.withdraw'=>'consent.withdraw',default=>'view'};
         return DB::transaction(function()use($v,$cap){
-            $write=in_array($v['operation'],['profile.submit','invitation.respond','request.submit','team.revoke','participation.withdraw','membership.leave'],true);
-            $fields=['profile.submit'=>['profile','profile_version','intent','draft_id','draft_version'],'invitation.respond'=>['match_id','version','action'],'request.submit'=>['kind','target_id','note','email','role'],'team.revoke'=>['membership_id'],'participation.withdraw'=>['reason'],'membership.leave'=>[]];
+            $write=in_array($v['operation'],['readiness.submit','profile.submit','invitation.respond','request.submit','team.revoke','participation.withdraw','membership.leave'],true);
+            $fields=['readiness.submit'=>['requirement_id','requirement_version','version','response'],'profile.submit'=>['profile','profile_version','intent','draft_id','draft_version'],'invitation.respond'=>['match_id','version','action'],'request.submit'=>['kind','target_id','note','email','role'],'team.revoke'=>['membership_id'],'participation.withdraw'=>['reason'],'membership.leave'=>[]];
             if($write)abort_if(array_diff(array_keys($v['payload']),$fields[$v['operation']]),422,'Unsupported participant action fields.');
             abort_if($write && empty($v['authentication']),422,'Authenticated participant session attestation is required.');
             if($write){$control=DB::table('portal_identity_controls')->where('identity_id',$v['identity_id'])->lockForUpdate()->first();abort_unless($control && !$control->disabled_at,403,'Participant account access is revoked.');}
@@ -64,7 +64,11 @@ class ParticipantAuthority
                 $prior=DB::table('portal_commands')->where('id',$v['command_id'])->lockForUpdate()->first();
                 if($prior){abort_unless($prior->membership_id===$m->id && hash_equals($prior->body_hash,$hash),409,'Command reference already used.');return B2BProfiles::open($prior->result);}
             }
-            $result=$write?$this->mutate($v,$m,$p):$this->read($v,$m,$p);
+            $result = match ($v['operation']) {
+                'readiness' => ['readiness' => app(ExhibitorReadiness::class)->portal($p, $m, null, (int) ($v['page'] ?? 1))],
+                'readiness.submit' => app(ExhibitorReadiness::class)->portal($p, $m, $v['payload']),
+                default => $write ? $this->mutate($v, $m, $p) : $this->read($v, $m, $p),
+            };
             if($write){
                 DB::table('portal_commands')->insert(['id'=>$v['command_id'],'membership_id'=>$m->id,'operation'=>$v['operation'],'body_hash'=>$hash,'result'=>B2BProfiles::seal($result),'created_at'=>now()]);
                 DB::table('portal_activity')->insert(['membership_id'=>$m->id,'identity_id'=>$m->identity_id,'exhibition_id'=>$m->exhibition_id,'operation'=>$v['operation'],'command_id'=>$v['command_id'],'details'=>B2BProfiles::seal(['result'=>$result,'request'=>$v['operation']==='profile.submit'?['amendment_id'=>$result['id'],'profile_version'=>$v['payload']['profile_version']]:$v['payload'],'participant_id'=>$p->id,'party'=>$p->kind,'membership_role'=>$m->role,'organization'=>['type'=>$p->kind==='buyer'?'buyer_organization':'client','id'=>$p->kind==='buyer'?$p->buyer_organization_id:$p->client_id],'authentication'=>$v['authentication']]),'created_at'=>now()]);

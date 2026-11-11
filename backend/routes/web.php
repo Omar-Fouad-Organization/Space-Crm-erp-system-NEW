@@ -69,6 +69,10 @@ Route::prefix('api/b2b')->middleware([CrmAuthenticated::class,'throttle:120,1,b2
     Route::get('sources',[$c,'sources']);
     Route::get('followup-tasks/{id}',[\App\Http\Controllers\B2BOperationsController::class,'followupContext'])->whereNumber('id');
     Route::post('followup-tasks/{id}',[\App\Http\Controllers\B2BOperationsController::class,'createFollowup'])->whereNumber('id');
+    Route::get('readiness/{event}',[\App\Http\Controllers\ExhibitorReadinessController::class,'index'])->whereNumber('event');
+    Route::post('readiness/{event}/requirements',[\App\Http\Controllers\ExhibitorReadinessController::class,'configure'])->whereNumber('event');
+    Route::post('readiness/{event}/{deal}/review',[\App\Http\Controllers\ExhibitorReadinessController::class,'review'])->whereNumber(['event','deal']);
+    Route::post('readiness/{event}/{deal}/handover',[\App\Http\Controllers\ExhibitorReadinessController::class,'handover'])->whereNumber(['event','deal']);
     Route::get('operations',[\App\Http\Controllers\B2BOperationsController::class,'index']);
     Route::post('operations/{action}/{id}',[\App\Http\Controllers\B2BOperationsController::class,'command'])->where('action','hosted|benefit|arrival|meeting')->whereNumber('id');
     Route::get('export',[$c,'export'])->middleware('throttle:5,1,b2b-export');
