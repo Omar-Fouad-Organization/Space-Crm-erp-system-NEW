@@ -1,0 +1,31 @@
+✔ published sponsor cards reflect CMS values and never show inactive or exhibitor packages (1.5615ms)
+✔ active exhibitors and sponsors use the existing bilingual page-content contract (19.3564ms)
+✔ CMS bindings preserve every original class attribute on affected public pages (569.161ms)
+✔ public styles, layout components and design configuration remain identical to main baseline (3448.0651ms)
+✔ CMS content binds qualified keys without silently selecting a duplicate bare key (1.6157ms)
+✔ page SEO changes metadata without mutating the configured defaults or rendering in a loop (6.2271ms)
+✔ optional branding is a public-site-only opt-in with no application key or service token (4.7985ms)
+✔ branding accepts historical HSL and hex values while rejecting unsafe CSS (381.2034ms)
+✔ hosted approval, qualification, arrival and meeting completion remain distinct in both languages (0.9679ms)
+✔ unknown organizer values never echo private or untrusted raw strings (0.1598ms)
+✔ activate secret is captured in memory and synchronously stripped from navigation (1.3074ms)
+✔ reset-password secret is captured in memory and synchronously stripped from navigation (0.1683ms)
+✔ malformed secrets are stripped and never retained (0.125ms)
+✔ ordinary public routes are untouched (0.0905ms)
+✔ reduced dashboard and discovery profiles never enter the amendment editor (2.3892ms)
+✔ complete sourcing drafts preserve explicit unknown answers and isolate edits from approved data (2.2699ms)
+✔ context and page changes never share a screen identity (0.1934ms)
+✔ pending delivery and both-party acceptance never imply a confirmed booking in either language (0.304ms)
+✔ existing sourcing requirements remain applicable unless explicitly answered unknown or not applicable (0.1918ms)
+✔ public design tokens, shared UI, header and footer remain unchanged (3349.9315ms)
+✔ buyer and visitor journeys have independent routes and use existing public components (9.0537ms)
+✔ public and server inquiry types include speaker without converting visitor interest (16.9636ms)
+✔ visitor page publishes no hard-coded obsolete dates or attendance counts (1.4916ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4055.8339

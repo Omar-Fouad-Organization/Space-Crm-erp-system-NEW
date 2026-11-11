@@ -1,0 +1,36 @@
+✔ module navigation and direct details share the same server capability (1.7937ms)
+✔ unknown permissions and incomplete contracts never grant authority (0.2715ms)
+✔ workflow sections use distinct current permissions and reserve no fake pages (0.2299ms)
+✔ managed exports map existing CSV names to exact server operations (1.9549ms)
+✔ B2B direct routes require their own scoped server capability (0.9497ms)
+✔ new business profiles never invent capacity, certification or purchasing facts (1.2429ms)
+✔ structured terms preserve Arabic and deterministic matching inputs (85.2714ms)
+✔ Phase 5 uses existing ERP components and never imports a replacement design system (2.6063ms)
+✔ requirement presentation distinguishes unanswered, supplied, explicitly unknown and no restriction (0.9232ms)
+✔ unrelated legacy edits preserve the authoritative total without multiplying it by area (1.2903ms)
+✔ standard footprint accepts rotated minima and larger rectangles with exact area (0.6068ms)
+✔ area alone never makes a narrow or incomplete booth compliant (0.2906ms)
+✔ CMS route and resource mappings exclude submissions, staff and ERP business tables (2.0983ms)
+✔ pagination loads all authorized rows and never sends arbitrary columns or URLs (2.3432ms)
+✔ oversized read pages shrink predictably and cannot retry without a bound (0.9279ms)
+✔ same-record autosaves serialize and use the version returned by the preceding save (1.0957ms)
+✔ conflicts preserve an error state and prevent a blind repeated write (0.5709ms)
+✔ creating a new record never reuses an unrelated cached row version (0.6678ms)
+✔ historical relative image URLs are displayed against the website and preserved on unchanged saves (0.596ms)
+✔ website editors reuse ERP primitives without importing website providers or global CSS (18.9176ms)
+✔ every original ERP business page, layout and design-system file remains unchanged (5526.1184ms)
+✔ unchanged fields do not generate writes or conflict with unrelated editor saves (0.6302ms)
+✔ general settings retain their resource-specific versions and authorization boundary (0.4387ms)
+✔ location saves preserve existing shared-setting metadata (0.4573ms)
+✔ registration routes require separate permissions without granting finance (1.8644ms)
+✔ all Phase 3 ERP business pages, CSS and shared primitives remain byte-equivalent (5613.7401ms)
+✔ new ERP pages use native primitives and never import public website styles or sessions (3.0609ms)
+✔ transport contract keeps public intake separate from CMS and financial domains (1.0222ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5862.4343

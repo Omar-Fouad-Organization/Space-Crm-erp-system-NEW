@@ -2,9 +2,9 @@ name: ERP isolated MySQL tests
 
 on:
   pull_request:
-    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations]
+    branches: [feat/laravel-mysql-original-ui, codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations, codex/phase-5-b2b-matchmaking]
   push:
-    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations, codex/phase-5-b2b-matchmaking]
+    branches: [codex/phase-1-erp-security, codex/phase-2-granular-authorization, codex/phase-3-cms-integration, codex/phase-4-registrations, codex/phase-5-b2b-matchmaking, codex/phase-6-participant-portal-api]
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,11 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: node --test scripts/authorization-ui.test.mjs scripts/cms-ui.test.mjs scripts/registration-ui.test.mjs scripts/b2b-ui.test.mjs
+      - name: Audit all locked JavaScript dependencies
+        run: npm audit
+      - name: Audit runtime JavaScript dependencies separately
+        run: npm audit --omit=dev
+      - run: node --test scripts/authorization-ui.test.mjs scripts/cms-ui.test.mjs scripts/registration-ui.test.mjs scripts/b2b-ui.test.mjs scripts/booth-policy.test.mjs scripts/deal-relations.test.mjs scripts/commercial-views.test.mjs scripts/b2b-followup-ui.test.mjs
       - run: node scripts/verify-navigation.mjs
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npm run build
@@ -92,6 +96,8 @@ jobs:
           printf 'APP_ENV=testing\n' > .env
           cp .env .env.testing
           composer install --no-interaction --prefer-dist --no-progress
+      - name: Audit all locked PHP dependencies
+        run: composer audit --locked
       - name: Check disposable database boundary
         run: |
           php -r '$p = new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"), getenv("DB_USERNAME"), getenv("DB_PASSWORD")); if (getenv("APP_ENV") !== "testing" || getenv("DB_HOST") !== "127.0.0.1" || $p->query("SELECT DATABASE()")->fetchColumn() !== "space_crm_test") { exit(1); } echo "Disposable loopback database verified.\n";'

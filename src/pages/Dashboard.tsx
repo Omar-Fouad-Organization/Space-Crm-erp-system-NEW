@@ -1,3 +1,4 @@
+import {dashboardProjection,dashboardRecords,moneyLabel} from '@/lib/commercialViews';
 import {useNavigate} from 'react-router-dom';
 import {toast} from '@/hooks/use-toast';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
@@ -88,20 +89,20 @@ export default function Dashboard() {
   const [raw,setRaw]=useState<any>(null),[expos,setExpos]=useState<any[]>([]);
   const [kpiData,setKpis]=useState<DashboardKPI[]>([]);
   const [revenueData,setRevenue]=useState<any[]>([]),[dealStatusData,setPipeline]=useState<any[]>([]),[topDeals,setTopDeals]=useState<any[]>([]),[upcomingTasks,setUpcomingTasks]=useState<any[]>([]);
-  React.useEffect(()=>{let active=true;apiMetadata().then(async meta=>{const read=(name:string)=>meta.resources[name]?(name==='payments'?api<any>('workspace/cash-movements').then(r=>r.data):apiAll(name)):Promise.resolve([]);const [deals,clients,tasks,payments,exhibitions]=await Promise.all(['deals','clients','tasks','payments','exhibitions'].map(read));if(active){setRaw({deals,clients,tasks,payments,meta});setExpos(exhibitions);}}).catch(error=>toast({title:'Dashboard unavailable',description:error.message,variant:'destructive'}));return()=>{active=false;};},[]);
+  React.useEffect(()=>{let active=true;apiMetadata().then(meta=>dashboardRecords(meta,apiAll,()=>api<any>('workspace/cash-movements').then(r=>r.data))).then(records=>{if(active){setRaw(records);setExpos(records.exhibitions);}}).catch(error=>toast({title:'Dashboard unavailable',description:error.message,variant:'destructive'}));return()=>{active=false;};},[]);
   React.useEffect(()=>{
     if(!raw)return;
     const start=new Date();start.setMonth(start.getMonth()-({ '1m':1,'3m':3,'6m':6,'1y':12 }[dateRange]||6));const cutoff=start.toISOString().slice(0,10);
-    const deals=raw.deals.filter(d=>(selectedExpo==='all'||d.exhibition_id===selectedExpo)&&String(d.created_at).slice(0,10)>=cutoff),ids=new Set(deals.map(d=>d.id));
-    const won=deals.filter(d=>d.stage==='closed_won'),open=deals.filter(d=>!['closed_won','closed_lost','canceled'].includes(d.stage));
-    const revenue=won.filter(d=>d.currency===raw.meta.settings.currency).reduce((n,d)=>n+Number(d.deal_value),0);
+    const projection=dashboardProjection(raw,selectedExpo,cutoff);
+    const {deals,ids,won,open}=projection;
+    const financial=raw.meta.authorization?.permissions['dashboard.financial_view']?.allowed===true;
+    const revenue=projection.revenue?.[raw.meta.settings.currency]??0;
     const clients=raw.clients.filter(c=>c.status==='Active'&&(selectedExpo==='all'||deals.some(d=>d.client_id===c.id)));
-    setKpis([{label:'Total Revenue',value:raw.meta.resources.deals?new Intl.NumberFormat('en-US',{style:'currency',currency:raw.meta.settings.currency}).format(revenue):'—',change:0,trend:'up',format:'currency'},{label:'Active Deals',value:raw.meta.resources.deals?String(open.length):'—',change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:raw.meta.resources.deals?(deals.length?won.length/deals.length*100:0).toFixed(1)+'%':'—',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:raw.meta.resources.clients?String(clients.length):'—',change:0,trend:'up',format:'number'}]);
+    setKpis([{label:'Total Revenue',value:raw.meta.resources.deals&&financial&&projection.revenue!==null?new Intl.NumberFormat('en-US',{style:'currency',currency:raw.meta.settings.currency}).format(revenue):'—',change:0,trend:'up',format:'currency'},{label:'Active Deals',value:raw.meta.resources.deals?String(open.length):'—',change:0,trend:'up',format:'number'},{label:'Conversion Rate',value:raw.meta.resources.deals?(deals.length?won.length/deals.length*100:0).toFixed(1)+'%':'—',change:0,trend:'up',format:'percentage'},{label:'Active Clients',value:raw.meta.resources.clients?String(clients.length):'—',change:0,trend:'up',format:'number'}]);
     setPipeline([...new Set(deals.map(d=>d.stage))].map(stage=>({name:String(stage).replaceAll('_',' '),value:deals.filter(d=>d.stage===stage).length,color:stage==='closed_won'?'#059669':'#2BB0E6'})));
-    setTopDeals([...open].sort((a,b)=>b.deal_value-a.deal_value).slice(0,3).map(d=>({...d,name:d.title,client:d.client_name,value:d.deal_value,status:d.stage})));
+    setTopDeals(projection.topDeals.map(d=>({...d,name:d.title,client:d.client_name,value:d.deal_value,status:d.stage})));
     setUpcomingTasks(raw.tasks.filter(t=>!['completed','cancelled'].includes(t.status)&&(selectedExpo==='all'||ids.has(t.deal_id))).sort((a,b)=>String(a.due_date).localeCompare(String(b.due_date))).slice(0,3).map(t=>({...t,deal:t.deal_id_label||''})));
-    const grouped:any={};for(const payment of raw.payments.filter(p=>p.currency===raw.meta.settings.currency&&String(p.paid_date)>=cutoff&&(selectedExpo==='all'||ids.has(p.deal_id)))){const month=String(payment.paid_date).slice(0,7);grouped[month]=(grouped[month]||0)+Number(payment.amount);}
-    setRevenue(Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([month,revenue])=>({month,revenue,deals:deals.filter(d=>String(d.created_at).slice(0,7)===month).length})));
+    setRevenue(projection.revenueData);
   },[raw,selectedExpo,dateRange]);
 
   return (
@@ -172,7 +173,7 @@ export default function Dashboard() {
         <Card className="crm-card">
           <CardHeader>
             <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Monthly revenue and deal count</CardDescription>
+            <CardDescription>{raw&&!raw.canCash?'Financial trend unavailable for your permissions':'Monthly revenue and deal count'}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -272,7 +273,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-crm-primary-text font-tabular">
-                      {new Intl.NumberFormat('en-US',{style:'currency',currency:deal.currency||'EGP'}).format(deal.value)}
+                      {moneyLabel(deal.value,deal.currency)}
                     </p>
                     <p className="text-xs text-crm-secondary-text">{deal.close_date}</p>
                   </div>

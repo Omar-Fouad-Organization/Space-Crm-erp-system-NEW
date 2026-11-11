@@ -1,0 +1,11 @@
+{
+    "scope": "Authorized local website baseline only; read-only; no deployed CMS access verified",
+    "obsolete_dimension_matches": [
+        {
+            "table": "packages",
+            "column": "features",
+            "matching_rows": 1
+        }
+    ],
+    "mutations": 0
+}

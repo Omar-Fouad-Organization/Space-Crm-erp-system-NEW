@@ -1,7 +1,8 @@
 import {ActivityTimeline} from './WorkflowWorkspace';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
-import {api} from '@/crm/api';
-import React, { useState, useEffect } from 'react';
+import {api, money} from '@/crm/api';
+import {dealRelations, type DealRelations} from '@/lib/dealRelations';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,6 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCurrency } from '@/contexts/CurrencyContext';
 import { useUserTracking } from '@/hooks/useUserTracking';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -73,6 +73,7 @@ interface Deal {
   discount_percentage: number;
   tax_percentage: number;
   commission_percentage: number;
+  currency?: string;
   total_amount: number;
 }
 
@@ -148,10 +149,13 @@ const DealDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { formatAmount } = useCurrency();
+
   const { userId, userName } = useUserTracking();
 
+  const loadVersion = useRef(0);
   const [deal, setDeal] = useState<Deal | null>(null);
+  const [linked, setLinked] = useState<DealRelations>({schedules:null,commissions:null,documents:null,booth:null});
+  const formatAmount = (amount: number) => deal?.currency && Number.isFinite(amount) ? money(amount, deal.currency) : 'Not available';
   const [client, setClient] = useState<Client | null>(null);
   const [exhibition, setExhibition] = useState<Exhibition | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -179,11 +183,15 @@ const DealDetailPage: React.FC = () => {
     if (id) {
       loadDealData();
     }
+    return () => { loadVersion.current++; };
   }, [id]);
 
   const loadDealData = async () => {
+    const version = ++loadVersion.current;
     try {
       setLoading(true);
+      setDeal(null); setClient(null); setExhibition(null);
+      setLinked({schedules:null,commissions:null,documents:null,booth:null});
 
       // Load deal
       const { data: dealData, error: dealError } = await supabase
@@ -192,8 +200,17 @@ const DealDetailPage: React.FC = () => {
         .eq('id', id)
         .single();
 
+      if (version !== loadVersion.current) return;
       if (dealError) throw dealError;
       setDeal(dealData);
+      const details = await api<{relations:Record<string, unknown>}>('records/deals/'+dealData.id);
+      const related = dealRelations(dealData.id, details.relations);
+      if (dealData.booth_id) {
+        try { related.booth = (await api<{data:Record<string, unknown>}>('records/booths/'+dealData.booth_id)).data; }
+        catch { related.booth = null; }
+      }
+      if (version !== loadVersion.current) return;
+      setLinked(related);
 
       // Set edit form data
       setEditForm({
@@ -212,6 +229,7 @@ const DealDetailPage: React.FC = () => {
           .eq('id', dealData.client_id)
           .single();
 
+        if (version !== loadVersion.current) return;
         if (!clientError) setClient(clientData);
       }
 
@@ -223,6 +241,7 @@ const DealDetailPage: React.FC = () => {
           .eq('id', dealData.exhibition_id)
           .single();
 
+        if (version !== loadVersion.current) return;
         if (!exhibitionError) setExhibition(exhibitionData);
       }
 
@@ -240,7 +259,7 @@ const DealDetailPage: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   };
 
@@ -480,11 +499,11 @@ const DealDetailPage: React.FC = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Note
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate('/tasks?create=1')}>
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Create Task
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate('/proposals')}>
                 <FileText className="h-4 w-4 mr-2" />
                 Generate Proposal
               </Button>
@@ -656,15 +675,15 @@ const DealDetailPage: React.FC = () => {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-lg font-semibold">A-101</div>
+                      <div className="text-lg font-semibold">{String(linked.booth?.name ?? 'Not available')}</div>
                       <div className="text-sm text-gray-600">Booth Code</div>
                     </div>
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-lg font-semibold">36 sqm</div>
+                      <div className="text-lg font-semibold">{linked.booth?.size_sqm != null ? String(linked.booth.size_sqm)+' sqm' : 'Not available'}</div>
                       <div className="text-sm text-gray-600">Booth Size</div>
                     </div>
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-lg font-semibold">Hall 1</div>
+                      <div className="text-lg font-semibold">{String(linked.booth?.hall || 'Not specified')}</div>
                       <div className="text-sm text-gray-600">Location</div>
                     </div>
                   </div>
@@ -685,76 +704,21 @@ const DealDetailPage: React.FC = () => {
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">Payment Schedule</h4>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium">30% Upfront</div>
-                          <div className="text-sm text-gray-600">Due: Immediately</div>
+                      {linked.schedules === null ? <p>Payment schedule not available.</p> : linked.schedules.length === 0 ? <p>No payment schedule recorded.</p> : linked.schedules.map(schedule => (
+                        <div key={String(schedule.id)} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div><div className="font-medium">{String(schedule.name)}</div><div className="text-sm text-gray-600">Due: {String(schedule.due_date ?? 'Not specified')}</div></div>
+                          <div className="text-right"><div className="font-semibold">{schedule.amount == null ? 'Not available' : formatAmount(Number(schedule.amount))}</div><Badge variant="outline">{String(schedule.status ?? 'Unknown')}</Badge></div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold">
-                            {formatAmount((deal.total_amount || deal.deal_value) * 0.3)}
-                          </div>
-                          <Badge variant="outline">Pending</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium">40% After 6 months</div>
-                          <div className="text-sm text-gray-600">
-                            Due: {new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">
-                            {formatAmount((deal.total_amount || deal.deal_value) * 0.4)}
-                          </div>
-                          <Badge variant="outline">Scheduled</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium">30% After 9 months</div>
-                          <div className="text-sm text-gray-600">
-                            Due: {new Date(Date.now() + 9 * 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">
-                            {formatAmount((deal.total_amount || deal.deal_value) * 0.3)}
-                          </div>
-                          <Badge variant="outline">Scheduled</Badge>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900 mb-3">Commission Preview</h4>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Commission Rate:</span>
-                        <span className="font-medium">{deal.commission_percentage || 5}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Total Commission:</span>
-                        <span className="font-semibold text-green-600">
-                          {formatAmount(((deal.total_amount || deal.deal_value) * (deal.commission_percentage || 5)) / 100)}
-                        </span>
-                      </div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Commission Rate:</span><span className="font-medium">{deal.commission_percentage == null ? 'Not available' : String(deal.commission_percentage)+'%'}</span></div>
+                      <div className="flex items-center justify-between"><span className="text-sm text-gray-600">Total Commission:</span><span className="font-semibold text-green-600">{linked.commissions === null ? 'Not available' : linked.commissions.length === 0 ? 'No commission recorded' : linked.commissions.map(row => row.amount == null ? 'Not available' : formatAmount(Number(row.amount))).join(' / ')}</span></div>
                       <Separator />
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Per 1st Payment:</span>
-                          <span className="font-medium">{formatAmount(((deal.total_amount || deal.deal_value) * 0.3 * (deal.commission_percentage || 5)) / 100)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Per 2nd Payment:</span>
-                          <span className="font-medium">{formatAmount(((deal.total_amount || deal.deal_value) * 0.4 * (deal.commission_percentage || 5)) / 100)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Per 3rd Payment:</span>
-                          <span className="font-medium">{formatAmount(((deal.total_amount || deal.deal_value) * 0.3 * (deal.commission_percentage || 5)) / 100)}</span>
-                        </div>
-                      </div>
+                      {linked.commissions?.map(row => <div key={String(row.id)} className="flex items-center justify-between text-sm"><span className="text-gray-600">{String(row.name)}</span><span className="font-medium">{String(row.status)}</span></div>)}
                     </div>
                   </div>
                 </div>
@@ -786,7 +750,7 @@ const DealDetailPage: React.FC = () => {
                 <TabsContent value="tasks" className="mt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Tasks</h3>
-                    <Button size="sm">
+                    <Button size="sm" onClick={() => navigate('/tasks?create=1')}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Task
                     </Button>
@@ -820,105 +784,38 @@ const DealDetailPage: React.FC = () => {
                 <TabsContent value="documents" className="mt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Documents</h3>
-                    <Button size="sm">
+                    <Button size="sm" onClick={()=>navigate('/contracts')}>
                       <Upload className="h-4 w-4 mr-2" />
                       Upload Document
                     </Button>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-8 w-8 text-blue-600" />
-                        <div>
-                          <h4 className="font-medium">Proposal_v1.pdf</h4>
-                          <Badge variant="outline">Sent</Badge>
-                        </div>
+                    {linked.documents === null ? <p>Documents not available.</p> : linked.documents.length === 0 ? <p>No documents recorded for this deal.</p> : linked.documents.map(document => (
+                      <div key={String(document.id)} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-3"><FileText className="h-8 w-8 text-blue-600" /><div><h4 className="font-medium">{String(document.name)}</h4><Badge variant="outline">{String(document.status ?? 'Unknown')}</Badge></div></div>
+                        <div className="text-sm text-gray-600">{String(document.created_at ?? '')}</div>
+                        <div className="flex items-center space-x-2"><Button variant="outline" size="sm" onClick={()=>navigate('/contracts')}><Eye className="h-4 w-4 mr-1" />View</Button></div>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        Sent on {new Date().toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-8 w-8 text-green-600" />
-                        <div>
-                          <h4 className="font-medium">Contract_Draft.pdf</h4>
-                          <Badge variant="outline">Draft</Badge>
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Created on {new Date().toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Send className="h-4 w-4 mr-1" />
-                          Send
-                        </Button>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </TabsContent>
 
                 <TabsContent value="payments" className="mt-6">
                   <h3 className="text-lg font-semibold mb-4">Payment Timeline</h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
-                      <div>
-                        <h4 className="font-medium">First Payment (30%)</h4>
-                        <p className="text-sm text-gray-600">Due immediately upon contract signing</p>
+                    {linked.schedules === null ? <p>Payment schedule not available.</p> : linked.schedules.length === 0 ? <p>No payment schedule recorded.</p> : linked.schedules.map(schedule => (
+                      <div key={String(schedule.id)} className="flex items-center justify-between p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
+                        <div><h4 className="font-medium">{String(schedule.name)}</h4><p className="text-sm text-gray-600">Due: {String(schedule.due_date ?? 'Not specified')}</p></div>
+                        <div className="text-right"><div className="font-semibold text-blue-600">{schedule.amount == null ? 'Not available' : formatAmount(Number(schedule.amount))}</div><Badge variant="outline">{String(schedule.status ?? 'Unknown')}</Badge></div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-blue-600">
-                          {formatAmount((deal.total_amount || deal.deal_value) * 0.3)}
-                        </div>
-                        <Badge variant="outline">Pending</Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 border-l-4 border-yellow-500 bg-yellow-50 rounded-r-lg">
-                      <div>
-                        <h4 className="font-medium">Second Payment (40%)</h4>
-                        <p className="text-sm text-gray-600">Due 6 months after first payment</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-yellow-600">
-                          {formatAmount((deal.total_amount || deal.deal_value) * 0.4)}
-                        </div>
-                        <Badge variant="outline">Scheduled</Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 border-l-4 border-green-500 bg-green-50 rounded-r-lg">
-                      <div>
-                        <h4 className="font-medium">Final Payment (30%)</h4>
-                        <p className="text-sm text-gray-600">Due 9 months after first payment</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-green-600">
-                          {formatAmount((deal.total_amount || deal.deal_value) * 0.3)}
-                        </div>
-                        <Badge variant="outline">Scheduled</Badge>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </TabsContent>
 
                 <TabsContent value="tickets" className="mt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Support Tickets</h3>
-                    <Button size="sm">
+                    <Button size="sm" onClick={() => navigate('/tickets')}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create Ticket
                     </Button>
@@ -963,7 +860,7 @@ const DealDetailPage: React.FC = () => {
                         <span className="text-sm">{client.address}</span>
                       </div>
                     )}
-                    <Button variant="outline" size="sm" className="w-full">
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/clients/' + deal.client_id)}>
                       View Client Profile
                     </Button>
                   </div>

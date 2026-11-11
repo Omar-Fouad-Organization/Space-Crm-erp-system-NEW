@@ -45,6 +45,10 @@ class B2BScheduler
                     DB::table('b2b_slots')->where('meeting_id',$old->id)->delete();
                 } else { abort_if(!empty($v['meeting_id']),404); }
                 $data=['match_id'=>$m->id,'exhibition_id'=>$m->exhibition_id,'buyer_representative_id'=>$v['buyer_representative_id'],'exhibitor_representative_id'=>$v['exhibitor_representative_id'],'location_id'=>$v['location_id'],'starts_at'=>$start,'ends_at'=>$end,'status'=>'scheduled','version'=>$old?$old->version+1:1,'updated_at'=>now()];
+                if (config('b2b.onsite_enabled') && $old) {
+                    abort_if($old->status==='in_progress',422,'An in-progress meeting cannot be rescheduled.');
+                    $data=[...$data,'booking_revision'=>$old->booking_revision+1,'started_at'=>null,'completed_at'=>null,'outcome_code'=>null,'outcome_published'=>false];
+                }
                 if ($old) { $id=$old->id; DB::table('b2b_meetings')->where('id',$id)->update($data); }
                 else { $id=DB::table('b2b_meetings')->insertGetId([...$data,'created_at'=>now()]); }
                 $resources=[['person',$people[0]],['person',$people[1]],['location',$v['location_id']]];
@@ -78,6 +82,7 @@ class B2BScheduler
             DB::table('b2b_programs')->where('exhibition_id',$preview->exhibition_id)->lockForUpdate()->first();
             $m=$this->access->match($preview->match_id,$user,true);
             $meeting=DB::table('b2b_meetings')->where('id',$id)->lockForUpdate()->first(); abort_unless($meeting->version==$v['version'],409);
+            abort_if(config('b2b.onsite_enabled') && in_array($v['status'],['in_progress','completed','no_show'],true) && $v['status']!==$meeting->status,422,'Use the audited on-site operations endpoint for attendance, start and completion.');
             $allowed=['scheduled'=>['confirmed','cancelled'],'confirmed'=>['in_progress','cancelled','no_show'],'in_progress'=>['completed','cancelled','no_show'],'completed'=>['completed'],'no_show'=>['no_show'],'cancelled'=>[]];
             abort_unless(in_array($v['status'],$allowed[$meeting->status],true),422,'Invalid meeting status transition.');
             if ($v['status']!=='cancelled' && !in_array($meeting->status,['completed','no_show'],true)) { $this->workflow->current($m,$user); abort_unless($m->status==='mutually_accepted',422); }

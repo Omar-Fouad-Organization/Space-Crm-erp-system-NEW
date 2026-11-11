@@ -26,7 +26,7 @@ class B2BController extends Controller
         $meeting=DB::table('b2b_meetings')->whereIn('match_id',(clone $matches)->select('id'));
         $program=DB::table('b2b_programs')->where('exhibition_id',$event)->first();
         if ($program) { foreach (['weights','bands','meeting_dates'] as $key) { $program->$key=json_decode($program->$key,true); } }
-        $out=['program'=>$program,'categories'=>DB::table('b2b_categories')->where('exhibition_id',$event)->get(),'locations'=>DB::table('b2b_locations')->where('exhibition_id',$event)->get()];
+        $out=['onsite_enabled'=>(bool)config('b2b.onsite_enabled'),'program'=>$program,'categories'=>DB::table('b2b_categories')->where('exhibition_id',$event)->get(),'locations'=>DB::table('b2b_locations')->where('exhibition_id',$event)->get()];
         if ($this->policy->allows('b2b.programs.manage',$user)) {
             $people=DB::table('b2b_representatives')->whereIn('participant_id',(clone $p)->select('id'))->select('person_id');
             $out['windows']=DB::table('b2b_windows')->where('exhibition_id',$event)->where(fn($q)=>$q->whereNull('person_id')->orWhereIn('person_id',$people))->orderByDesc('id')->limit(100)->get();
@@ -45,7 +45,7 @@ class B2BController extends Controller
                     $counts[$status]=($counts[$status]??0)+1;
                 }
                 $out['meeting_counts']=array_map(fn($status,$count)=>compact('status','count'),array_keys($counts),array_values($counts));
-                if ($this->policy->allows('b2b.results.view',$user)) { $out['pending_coordination']=(clone $meeting)->where('followup_status','pending')->count(); }
+                if ($this->policy->allows('b2b.results.view',$user)) { $out['pending_coordination']=app(\App\Services\B2BFollowupTasks::class)->pendingCount($meeting,$user); }
             }
             $out['counts']['concierge_entitlements']=DB::table('b2b_concierge')->where('active',true)->whereIn('participant_id',$participants->filter(fn($x)=>$x->kind==='exhibitor' && $this->access->eligible($x))->pluck('id'))->count();
             if ($this->policy->allows('b2b.meetings.view',$user) && $program && $program->dates_approved) {
@@ -78,8 +78,10 @@ class B2BController extends Controller
             foreach ($out['data'] as $row) {
                 $m=$this->access->match($row->match_id,$user);
                 $row->eligibility_hold=$m->rule_version!==\App\Services\B2BMatching::VERSION || !$this->access->eligible($this->access->participant($m->buyer_id,$user)) || !$this->access->eligible($this->access->participant($m->exhibitor_id,$user));
+                if (!$this->policy->allows('b2b.results.view',$user) && !$this->policy->allows('b2b.onsite.view',$user)) { unset($row->outcome_code,$row->outcome_published); }
                 if (!$this->policy->allows('b2b.results.view',$user)) { unset($row->result,$row->followup_user_id,$row->followup_due,$row->followup_status); }
                 elseif ($row->result) { $row->result=B2BProfiles::open($row->result)['notes']; }
+                foreach (app(\App\Services\B2BFollowupTasks::class)->projection($row,$user) as $key=>$value) $row->$key=$value;
             }
         }
         $out['total']=$rows->total(); $out['last_page']=$rows->lastPage(); return $out;

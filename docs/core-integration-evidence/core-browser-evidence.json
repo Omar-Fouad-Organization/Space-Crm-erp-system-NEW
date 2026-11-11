@@ -1,0 +1,48 @@
+{
+  "synthetic_only": true,
+  "erp_cms_to_public": {
+    "home_english": true,
+    "home_arabic": true,
+    "seo_title_description": true,
+    "uploaded_image_loaded": true,
+    "contact_email": true,
+    "exhibitors_sponsors_headings": true,
+    "additional_pages": [
+      {
+        "page": "sectors",
+        "passed": true
+      },
+      {
+        "page": "visitors",
+        "passed": true
+      },
+      {
+        "page": "contact",
+        "passed": true
+      },
+      {
+        "page": "content",
+        "passed": true
+      }
+    ],
+    "sponsor_package_edit": true,
+    "inactive_package_hidden": true,
+    "reactivation_visible": true
+  },
+  "erp_client": {
+    "actual_deals": 2,
+    "actual_receipts": 2,
+    "linked_document": true,
+    "empty_tickets": true,
+    "existing_editor_opened": true
+  },
+  "erp_deal": {
+    "actual_booth": true,
+    "irregular_schedules": true,
+    "correct_USD": true,
+    "zero_commission_preserved": true,
+    "actual_document": true,
+    "task_creation_dialog": true,
+    "client_navigation": true
+  }
+}

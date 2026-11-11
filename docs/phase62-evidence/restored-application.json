@@ -1,0 +1,14 @@
+{
+    "restored_application_keys_decrypt_payloads": true,
+    "historical_commands_replayed": 6,
+    "outbox_count_unchanged": true,
+    "outbound_http_blocked": true,
+    "confirmed_meetings_retained": 2,
+    "invitation_delivery_states": [
+        {
+            "state": "sandbox_accepted",
+            "n": 4
+        }
+    ],
+    "pending_worker_replay": "Not run: workers paused; authorization and outcome reconciliation required"
+}

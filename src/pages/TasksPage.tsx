@@ -1,3 +1,4 @@
+import {Link,useSearchParams} from 'react-router-dom';
 import {WorkflowLinks} from '@/components/workspace/WorkflowLinks';
 import {useQuickCreate} from '@/hooks/useQuickCreate';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
@@ -122,6 +123,7 @@ const getStatusIcon = (status: string, type: 'task' | 'ticket') => {
 };
 
 export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
+  const [taskQuery]=useSearchParams();
   const [editingTask,setEditingTask]=useState<any>(null);
   const [editingTicket,setEditingTicket]=useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -133,7 +135,7 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
   useQuickCreate(()=>setShowCreateTaskDialog(true));
   const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
 
-  React.useEffect(()=>{Promise.all([apiAll('tasks'),apiAll('tickets')]).then(([tasks,tickets])=>{setTasks(tasks);setTickets(tickets);}).catch(error=>toast({title:'Unable to load tasks',description:error.message,variant:'destructive'}));},[]);
+  React.useEffect(()=>{apiMetadata().then(m=>Promise.all(['tasks','tickets'].map(r=>m.resources[r]?apiAll(r):Promise.resolve([])))).then(([tasks,tickets])=>{setTasks(tasks);setTickets(tickets);}).catch(error=>toast({title:'Unable to load tasks',description:error.message,variant:'destructive'}));},[]);
   const changeStatus=async(resource:string,row:any,status:string)=>{try{const updated=await apiSave(resource,{status},row.id);(resource==='tasks'?setTasks:setTickets)(prev=>prev.map(r=>r.id===row.id?updated:r));}catch(error){toast({title:'Update failed',description:(error as Error).message,variant:'destructive'});}};
   const deleteRecord=async(resource:string,row:any)=>{try{await apiRemove(resource,row.id);(resource==='tasks'?setTasks:setTickets)(prev=>prev.filter(r=>r.id!==row.id));}catch(error){toast({title:'Delete failed',description:(error as Error).message,variant:'destructive'});}};
   const filteredTasks = tasks.filter(task => {
@@ -142,7 +144,7 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
 
-    return matchesSearch && matchesStatus && matchesPriority;
+    return (!taskQuery.get('task')||task.id===taskQuery.get('task')) && matchesSearch && matchesStatus && matchesPriority;
   });
 
   const filteredTickets = tickets.filter(ticket => {
@@ -308,6 +310,7 @@ export default function TasksPage({initialTab='tasks'}:{initialTab?:string}) {
                       <TableCell>
                         <div>
                           <p className="font-medium text-crm-primary-text">{task.title}</p>
+                          {task.b2b_source&&<Link to={'/b2b/overview?exhibition_id='+task.b2b_source.exhibition_id+'&meeting_id='+task.b2b_source.meeting_id+'&day='+task.b2b_source.day}>B2B meeting #{task.b2b_source.meeting_id}</Link>}
                           {task.description && (
                             <p className="text-sm text-crm-secondary-text mt-1">{task.description}</p>
                           )}

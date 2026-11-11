@@ -56,6 +56,11 @@ class PermissionRegistry
             'system.reminders' => ['Administration', 'Run reminder dispatcher', ['super_admin'], true],
         ];
         foreach ($definitions as $key => $definition) $registry[$key] = $this->entry(...$definition);
+        foreach (['view', 'draft', 'approve', 'progress', 'verify'] as $action) {
+            $roles = in_array($action, ['approve', 'verify'], true)
+                ? ['super_admin', 'management'] : ['super_admin', 'management', 'operations'];
+            $registry['sponsor_delivery.'.$action] = $this->entry('Sponsorship Deliverables', ucfirst($action), $roles);
+        }
         foreach (['upload', 'download', 'delete'] as $action) {
             $roles = $registry['documents.'.($action === 'download' ? 'view' : 'edit')]['roles'];
             $registry['documents.attachments.'.$action] = $this->entry('Documents', ucfirst($action).' private attachments', $roles);
@@ -95,6 +100,16 @@ class PermissionRegistry
         foreach (['view','programs.manage','profiles.manage','buyers.view','buyers.manage','participations.confirm','qualifications.review','qualifications.approve','concierge.manage','matches.view','matches.manage','matches.approve','meetings.view','meetings.schedule','meetings.manage','results.view','results.manage','export'] as $action) {
             $registry['b2b.'.$action] = [...$this->entry('B2B Management', ucfirst(str_replace('.', ' ', $action)), ['super_admin']), 'feature'=>'b2b'];
         }
+        foreach (['readiness.view','readiness.configure','readiness.review','readiness.handover'] as $action) {
+            $registry['b2b.'.$action] = [...$this->entry('Exhibitor Operations', $action, ['super_admin']), 'feature'=>'b2b'];
+        }
+        foreach (['hosted.view','hosted.nominate','hosted.approve','hosted.revoke','onsite.view','onsite.attendance','onsite.start','onsite.complete','onsite.publish'] as $action) {
+            $registry['b2b.'.$action] = [...$this->entry('Hosted & On-site B2B', $action, ['super_admin']), 'feature'=>'b2b'];
+        }
+        foreach(['users.view','invitations.manage','access.revoke','profiles.review','requests.manage','audit.view'] as $action){
+            $registry['b2b.portal.'.$action]=[...$this->entry('Participant Portals',$action,['super_admin']),'feature'=>'b2b'];
+        }
+        $registry['b2b.portal.accounts.deactivate']=[...$this->entry('Participant Portals','Deactivate an external identity globally',['super_admin'],true),'feature'=>'b2b'];
         return $registry;
     }
 

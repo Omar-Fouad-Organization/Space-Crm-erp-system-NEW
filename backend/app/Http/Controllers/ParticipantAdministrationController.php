@@ -1,0 +1,111 @@
+<?php
+namespace App\Http\Controllers;
+use App\Services\{B2BAccess,B2BProfiles,ParticipantAuthority,PermissionPolicy,ParticipantInvitations};
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\{DB,Validator};
+use Illuminate\Support\Str;
+class ParticipantAdministrationController extends Controller
+{
+    public function __construct(private ParticipantInvitations $invitations) {}
+
+    private function authorize(Request $r,string $action):void
+    {
+        abort_unless(config('participant_portal.enabled'),503);
+        app(B2BAccess::class)->authorize('view',$r->user());app(PermissionPolicy::class)->authorize('b2b.portal.'.$action,$r->user());
+    }
+    public function index(Request $r)
+    {
+        $this->authorize($r,'users.view');$v=$r->validate(['exhibition_id'=>'required|integer','page'=>'sometimes|integer|min:1|max:10000']);app(B2BAccess::class)->event($v['exhibition_id'],$r->user());
+        $ids=app(B2BAccess::class)->participants($r->user())->where('exhibition_id',$v['exhibition_id'])->select('id');$offset=(($v['page']??1)-1)*25;
+        $invitations = DB::table('portal_access_invitations')->whereIn('participant_id', $ids)->orderByDesc('created_at')->orderBy('id')->offset($offset)->limit(25)->get(['id','participant_id','email','role','expires_at','revoked_at','redeemed_at','redeemed_identity_id','status','proof_channel','generation']);
+        $deliveries = DB::table('portal_invitation_deliveries as d')->join('portal_access_invitations as i','i.id','=','d.invitation_id')->whereIn('i.id',$invitations->pluck('id'))->whereColumn('d.generation','i.generation')->get(['d.id','d.invitation_id','d.state','d.attempts','d.provider_reference','d.failure_code','d.next_attempt_at'])->keyBy('invitation_id');
+        foreach ($invitations as $invitation) {
+            $invitation->status = $invitation->revoked_at ? 'revoked' : (($invitation->redeemed_at || $invitation->redeemed_identity_id) ? 'redeemed' : (now()->gte($invitation->expires_at) ? 'expired' : 'issued'));
+            $invitation->delivery = $deliveries->get($invitation->id);
+        }
+        return ['memberships'=>DB::table('portal_memberships')->whereIn('participant_id',$ids)->offset($offset)->limit(25)->get(['id','participant_id','role','status','revoked_at']),
+            'amendments'=>DB::table('portal_amendments')->whereIn('participant_id',$ids)->offset($offset)->limit(25)->get(['id','participant_id','profile_version','status','created_at']),
+            'invitations'=>$invitations,
+            'requests'=>DB::table('portal_requests as r')->join('portal_memberships as m','m.id','=','r.membership_id')->whereIn('m.participant_id',$ids)->offset($offset)->limit(25)->get(['r.id','r.kind','r.target_id','r.status','r.version','m.participant_id'])];
+    }
+    public function command(Request $r)
+    {
+        $v=$r->validate(['action'=>'required|in:invite,revoke,invitation.revoke,publish,amendment.review,request.review,identity.deactivate,invitation.resend,invitation.reissue,invitation.reconcile','participant_id'=>'required|integer','payload'=>'required|array']);
+        $permission=match($v['action']){'identity.deactivate'=>'accounts.deactivate','invite','invitation.resend','invitation.reissue','invitation.reconcile'=>'invitations.manage','revoke','invitation.revoke'=>'access.revoke','request.review'=>'requests.manage',default=>'profiles.review'};
+        $this->authorize($r,$permission);
+        return DB::transaction(function()use($v,$r){
+            if($v['action']==='identity.deactivate'){$id=Validator::make($v['payload'],['id'=>'required|uuid'])->validate()['id'];$member=DB::table('portal_memberships')->where('id',$id)->where('participant_id',$v['participant_id'])->first();abort_unless($member,404);DB::table('portal_identity_controls')->where('identity_id',$member->identity_id)->lockForUpdate()->first();}
+            $p=app(B2BAccess::class)->participant($v['participant_id'],$r->user(),true);$a=$v['payload'];
+            if ($v['action'] === 'invite') {
+                $input = Validator::make($a, ['email'=>'required|email|max:255','role'=>'required|in:owner,editor,coordinator,reader','evidence'=>'required|string|min:10|max:2000','locale'=>'sometimes|in:en,ar','regrant_membership_id'=>'nullable|uuid'])->validate();
+                return response()->json($this->invitations->issue($p, $r->user(), $input))->header('Cache-Control', 'no-store');
+            }
+            if (in_array($v['action'], ['invitation.resend', 'invitation.reissue', 'invitation.reconcile'], true)) {
+                $input = Validator::make($a, ['id'=>'required|uuid','reason'=>'required|string|min:10|max:2000','state'=>'sometimes|nullable|in:failed,bounced,delivery_unknown'])->validate();
+                $invitation = DB::table('portal_access_invitations')->where('id', $input['id'])->where('participant_id', $p->id)->lockForUpdate()->first();
+                abort_unless($invitation, 404);
+                if ($v['action'] === 'invitation.resend') {
+                    return $this->invitations->resend($p, $r->user(), $invitation->id, $input['reason']);
+                }
+                if ($v['action'] === 'invitation.reissue') {
+                    abort_unless(!$invitation->revoked_at && !$invitation->redeemed_identity_id && now()->gte($invitation->expires_at), 409, 'Only an expired unused invitation may be reissued.');
+                    return $this->invitations->issue($p, $r->user(), ['email'=>$invitation->email,'role'=>$invitation->role,'locale'=>$invitation->locale??'en','evidence'=>$input['reason']], $invitation->id);
+                }
+                abort_unless(isset($input['state']), 422);
+                $this->invitations->reconcile($invitation->id, $r->user()->id, $input['state'], $input['reason']);
+                return ['saved'=>true];
+            }
+            if($v['action']==='revoke' || $v['action']==='invitation.revoke'){
+                $a=Validator::make($a,['id'=>'required|uuid'])->validate();$table=$v['action']==='revoke'?'portal_memberships':'portal_access_invitations';
+                $query=DB::table($table)->where('id',$a['id'])->where('participant_id',$p->id);abort_unless($query->exists(),404);
+                if ($table === 'portal_access_invitations') { $this->invitations->revoke($a['id'], $r->user()->id); }
+                $query->update(['revoked_at'=>now(),'updated_at'=>now(),...($table==='portal_memberships'?['status'=>'revoked']:[])]);
+            }
+            if($v['action']==='identity.deactivate'){
+                $a=Validator::make($a,['id'=>'required|uuid','reason'=>'required|string|max:2000'])->validate();$member=DB::table('portal_memberships')->where('id',$a['id'])->where('participant_id',$p->id)->first();abort_unless($member,404);DB::table('portal_identity_controls')->updateOrInsert(['identity_id'=>$member->identity_id],['disabled_at'=>now(),'reason'=>B2BProfiles::seal(['reason'=>$a['reason']]),'reviewed_by'=>$r->user()->id,'created_at'=>now(),'updated_at'=>now()]);
+            }
+            if($v['action']==='publish'){
+                $a=Validator::make($a,['published'=>'required|boolean','profile_version'=>'required|integer'])->validate();abort_unless($a['profile_version']==$p->profile_version && app(B2BAccess::class)->eligible($p,false,true),409);
+                $profile=B2BProfiles::open($p->profile);$terms=[$profile['name_en'],$profile['name_ar'],$profile['industry']??''];foreach(array_filter($profile['products']??[],fn($product)=>($product['visibility']??'published')==='published') as $product)$terms[]=($product['name_en']??'').' '.($product['name_ar']??'').' '.($product['description_en']??'').' '.($product['description_ar']??'');foreach($profile['categories'] as $category)$terms[]='category:'.$category.':';
+                DB::table('portal_publications')->updateOrInsert(['participant_id'=>$p->id],['profile_version'=>$p->profile_version,'published'=>$a['published'],'categories'=>json_encode($profile['categories']),'country'=>$profile['country']??null,'sector'=>$profile['industry']??null,'search_text'=>mb_substr(implode(' ',$terms),0,12000),'reviewed_by'=>$r->user()->id,'created_at'=>now(),'updated_at'=>now()]);
+            }
+            if($v['action']==='request.review'){
+                $a=Validator::make($a,['id'=>'required|uuid','status'=>'required|in:acknowledged,rejected,coordinated','version'=>'required|integer|min:1','reason'=>'required|string|max:2000'])->validate();
+                $q=DB::table('portal_requests')->where('id',$a['id'])->whereIn('membership_id',DB::table('portal_memberships')->where('participant_id',$p->id)->select('id'))->where('exhibition_id',$p->exhibition_id); $request=$q->lockForUpdate()->first();abort_unless($request,404);abort_unless($request->version==$a['version'] && in_array($request->status,['submitted','acknowledged'],true),409,'Organizer request changed or already resolved.');
+                $q->update(['status'=>$a['status'],'version'=>$request->version+1,'updated_at'=>now()]);
+                // Acknowledgment never changes bookings; staff must use the existing scheduler separately.
+            }
+            if($v['action']==='amendment.review'){
+                $a=Validator::make($a,['id'=>'required|uuid','decision'=>'required|in:approved,changes_requested,rejected','reason'=>'required|string|max:2000','profile'=>'sometimes|array'])->validate();
+                $draft=DB::table('portal_amendments')->where('id',$a['id'])->where('participant_id',$p->id)->lockForUpdate()->first();abort_unless($draft && $draft->status==='submitted' && $draft->profile_version==$p->profile_version,409);
+                if($a['decision']==='approved')app(B2BProfiles::class)->update($p->id,['version'=>$p->version,'status'=>$p->status,'profile'=>$a['profile']??B2BProfiles::open($draft->payload),'reason'=>$a['reason']],$r->user());
+                DB::table('portal_amendments')->where('id',$draft->id)->update(['status'=>$a['decision'],'version'=>$draft->version+1,'review_note'=>B2BProfiles::seal(['reason'=>$a['reason']]),'reviewed_by'=>$r->user()->id,'updated_at'=>now()]);
+            }
+            app(B2BProfiles::class)->audit($p->exhibition_id,'b2b_participants',$p->id,'portal_'.$v['action'],$r->user(),['payload'=>array_diff_key($a,['profile'=>true])]);return ['saved'=>true];
+        },3);
+    }
+    public function amendment(Request $r,string $id)
+    {
+        $this->authorize($r,'profiles.review');$a=DB::table('portal_amendments')->where('id',$id)->first();abort_unless($a,404);app(B2BAccess::class)->participant($a->participant_id,$r->user());
+        return response()->json(['id'=>$id,'profile'=>B2BProfiles::open($a->payload),'status'=>$a->status,'profile_version'=>$a->profile_version])->header('Cache-Control','no-store');
+    }
+    public function requestDetails(Request $r,string $id)
+    {
+        $this->authorize($r,'requests.manage');$row=DB::table('portal_requests')->where('id',$id)->first();abort_unless($row,404);$m=DB::table('portal_memberships')->where('id',$row->membership_id)->first();abort_unless($m,404);app(B2BAccess::class)->participant($m->participant_id,$r->user());return ['id'=>$id,'participant_id'=>$m->participant_id,'kind'=>$row->kind,'status'=>$row->status,'version'=>$row->version,'payload'=>B2BProfiles::open($row->payload)];
+    }
+    public function file(Request $r,string $id,string $file)
+    {
+        $this->authorize($r,'profiles.review');$draft=DB::table('portal_amendments')->where('id',$id)->first();abort_unless($draft,404);$p=app(B2BAccess::class)->participant($draft->participant_id,$r->user());$profile=B2BProfiles::open($draft->payload);
+        $ids=[...array_column($profile['products']??[],'media_id'),...array_column($profile['certifications']??[],'media_id'),$profile['logo_media_id']??null];abort_unless(in_array($file,$ids,true),404);
+        [$raw,$mime]=app(\App\Services\ParticipantMedia::class)->read(['file_id'=>$file,'participant_id'=>$p->id,'membership_id'=>$draft->membership_id,'exhibition_id'=>$p->exhibition_id,'employee_id'=>$r->user()->id]);
+        app(B2BProfiles::class)->audit($p->exhibition_id,'b2b_participants',$p->id,'portal_private_media_read',$r->user(),['amendment_id'=>$id,'file_id'=>$file]);
+        return response($raw)->withHeaders(['Content-Type'=>$mime,'Content-Disposition'=>'attachment; filename="review-evidence"','Cache-Control'=>'no-store, private','X-Content-Type-Options'=>'nosniff','Content-Security-Policy'=>"default-src 'none'; sandbox"]);
+    }
+    public function audit(Request $r)
+    {
+        $this->authorize($r,'audit.view');$v=$r->validate(['exhibition_id'=>'required|integer','page'=>'sometimes|integer|min:1|max:10000']);app(B2BAccess::class)->event($v['exhibition_id'],$r->user());
+        $participants=app(B2BAccess::class)->participants($r->user())->where('exhibition_id',$v['exhibition_id'])->select('id');$memberships=DB::table('portal_memberships')->whereIn('participant_id',$participants)->select('id');$offset=(($v['page']??1)-1)*25;
+        return response()->json(['items'=>DB::table('portal_activity')->where('exhibition_id',$v['exhibition_id'])->whereIn('membership_id',$memberships)->orderByDesc('id')->offset($offset)->limit(25)->get(['id','membership_id','identity_id','operation','command_id','created_at']),
+            'receipts'=>DB::table('portal_commands')->whereIn('membership_id',$memberships)->orderByDesc('created_at')->offset($offset)->limit(25)->get(['id','operation','created_at'])])->header('Cache-Control','no-store');
+    }
+}

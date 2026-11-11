@@ -1,0 +1,31 @@
+{
+  "synthetic_only": true,
+  "event": 1,
+  "clients": {
+    "exhibitor": 1,
+    "sponsor": 2
+  },
+  "booth": 1,
+  "cancelled_deal": 1,
+  "deal": 2,
+  "sponsor_deal": 3,
+  "package": 1,
+  "invoice": 1,
+  "commission": 2,
+  "diagnostic_relations": 155,
+  "checks": [
+    "public source replay deduplicated",
+    "staff contacted/qualified/matching review",
+    "conversion gates and replay rejected",
+    "no automatic deals",
+    "reservation conflict rejected",
+    "cancelled booth reused",
+    "1026 EGP discounted/taxed contract",
+    "123.45/902.55 receipts",
+    "overpayment rejected",
+    "75 EGP base commission settled",
+    "invoice paid",
+    "USD350 actual sponsor versus500 list price",
+    "zero orphan relations"
+  ]
+}

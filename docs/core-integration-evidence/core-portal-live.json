@@ -1,0 +1,35 @@
+{
+  "paired_real_gateway": true,
+  "roles": [
+    {
+      "role": "buyer",
+      "exhibition": 1,
+      "participant": 2,
+      "contexts": 2,
+      "curated_access": true,
+      "reads": {
+        "overview": 4,
+        "profile": 0,
+        "matches": 1,
+        "meetings": 1,
+        "activity": 8
+      }
+    },
+    {
+      "role": "exhibitor",
+      "exhibition": 1,
+      "participant": 1,
+      "contexts": 2,
+      "curated_access": false,
+      "reads": {
+        "overview": 4,
+        "profile": 0,
+        "matches": 0,
+        "meetings": 1,
+        "activity": 10
+      }
+    }
+  ],
+  "cross_identity_access": "403",
+  "mutations": "login/logout and activity cache only; no profile, commercial or meeting modification"
+}

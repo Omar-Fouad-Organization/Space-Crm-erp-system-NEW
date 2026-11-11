@@ -839,13 +839,6 @@ const Booths = () => {
         {/* Dialogs */}
 
 
-        <EditBoothDialog
-          isOpen={editDialogOpen}
-          onClose={() => setEditDialogOpen(false)}
-          onSuccess={loadBooths}
-          booth={selectedBooth}
-        />
-
         {/* Actions Dialog */}
         <Dialog open={actionsDialogOpen} onOpenChange={setActionsDialogOpen}>
           <DialogContent className="max-w-md">

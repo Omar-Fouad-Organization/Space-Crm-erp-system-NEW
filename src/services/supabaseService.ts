@@ -73,6 +73,7 @@ export interface Exhibition extends LegacyRecord {
 }
 
 export interface Booth extends LegacyRecord {
+  price: number;
   id: string;
   booth_number?: string;
   booth_code: string;

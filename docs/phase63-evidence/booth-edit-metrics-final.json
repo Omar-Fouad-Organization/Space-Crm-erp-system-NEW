@@ -1,0 +1,86 @@
+[
+  {
+    "requested": [
+      320,
+      700
+    ],
+    "clientWidth": 307,
+    "height": 700,
+    "left": 0,
+    "right": 320,
+    "scrollWidth": 307,
+    "viewport": 320
+  },
+  {
+    "requested": [
+      360,
+      800
+    ],
+    "clientWidth": 347,
+    "height": 800,
+    "left": 0,
+    "right": 360,
+    "scrollWidth": 347,
+    "viewport": 360
+  },
+  {
+    "requested": [
+      375,
+      812
+    ],
+    "clientWidth": 362,
+    "height": 812,
+    "left": 0,
+    "right": 374.92535400390625,
+    "scrollWidth": 362,
+    "viewport": 375
+  },
+  {
+    "requested": [
+      390,
+      844
+    ],
+    "clientWidth": 377,
+    "height": 844,
+    "left": 0,
+    "right": 389.8507385253906,
+    "scrollWidth": 377,
+    "viewport": 390
+  },
+  {
+    "requested": [
+      414,
+      896
+    ],
+    "clientWidth": 401,
+    "height": 896,
+    "left": 0,
+    "right": 413.7313232421875,
+    "scrollWidth": 401,
+    "viewport": 414
+  },
+  {
+    "requested": [
+      768,
+      1024
+    ],
+    "clientWidth": 755,
+    "height": 1024,
+    "left": 0,
+    "right": 767.7611694335938,
+    "scrollWidth": 755,
+    "viewport": 768
+  },
+  {
+    "requested": [
+      1280,
+      900
+    ],
+    "clientWidth": 883,
+    "height": 900,
+    "left": 192.0009307861328,
+    "right": 1087.999038696289,
+    "scrollWidth": 883,
+    "viewport": 1280
+  }
+]

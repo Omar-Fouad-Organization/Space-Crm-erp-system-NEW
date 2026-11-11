@@ -1,3 +1,4 @@
+import {operationsKey,currentOperations} from '../src/b2b/operations.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -27,4 +28,10 @@ test('Phase 5 uses existing ERP components and never imports a replacement desig
 
 test('requirement presentation distinguishes unanswered, supplied, explicitly unknown and no restriction',()=>{
  const p=blankProfile();assert.equal(requirementAnswer(p,'origin'),'unknown');p.preferred_origins=['Egypt'];assert.equal(requirementAnswer(p,'origin'),'applicable');p.requirement_states={origin:'unknown'};assert.equal(requirementAnswer(p,'origin'),'unknown');p.preferred_origins=[];p.requirement_states.origin='not_applicable';assert.equal(requirementAnswer(p,'origin'),'not_applicable');
+});
+
+test('operations section and exhibition changes never render rows from a different response contract',()=>{
+ const key=operationsKey(7,'hosted','','','','',1),old={key,value:{data:[{participant_id:19,hosted:{status:'approved'}}]}};
+ assert.equal(currentOperations(key,old),old.value);
+ for(const next of [operationsKey(7,'meetings','','','','',1),operationsKey(8,'hosted','','','','',1),operationsKey(7,'hosted','2027-01-01','','','',1),operationsKey(7,'hosted','','','','',2)])assert.equal(currentOperations(next,old),null);
 });

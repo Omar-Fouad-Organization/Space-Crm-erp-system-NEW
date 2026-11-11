@@ -1,3 +1,6 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { SponsorDeliverables } from './SponsorDeliverables';
+import {moneyGroups,totalsLabel,moneyLabel} from '@/lib/commercialViews';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {authorizeExport} from '@/crm/api';
 import {api} from '@/crm/api';
@@ -47,6 +50,8 @@ import {
 } from "lucide-react";
 
 const Sponsorship = () => {
+  const { can } = useAuth();
+  const [showDeliverables, setShowDeliverables] = useState(false);
   const { toast } = useToast();
   const { formatAmount } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,7 +83,7 @@ const Sponsorship = () => {
     loadData();
   }, []);
 
-  const loadData = async()=>{setLoading(true);try{const [expos,packages,deals]=await Promise.all([apiAll('exhibitions'),apiAll('sponsorship_packages'),apiAll('deals')]);setExpos(expos);setPackages(packages.map(p=>{const e=expos.find(x=>x.id===p.exhibition_id);return {...p,package_name:p.name,tier_level:p.tier_level||p.tier,price_egp:p.price,current_sponsors:deals.filter(d=>d.sponsorship_package_id===p.id&&d.stage==='closed_won').length,max_sponsors:p.max_sponsors||1,status:p.status||'Active',expo_id:p.exhibition_id,expo_name:e?.name||'',expo_number:e?.expo_number||'',expo_start_date:e?.start_date,expo_end_date:e?.end_date,expo_city:e?.city||'',benefits:Array.isArray(p.benefits)?p.benefits.join(', '):p.benefits};}));}catch(error){toast({title:'Load failed',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
+  const loadData = async()=>{setLoading(true);try{const meta=await apiMetadata();const read=(name:string)=>meta.resources[name]?apiAll(name):Promise.resolve([]);const [expos,packages,deals]=await Promise.all(['exhibitions','sponsorship_packages','deals'].map(read));setExpos(expos);setPackages(packages.map(p=>{const e=expos.find(x=>x.id===p.exhibition_id);return {...p,package_name:p.name,tier_level:p.tier_level||p.tier,price_egp:p.price,won_deals:meta.resources.deals?deals.filter(d=>d.sponsorship_package_id===p.id&&d.exhibition_id===p.exhibition_id&&d.stage==='closed_won'):null,current_sponsors:meta.resources.deals?deals.filter(d=>d.sponsorship_package_id===p.id&&d.stage==='closed_won').length:null,max_sponsors:p.max_sponsors??null,status:p.status||'Active',expo_id:p.exhibition_id,expo_name:e?.name||'',expo_number:e?.expo_number||'',expo_start_date:e?.start_date,expo_end_date:e?.end_date,expo_city:e?.city||'',benefits:Array.isArray(p.benefits)?p.benefits.join(', '):p.benefits};}));}catch(error){toast({title:'Load failed',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
 
   const handleCreatePackage = async () => {
     try {
@@ -273,9 +278,9 @@ const Sponsorship = () => {
     silver: packages.filter(p => p.tier_level === 'Silver').length,
     bronze: packages.filter(p => p.tier_level === 'Bronze').length,
     active: packages.filter(p => p.status === 'Active').length,
-    totalRevenue: packages.reduce((sum, pkg) => sum + (pkg.price_egp * pkg.current_sponsors || 0), 0),
-    totalSponsors: packages.reduce((sum, pkg) => sum + (pkg.current_sponsors || 0), 0),
-    availableSlots: packages.reduce((sum, pkg) => sum + ((pkg.max_sponsors || 0) - (pkg.current_sponsors || 0)), 0)
+    totalRevenue: packages.some(p=>p.won_deals===null)?null:moneyGroups(packages.flatMap(p=>p.won_deals||[])),
+    totalSponsors: packages.some(p=>p.won_deals===null)?null:new Set(packages.flatMap(p=>p.won_deals||[]).map(d=>String(d.client_id))).size,
+    availableSlots: packages.some(p=>p.max_sponsors==null||p.current_sponsors==null)?null:packages.reduce((sum,p)=>sum+Math.max(0,p.max_sponsors-p.current_sponsors),0)
   };
 
   const getTierIcon = (tier: string) => {
@@ -345,6 +350,7 @@ const Sponsorship = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          {can('sponsor_delivery.view') && can('deals.view') && can('clients.view') && can('exhibitions.view') && <Button variant="outline" size="sm" aria-expanded={showDeliverables} onClick={() => setShowDeliverables(value => !value)}>Deliverables</Button>}
           <Button onClick={exportPackages} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -356,6 +362,8 @@ const Sponsorship = () => {
         </div>
 
       </div>
+
+      {can('sponsor_delivery.view') && can('deals.view') && can('clients.view') && can('exhibitions.view') && showDeliverables && <SponsorDeliverables exhibitions={expos} />}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -400,7 +408,7 @@ const Sponsorship = () => {
                   Total Sponsors
                 </p>
                 <p className="text-2xl font-bold">
-                  {stats.totalSponsors}
+                  {stats.totalSponsors??'Not available'}
                 </p>
               </div>
               <Star className="h-4 w-4 text-purple-600 ml-auto" />
@@ -416,7 +424,7 @@ const Sponsorship = () => {
                   Available Slots
                 </p>
                 <p className="text-2xl font-bold">
-                  {stats.availableSlots}
+                  {stats.availableSlots??'Not recorded'}
                 </p>
               </div>
               <AlertCircle className="h-4 w-4 text-orange-600 ml-auto" />
@@ -432,7 +440,7 @@ const Sponsorship = () => {
                   Total Revenue
                 </p>
                 <p className="text-2xl font-bold">
-                  {formatAmount(stats.totalRevenue)}
+                  {totalsLabel(stats.totalRevenue)}
                 </p>
               </div>
               <Award className="h-4 w-4 text-green-600 ml-auto" />
@@ -618,7 +626,7 @@ const Sponsorship = () => {
                       <div>
                         <div className="font-medium">Package Price</div>
                         <div className="text-lg font-bold text-green-600">
-                          {formatAmount(pkg.price_egp || 0)}
+                          {moneyLabel(pkg.price_egp,pkg.currency)}
                         </div>
                       </div>
                     </div>
@@ -628,7 +636,7 @@ const Sponsorship = () => {
                       <div>
                         <div className="font-medium">Sponsors</div>
                         <div className="text-muted-foreground">
-                          {pkg.current_sponsors || 0}/{pkg.max_sponsors || 0}
+                          {pkg.current_sponsors??'Not available'}/{pkg.max_sponsors??'Not recorded'}
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div

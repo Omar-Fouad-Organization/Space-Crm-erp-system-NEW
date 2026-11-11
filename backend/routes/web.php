@@ -3,6 +3,14 @@ use App\Http\Controllers\CrmController;
 use App\Http\Controllers\SessionController;
 use App\Http\Middleware\CrmAuthenticated;
 use Illuminate\Support\Facades\Route;
+Route::prefix('api/participant-administration')->middleware([CrmAuthenticated::class,'throttle:60,1,portal-staff'])->group(function(){
+    Route::get('/',[\App\Http\Controllers\ParticipantAdministrationController::class,'index']);
+    Route::post('command',[\App\Http\Controllers\ParticipantAdministrationController::class,'command']);
+    Route::get('amendments/{id}',[\App\Http\Controllers\ParticipantAdministrationController::class,'amendment']);
+    Route::get('requests/{id}',[\App\Http\Controllers\ParticipantAdministrationController::class,'requestDetails']);
+    Route::get('amendments/{id}/files/{file}',[\App\Http\Controllers\ParticipantAdministrationController::class,'file']);
+    Route::get('audit',[\App\Http\Controllers\ParticipantAdministrationController::class,'audit']);
+});
 Route::prefix('api')->group(function () {
     Route::post('password/forgot',[\App\Http\Controllers\SecurityController::class,'forgot'])->middleware('throttle:3,1,crm-recovery');
     Route::post('password/reset',[\App\Http\Controllers\SecurityController::class,'reset'])->middleware('throttle:5,1,crm-reset');
@@ -54,11 +62,27 @@ Route::prefix('api')->group(function () {
     });
 });
 
+Route::prefix('api/sponsor-delivery')->middleware([CrmAuthenticated::class, 'throttle:120,1,sponsor-delivery'])->group(function () {
+    $controller = \App\Http\Controllers\SponsorDeliveryController::class;
+    Route::get('/', [$controller, 'index']);
+    Route::get('{deal}', [$controller, 'show'])->whereNumber('deal');
+    Route::get('{deal}/{item}/history', [$controller, 'history'])->whereNumber(['deal', 'item']);
+    Route::post('{deal}', [$controller, 'command'])->whereNumber('deal');
+});
+
 // Dedicated controller enforces module + action + exhibition + record scope.
 Route::prefix('api/b2b')->middleware([CrmAuthenticated::class,'throttle:120,1,b2b-staff'])->group(function () {
     $c=\App\Http\Controllers\B2BController::class;
     Route::get('/',[$c,'index']);
     Route::get('sources',[$c,'sources']);
+    Route::get('followup-tasks/{id}',[\App\Http\Controllers\B2BOperationsController::class,'followupContext'])->whereNumber('id');
+    Route::post('followup-tasks/{id}',[\App\Http\Controllers\B2BOperationsController::class,'createFollowup'])->whereNumber('id');
+    Route::get('readiness/{event}',[\App\Http\Controllers\ExhibitorReadinessController::class,'index'])->whereNumber('event');
+    Route::post('readiness/{event}/requirements',[\App\Http\Controllers\ExhibitorReadinessController::class,'configure'])->whereNumber('event');
+    Route::post('readiness/{event}/{deal}/review',[\App\Http\Controllers\ExhibitorReadinessController::class,'review'])->whereNumber(['event','deal']);
+    Route::post('readiness/{event}/{deal}/handover',[\App\Http\Controllers\ExhibitorReadinessController::class,'handover'])->whereNumber(['event','deal']);
+    Route::get('operations',[\App\Http\Controllers\B2BOperationsController::class,'index']);
+    Route::post('operations/{action}/{id}',[\App\Http\Controllers\B2BOperationsController::class,'command'])->where('action','hosted|benefit|arrival|meeting')->whereNumber('id');
     Route::get('export',[$c,'export'])->middleware('throttle:5,1,b2b-export');
     Route::get('participants/{id}',[$c,'show'])->whereNumber('id');
     Route::post('{action}/{id?}',[$c,'command'])->where('action','enroll|profile|review|decision|generate|transition|schedule|meeting|program|category|location|window|representative|concierge')->whereNumber('id');

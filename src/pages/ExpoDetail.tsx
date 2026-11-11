@@ -1,11 +1,14 @@
+import {linkedBoothDeal,exhibitionProjection,moneyLabel,totalsLabel,metricLabel,recordedMetric,type MoneyGroups} from '@/lib/commercialViews';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {api} from '@/crm/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ExhibitorReadiness from '@/b2b/ExhibitorReadiness';
+import {useAuth} from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -67,7 +70,7 @@ interface ExpoData {
   tags?: string[];
   totalBooths: number;
   bookedBooths: number;
-  totalRevenue: number;
+  totalRevenue: MoneyGroups;
   occupancyRate: number;
   sponsors: number;
   attendees: number;
@@ -78,7 +81,7 @@ interface ExpoData {
 interface ExpoAnalytics {
   total_exhibitors: number;
   total_visitors: number;
-  revenue_generated: number;
+  revenue_generated: MoneyGroups;
   satisfaction_score: number;
   lead_conversions: number;
   networking_sessions: number;
@@ -95,27 +98,23 @@ interface ExpoEvent {
 }
 
 const ExpoDetail = () => {
+  const {can} = useAuth();
   const { expoId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const loadVersion=useRef(0);
   const [loading, setLoading] = useState(true);
   const [expoData, setExpoData] = useState<ExpoData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     loadExpoData();
+    return ()=>{loadVersion.current++;};
   }, [expoId]);
 
-  const loadExpoData = async()=>{setLoading(true);try{const [expos,booths,deals]=await Promise.all([apiAll('exhibitions'),apiAll('booths'),apiAll('deals')]);const e=expos.find(e=>e.id===expoId);if(!e)throw new Error('Exhibition not found');const related=booths.filter(b=>b.exhibition_id===e.id),won=deals.filter(d=>d.exhibition_id===e.id&&d.stage==='closed_won'),booked=related.filter(b=>b.status!=='Available').length,revenue=won.reduce((n,d)=>n+Number(d.deal_value),0);setExpoData({...e,totalBooths:related.length,bookedBooths:booked,totalRevenue:revenue,occupancyRate:related.length?booked/related.length*100:0,sponsors:won.filter(d=>d.deal_type!=='booth').length,attendees:Number(e.attendees||0),tags:e.tags||[],analytics:{total_exhibitors:won.length,total_visitors:Number(e.total_visitors||0),revenue_generated:revenue,satisfaction_score:0,lead_conversions:0,networking_sessions:0},timeline:[]} as any);}catch(error){toast({title:'Exhibition unavailable',description:(error as Error).message,variant:'destructive'});}finally{setLoading(false);}};
+  const loadExpoData = async()=>{const version=++loadVersion.current;setLoading(true);setExpoData(null);try{const meta=await apiMetadata();const read=(name:string)=>meta.resources[name]?apiAll(name):Promise.resolve([]);const [expos,booths,deals]=await Promise.all(['exhibitions','booths','deals'].map(read));if(version!==loadVersion.current)return;const e=expos.find(e=>e.id===expoId);if(!e)throw new Error('Exhibition not found');const projection=exhibitionProjection(e,booths,deals);if(!meta.resources.deals){projection.totalRevenue=null;projection.sponsors=null as any;projection.exhibitors=null as any;}if(!meta.resources.booths){projection.totalBooths=null as any;projection.bookedBooths=null as any;projection.occupancyRate=null as any;}setExpoData({...e,...projection,attendees:recordedMetric(e.attendees),tags:e.tags||[],analytics:{total_exhibitors:projection.exhibitors,total_visitors:recordedMetric(e.total_visitors),revenue_generated:projection.totalRevenue,satisfaction_score:recordedMetric(e.satisfaction_score),lead_conversions:recordedMetric(e.lead_conversions),networking_sessions:recordedMetric(e.networking_sessions)},timeline:[]} as any);}catch(error){if(version===loadVersion.current)toast({title:'Exhibition unavailable',description:(error as Error).message,variant:'destructive'});}finally{if(version===loadVersion.current)setLoading(false);}};
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
-  };
+  const formatCurrency = (amount:MoneyGroups) => totalsLabel(amount);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -311,7 +310,7 @@ const ExpoDetail = () => {
                   Total Visitors
                 </p>
                 <p className="text-2xl font-bold">
-                  {expoData.analytics.total_visitors.toLocaleString()}
+                  {metricLabel(expoData.analytics.total_visitors)}
                 </p>
               </div>
               <Activity className="h-4 w-4 text-blue-600 ml-auto" />
@@ -327,7 +326,7 @@ const ExpoDetail = () => {
                   Lead Conversions
                 </p>
                 <p className="text-2xl font-bold">
-                  {expoData.analytics.lead_conversions}
+                  {metricLabel(expoData.analytics.lead_conversions)}
                 </p>
               </div>
               <Zap className="h-4 w-4 text-purple-600 ml-auto" />
@@ -343,7 +342,7 @@ const ExpoDetail = () => {
                   Networking Sessions
                 </p>
                 <p className="text-2xl font-bold">
-                  {expoData.analytics.networking_sessions}
+                  {metricLabel(expoData.analytics.networking_sessions)}
                 </p>
               </div>
               <Briefcase className="h-4 w-4 text-orange-600 ml-auto" />
@@ -359,7 +358,7 @@ const ExpoDetail = () => {
                   Satisfaction Score
                 </p>
                 <p className="text-2xl font-bold">
-                  {expoData.analytics.satisfaction_score}/5.0
+                  {metricLabel(expoData.analytics.satisfaction_score,"/5.0")}
                 </p>
               </div>
               <Award className="h-4 w-4 text-yellow-600 ml-auto" />
@@ -375,7 +374,7 @@ const ExpoDetail = () => {
                   Sponsors
                 </p>
                 <p className="text-2xl font-bold">
-                  {expoData.sponsors}
+                  {expoData.sponsors??'Not available'}
                 </p>
               </div>
               <Building2 className="h-4 w-4 text-green-600 ml-auto" />
@@ -431,12 +430,12 @@ const ExpoDetail = () => {
 
                 <div>
                   <span className="font-medium">Total Booths</span>
-                  <p className="text-muted-foreground">{expoData.totalBooths}</p>
+                  <p className="text-muted-foreground">{expoData.totalBooths??'Not available'}</p>
                 </div>
 
                 <div>
                   <span className="font-medium">Occupancy</span>
-                  <p className="text-muted-foreground">{expoData.occupancyRate.toFixed(1)}%</p>
+                  <p className="text-muted-foreground">{expoData.occupancyRate==null?'Not available':expoData.occupancyRate.toFixed(1)+'%'}</p>
                 </div>
 
               </div>
@@ -469,32 +468,32 @@ const ExpoDetail = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{expoData.analytics.total_exhibitors}</p>
+                  <p className="text-2xl font-bold">{metricLabel(expoData.analytics.total_exhibitors)}</p>
                   <p className="text-sm text-muted-foreground">Exhibitors</p>
                 </div>
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{expoData.analytics.total_visitors.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{metricLabel(expoData.analytics.total_visitors)}</p>
                   <p className="text-sm text-muted-foreground">Visitors</p>
                 </div>
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{expoData.analytics.lead_conversions}</p>
+                  <p className="text-2xl font-bold">{metricLabel(expoData.analytics.lead_conversions)}</p>
                   <p className="text-sm text-muted-foreground">Lead Conversions</p>
                 </div>
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{expoData.analytics.networking_sessions}</p>
+                  <p className="text-2xl font-bold">{metricLabel(expoData.analytics.networking_sessions)}</p>
                   <p className="text-sm text-muted-foreground">Networking Sessions</p>
                 </div>
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{expoData.analytics.satisfaction_score}/5.0</p>
+                  <p className="text-2xl font-bold">{metricLabel(expoData.analytics.satisfaction_score,"/5.0")}</p>
                   <p className="text-sm text-muted-foreground">Satisfaction Score</p>
                 </div>
 
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{expoData.sponsors}</p>
+                  <p className="text-2xl font-bold">{expoData.sponsors??'Not available'}</p>
                   <p className="text-sm text-muted-foreground">Sponsors</p>
                 </div>
 
@@ -524,24 +523,24 @@ const ExpoDetail = () => {
                 <div className="flex justify-between">
                   <span className="text-sm">Booth Occupancy:</span>
                   <span className="text-sm font-medium">
-                    {expoData.bookedBooths} / {expoData.totalBooths}
+                    {expoData.bookedBooths??'Not available'} / {expoData.totalBooths??'Not available'}
                   </span>
                 </div>
-                <Progress value={expoData.occupancyRate} className="h-2" />
+                <Progress value={expoData.occupancyRate??0} className="h-2" />
               </div>
 
               <div className="space-y-2 mt-4">
                 <div className="flex justify-between text-sm">
                   <span>Expected Attendees:</span>
-                  <span className="font-medium">{expoData.attendees.toLocaleString()}</span>
+                  <span className="font-medium">{metricLabel(expoData.attendees)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Sponsors:</span>
-                  <span className="font-medium">{expoData.sponsors}</span>
+                  <span className="font-medium">{expoData.sponsors??'Not available'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Satisfaction:</span>
-                  <span className="font-medium">{expoData.analytics.satisfaction_score}/5.0</span>
+                  <span className="font-medium">{metricLabel(expoData.analytics.satisfaction_score,"/5.0")}</span>
                 </div>
               </div>
             </CardContent>
@@ -638,6 +637,7 @@ const ExpoDetail = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="exhibitors">Exhibitors</TabsTrigger>
+          {can('b2b.readiness.view') && <TabsTrigger value="readiness">Operational readiness</TabsTrigger>}
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
@@ -664,11 +664,11 @@ const ExpoDetail = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Total Booths:</span>
-                  <span className="font-medium">{expoData.totalBooths}</span>
+                  <span className="font-medium">{expoData.totalBooths??'Not available'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Booked Booths:</span>
-                  <span className="font-medium">{expoData.bookedBooths}</span>
+                  <span className="font-medium">{expoData.bookedBooths??'Not available'}</span>
                 </div>
               </CardContent>
             </Card>
@@ -683,19 +683,19 @@ const ExpoDetail = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Occupancy Rate:</span>
-                  <span className="font-medium">{expoData.occupancyRate.toFixed(1)}%</span>
+                  <span className="font-medium">{expoData.occupancyRate==null?'Not available':expoData.occupancyRate.toFixed(1)+'%'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Expected Visitors:</span>
-                  <span className="font-medium">{expoData.attendees.toLocaleString()}</span>
+                  <span className="font-medium">{metricLabel(expoData.attendees)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Sponsors:</span>
-                  <span className="font-medium">{expoData.sponsors}</span>
+                  <span className="font-medium">{expoData.sponsors??'Not available'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Satisfaction:</span>
-                  <span className="font-medium">{expoData.analytics.satisfaction_score}/5.0</span>
+                  <span className="font-medium">{metricLabel(expoData.analytics.satisfaction_score,"/5.0")}</span>
                 </div>
               </CardContent>
             </Card>
@@ -721,6 +721,7 @@ const ExpoDetail = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        {can('b2b.readiness.view') && expoId && <TabsContent value="readiness"><ExhibitorReadiness key={expoId} event={expoId}/></TabsContent>}
         <TabsContent value="timeline" className="space-y-4">
           <Card>
             <CardHeader>
@@ -781,7 +782,7 @@ const ExpoDetail = () => {
                       Total Visitors
                     </p>
                     <p className="text-2xl font-bold">
-                      {expoData.analytics.total_visitors.toLocaleString()}
+                      {metricLabel(expoData.analytics.total_visitors)}
                     </p>
                   </div>
                   <Activity className="h-4 w-4 text-blue-600 ml-auto" />
@@ -797,7 +798,7 @@ const ExpoDetail = () => {
                       Lead Conversions
                     </p>
                     <p className="text-2xl font-bold">
-                      {expoData.analytics.lead_conversions}
+                      {metricLabel(expoData.analytics.lead_conversions)}
                     </p>
                   </div>
                   <Zap className="h-4 w-4 text-purple-600 ml-auto" />
@@ -813,7 +814,7 @@ const ExpoDetail = () => {
                       Satisfaction Score
                     </p>
                     <p className="text-2xl font-bold">
-                      {expoData.analytics.satisfaction_score}/5.0
+                      {metricLabel(expoData.analytics.satisfaction_score,"/5.0")}
                     </p>
                   </div>
                   <Award className="h-4 w-4 text-yellow-600 ml-auto" />

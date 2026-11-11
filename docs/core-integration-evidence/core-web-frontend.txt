@@ -1,0 +1,29 @@
+✔ published sponsor cards reflect CMS values and never show inactive or exhibitor packages (1.9817ms)
+✔ active exhibitors and sponsors use the existing bilingual page-content contract (7.3112ms)
+✔ CMS bindings preserve every original class attribute on affected public pages (483.1345ms)
+✔ public styles, layout components and design configuration remain identical to main baseline (3177.9703ms)
+✔ CMS content binds qualified keys without silently selecting a duplicate bare key (0.5319ms)
+✔ page SEO changes metadata without mutating the configured defaults or rendering in a loop (0.4811ms)
+✔ optional branding is a public-site-only opt-in with no application key or service token (0.3682ms)
+✔ branding accepts historical HSL and hex values while rejecting unsafe CSS (325.0112ms)
+✔ activate secret is captured in memory and synchronously stripped from navigation (1.275ms)
+✔ reset-password secret is captured in memory and synchronously stripped from navigation (0.1788ms)
+✔ malformed secrets are stripped and never retained (0.1317ms)
+✔ ordinary public routes are untouched (0.0919ms)
+✔ reduced dashboard and discovery profiles never enter the amendment editor (1.0848ms)
+✔ complete sourcing drafts preserve explicit unknown answers and isolate edits from approved data (1.1015ms)
+✔ context and page changes never share a screen identity (0.1434ms)
+✔ pending delivery and both-party acceptance never imply a confirmed booking in either language (0.3156ms)
+✔ existing sourcing requirements remain applicable unless explicitly answered unknown or not applicable (0.1662ms)
+✔ public design tokens, shared UI, header and footer remain unchanged (3081.2197ms)
+✔ buyer and visitor journeys have independent routes and use existing public components (1.9924ms)
+✔ public and server inquiry types include speaker without converting visitor interest (1.23ms)
+✔ visitor page publishes no hard-coded obsolete dates or attendance counts (0.7052ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3610.4957
