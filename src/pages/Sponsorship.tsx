@@ -1,3 +1,5 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { SponsorDeliverables } from './SponsorDeliverables';
 import {moneyGroups,totalsLabel,moneyLabel} from '@/lib/commercialViews';
 import {all as apiAll,save as apiSave,remove as apiRemove,metadata as apiMetadata} from '@/services/laravelClient';
 import {authorizeExport} from '@/crm/api';
@@ -48,6 +50,8 @@ import {
 } from "lucide-react";
 
 const Sponsorship = () => {
+  const { can } = useAuth();
+  const [showDeliverables, setShowDeliverables] = useState(false);
   const { toast } = useToast();
   const { formatAmount } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
@@ -346,6 +350,7 @@ const Sponsorship = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          {can('sponsor_delivery.view') && can('deals.view') && can('clients.view') && can('exhibitions.view') && <Button variant="outline" size="sm" aria-expanded={showDeliverables} onClick={() => setShowDeliverables(value => !value)}>Deliverables</Button>}
           <Button onClick={exportPackages} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -357,6 +362,8 @@ const Sponsorship = () => {
         </div>
 
       </div>
+
+      {can('sponsor_delivery.view') && can('deals.view') && can('clients.view') && can('exhibitions.view') && showDeliverables && <SponsorDeliverables exhibitions={expos} />}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

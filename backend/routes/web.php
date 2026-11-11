@@ -62,6 +62,14 @@ Route::prefix('api')->group(function () {
     });
 });
 
+Route::prefix('api/sponsor-delivery')->middleware([CrmAuthenticated::class, 'throttle:120,1,sponsor-delivery'])->group(function () {
+    $controller = \App\Http\Controllers\SponsorDeliveryController::class;
+    Route::get('/', [$controller, 'index']);
+    Route::get('{deal}', [$controller, 'show'])->whereNumber('deal');
+    Route::get('{deal}/{item}/history', [$controller, 'history'])->whereNumber(['deal', 'item']);
+    Route::post('{deal}', [$controller, 'command'])->whereNumber('deal');
+});
+
 // Dedicated controller enforces module + action + exhibition + record scope.
 Route::prefix('api/b2b')->middleware([CrmAuthenticated::class,'throttle:120,1,b2b-staff'])->group(function () {
     $c=\App\Http\Controllers\B2BController::class;

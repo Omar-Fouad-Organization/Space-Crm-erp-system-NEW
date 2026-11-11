@@ -56,6 +56,11 @@ class PermissionRegistry
             'system.reminders' => ['Administration', 'Run reminder dispatcher', ['super_admin'], true],
         ];
         foreach ($definitions as $key => $definition) $registry[$key] = $this->entry(...$definition);
+        foreach (['view', 'draft', 'approve', 'progress', 'verify'] as $action) {
+            $roles = in_array($action, ['approve', 'verify'], true)
+                ? ['super_admin', 'management'] : ['super_admin', 'management', 'operations'];
+            $registry['sponsor_delivery.'.$action] = $this->entry('Sponsorship Deliverables', ucfirst($action), $roles);
+        }
         foreach (['upload', 'download', 'delete'] as $action) {
             $roles = $registry['documents.'.($action === 'download' ? 'view' : 'edit')]['roles'];
             $registry['documents.attachments.'.$action] = $this->entry('Documents', ucfirst($action).' private attachments', $roles);
