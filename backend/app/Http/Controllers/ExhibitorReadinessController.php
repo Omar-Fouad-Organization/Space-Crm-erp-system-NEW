@@ -74,7 +74,8 @@ class ExhibitorReadinessController extends Controller
             abort_unless($record, 404);
             abort_unless((int) $data['booth_id'] === $record->booth_id && (int) $data['client_id'] === $record->client_id, 409, 'The booth allocation changed. Refresh first.');
             DB::table('booths')->where('id', $record->booth_id)->lockForUpdate()->first();
-            $prior = DB::table('readiness_handovers')->where('deal_id', $deal)->orWhere('booth_id', $record->booth_id)->first();
+            $prior = DB::table('readiness_handovers')->where('deal_id', $deal)
+                ->orWhere('booth_id', $record->booth_id)->lockForUpdate()->first();
             if ($prior) {
                 abort_unless($prior->deal_id === $deal && $prior->booth_id === $record->booth_id && $prior->client_id === $record->client_id, 409, 'A different handover is already recorded.');
                 return ['id' => $prior->id, 'created_at' => $prior->created_at];
